@@ -80,17 +80,24 @@ export default function PurchaseSlip({ receipt, onClose }: Props) {
           </div>
 
           {/* Slip Content */}
-          <div className="px-6 py-6" id="purchase-slip">
-            {/* Slip ID */}
-            <div className="flex items-center justify-between mb-5 pb-4 border-b border-dashed border-slate-200 print:border-black">
-              <div>
-                <span className="text-sm font-bold text-forest-800 block print:hidden">
-                  FARMER ERP PVT. LTD.
-                </span>
-                <span className="text-xs text-slate-500 print:text-black">
-                  Agent: {receipt.agentName || "Agent"}
-                </span>
+          <div className="px-6 py-6 relative" id="purchase-slip">
+            {/* Watermark for anti-copy */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden opacity-30 print:opacity-[0.15]">
+              <div className="transform -rotate-45 text-4xl sm:text-6xl font-black text-slate-300 tracking-widest whitespace-nowrap">
+                OFFICIAL RECEIPT
               </div>
+            </div>
+
+            {/* Slip ID */}
+            <div className="flex items-center justify-between mb-5 pb-4 border-b border-dashed border-slate-200 print:border-black relative z-10">
+              <div className="relative z-10">
+              <span className="text-sm font-bold text-forest-800 block print:hidden">
+                FARMER ERP PVT. LTD.
+              </span>
+              <span className="text-xs text-slate-500 font-medium print:text-black">
+                Authorized Agent: {receipt.agentName || "Agent"}
+              </span>
+            </div>
               <div className="text-right">
                 <p className="text-xs text-slate-400 print:text-black">Slip ID</p>
                 <p className="text-sm font-mono font-bold text-slate-800 print:text-black">
@@ -100,7 +107,7 @@ export default function PurchaseSlip({ receipt, onClose }: Props) {
             </div>
 
             {/* Details */}
-            <div className="space-y-3.5">
+            <div className="space-y-3.5 relative z-10">
               <div className="flex justify-between items-center">
                 <span className="text-xs text-slate-500 print:text-black">Date & Time</span>
                 <span className="text-xs font-medium text-slate-700 print:text-black">

@@ -135,18 +135,22 @@ export default function ReceiptPage() {
         </div>
 
         {/* Slip Content */}
-        <div className="px-6 py-6" id="purchase-slip">
+        <div className="px-6 py-6 relative" id="purchase-slip">
+          {/* Watermark for anti-copy */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden opacity-30 print:opacity-[0.15]">
+            <div className="transform -rotate-45 text-4xl sm:text-6xl font-black text-slate-300 tracking-widest whitespace-nowrap">
+              OFFICIAL RECEIPT
+            </div>
+          </div>
+
           {/* Slip ID & Agent */}
-          <div className="flex items-center justify-between mb-5 pb-4 border-b border-dashed border-slate-200 print:border-black">
-            <div>
+          <div className="flex items-center justify-between mb-5 pb-4 border-b border-dashed border-slate-200 print:border-black relative z-10">
+            <div className="relative z-10">
               <span className="text-sm font-bold text-forest-800 block print:hidden">
                 FARMER ERP PVT. LTD.
               </span>
-              <span className="text-xs text-slate-500 print:text-black">
-                Agent: {record.agentName || "Unknown"}
-              </span>
-              <span className="block text-[10px] text-slate-400 print:text-black">
-                {record.agentDetails?.email || "No Email"}
+              <span className="text-xs text-slate-500 font-medium print:text-black">
+                Authorized Agent: {record.agentName || "Unknown"}
               </span>
             </div>
             <div className="text-right">
@@ -158,7 +162,7 @@ export default function ReceiptPage() {
           </div>
 
           {/* Details */}
-          <div className="space-y-3.5">
+          <div className="space-y-3.5 relative z-10">
             <div className="flex justify-between items-center">
               <span className="text-xs text-slate-500 print:text-black">Date & Time</span>
               <span className="text-xs font-medium text-slate-700 print:text-black">
