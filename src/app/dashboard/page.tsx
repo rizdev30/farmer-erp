@@ -6,6 +6,7 @@ import {
   Scale,
   IndianRupee,
   ClipboardList,
+  Settings as SettingsIcon,
 } from "lucide-react";
 import BentoGrid from "@/components/BentoGrid";
 import CommandBar from "@/components/CommandBar";
@@ -71,7 +72,7 @@ export default async function DashboardPage() {
           className="glass-card rounded-2xl p-6 group"
         >
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-forest-500 to-forest-600 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
+            <div className="shrink-0 w-12 h-12 bg-gradient-to-br from-forest-500 to-forest-600 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
               <ShoppingCart size={22} className="text-white" />
             </div>
             <div>
@@ -90,7 +91,7 @@ export default async function DashboardPage() {
           className="glass-card rounded-2xl p-6 group"
         >
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
+            <div className="shrink-0 w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
               <Users size={22} className="text-white" />
             </div>
             <div>
@@ -109,7 +110,7 @@ export default async function DashboardPage() {
           className="glass-card rounded-2xl p-6 group"
         >
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
+            <div className="shrink-0 w-12 h-12 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
               <ClipboardList size={22} className="text-white" />
             </div>
             <div>
@@ -118,6 +119,25 @@ export default async function DashboardPage() {
               </h3>
               <p className="text-sm text-slate-500">
                 View history, monthly reports & records
+              </p>
+            </div>
+          </div>
+        </Link>
+
+        <Link
+          href="/dashboard/settings"
+          className="glass-card rounded-2xl p-6 group md:hidden"
+        >
+          <div className="flex items-center gap-4">
+            <div className="shrink-0 w-12 h-12 bg-gradient-to-br from-slate-400 to-slate-500 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
+              <SettingsIcon size={22} className="text-white" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-slate-800 group-hover:text-slate-600 transition-colors">
+                App Settings
+              </h3>
+              <p className="text-sm text-slate-500">
+                View account info and sign out
               </p>
             </div>
           </div>

@@ -32,7 +32,7 @@ function BentoCard({
       <div className="relative">
         <div className="flex items-start justify-between mb-4">
           <div
-            className={`w-11 h-11 rounded-xl ${gradient} flex items-center justify-center shadow-sm`}
+            className={`shrink-0 w-11 h-11 rounded-xl ${gradient} flex items-center justify-center shadow-sm`}
           >
             {icon}
           </div>

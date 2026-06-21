@@ -22,7 +22,6 @@ const navItems = [
   { href: "/dashboard/farmers", label: "Farmers", icon: Users },
   { href: "/dashboard/procurement", label: "Procurement", icon: ShoppingCart },
   { href: "/dashboard/history", label: "Records", icon: ClipboardList },
-  { href: "/dashboard/settings", label: "Settings", icon: SettingsIcon },
 ];
 
 const adminItems = [

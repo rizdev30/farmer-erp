@@ -183,8 +183,8 @@ export default function HistoryPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-indigo-100 to-indigo-200 rounded-xl flex items-center justify-center">
-            <ClipboardList size={20} className="text-indigo-700" />
+          <div className="shrink-0 w-12 h-12 md:w-10 md:h-10 bg-gradient-to-br from-indigo-100 to-indigo-200 rounded-xl flex items-center justify-center">
+            <ClipboardList size={22} className="text-indigo-700" />
           </div>
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-800 tracking-tight">
