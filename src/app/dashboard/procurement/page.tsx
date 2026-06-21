@@ -92,6 +92,50 @@ export default function ProcurementPage() {
     return () => clearTimeout(timeout);
   }, [farmerQuery]);
 
+  // Offline Sync State
+  const [syncing, setSyncing] = useState(false);
+  const [offlineCount, setOfflineCount] = useState(0);
+
+  useEffect(() => {
+    const queue = JSON.parse(localStorage.getItem("offlineProcurements") || "[]");
+    setOfflineCount(queue.length);
+
+    const handleOnline = async () => {
+      const pending = JSON.parse(localStorage.getItem("offlineProcurements") || "[]");
+      if (pending.length === 0) return;
+
+      setSyncing(true);
+      try {
+        for (const item of pending) {
+          await createProcurement(item.payload);
+        }
+        localStorage.removeItem("offlineProcurements");
+        setOfflineCount(0);
+        alert("Success! All offline procurements have been synced to the database.");
+      } catch (err) {
+        console.error("Sync failed", err);
+      }
+      setSyncing(false);
+    };
+
+    window.addEventListener("online", handleOnline);
+    if (navigator.onLine && queue.length > 0) {
+      handleOnline();
+    }
+
+    return () => window.removeEventListener("online", handleOnline);
+  }, []);
+
+  function resetForm() {
+    setSelectedFarmer(null);
+    setFarmerQuery("");
+    setVariety("");
+    setBags("");
+    setGrossQuantity("");
+    setDeduction("");
+    setRate("");
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedFarmer) {
@@ -110,33 +154,61 @@ export default function ProcurementPage() {
     setSubmitting(true);
     setError("");
 
-    try {
-      const result = await createProcurement({
-        farmerId: selectedFarmer.id,
-        farmerName: selectedFarmer.name,
-        fatherName: selectedFarmer.fatherName,
-        farmerCode: selectedFarmer.farmerCode,
-        village: selectedFarmer.village,
-        crop,
-        variety,
-        bags: parseInt(bags) || 0,
-        grossQuantity: parseFloat(grossQuantity),
-        deduction: parseFloat(deduction) || 0,
-        rate: parseFloat(rate),
-        agentId: selectedAgentId || undefined,
-      });
+    const payload = {
+      farmerId: selectedFarmer.id,
+      farmerName: selectedFarmer.name,
+      fatherName: selectedFarmer.fatherName,
+      farmerCode: selectedFarmer.farmerCode,
+      village: selectedFarmer.village,
+      crop,
+      variety,
+      bags: parseInt(bags) || 0,
+      grossQuantity: parseFloat(grossQuantity),
+      deduction: parseFloat(deduction) || 0,
+      rate: parseFloat(rate),
+      agentId: selectedAgentId || undefined,
+    };
 
+    if (!navigator.onLine) {
+      const offlineQueue = JSON.parse(localStorage.getItem("offlineProcurements") || "[]");
+      const offlineId = `OFF-${Date.now().toString().slice(-5)}`;
+      
+      const offlineReceipt: ProcurementReceipt = {
+        id: Date.now(),
+        slipId: offlineId,
+        farmerName: payload.farmerName,
+        farmerCode: payload.farmerCode || "",
+        fatherName: payload.fatherName || "",
+        village: payload.village || "",
+        crop: payload.crop,
+        variety: payload.variety,
+        bags: payload.bags,
+        grossQuantity: payload.grossQuantity,
+        deduction: payload.deduction,
+        netQuantity,
+        rate: payload.rate,
+        total,
+        timestamp: new Date().toISOString(),
+        agentName: session?.user?.name || "Agent",
+      };
+
+      offlineQueue.push({ payload, receipt: offlineReceipt });
+      localStorage.setItem("offlineProcurements", JSON.stringify(offlineQueue));
+      setOfflineCount(offlineQueue.length);
+      
+      setReceipt(offlineReceipt);
+      resetForm();
+      setSubmitting(false);
+      alert("⚠️ No internet connection! Procurement saved locally on your phone. Do not close the app; it will automatically sync to the database when internet is restored.");
+      return;
+    }
+
+    try {
+      const result = await createProcurement(payload);
       setReceipt(result);
-      // Reset form
-      setSelectedFarmer(null);
-      setFarmerQuery("");
-      setVariety("");
-      setBags("");
-      setGrossQuantity("");
-      setDeduction("");
-      setRate("");
-    } catch {
-      setError("Failed to process procurement. Please try again.");
+      resetForm();
+    } catch (err) {
+      setError("Failed to process procurement. If your internet dropped, turn off WiFi and try again to save offline.");
     }
 
     setSubmitting(false);
@@ -156,6 +228,24 @@ export default function ProcurementPage() {
           Record a purchase from a registered farmer
         </p>
       </div>
+
+      {offlineCount > 0 && (
+        <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-3 shadow-sm">
+          <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+            {syncing ? <Loader2 size={16} className="text-amber-600 animate-spin" /> : <Shield size={16} className="text-amber-600" />}
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-amber-800">
+              {syncing ? "Syncing to Database..." : `${offlineCount} Offline Record${offlineCount > 1 ? 's' : ''} Pending`}
+            </h3>
+            <p className="text-xs text-amber-700 mt-0.5">
+              {syncing 
+                ? "Please keep the app open while we save your offline data to the server." 
+                : "You have procurements saved locally. They will automatically sync when your internet connection is restored."}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="space-y-5">

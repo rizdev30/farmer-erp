@@ -53,6 +53,39 @@ export default function FarmerRegistrationModal({
   const [district, setDistrict] = useState("");
   const [block, setBlock] = useState("");
 
+  const [syncing, setSyncing] = useState(false);
+  const [offlineCount, setOfflineCount] = useState(0);
+
+  useEffect(() => {
+    const queue = JSON.parse(localStorage.getItem("offlineFarmers") || "[]");
+    setOfflineCount(queue.length);
+
+    const handleOnline = async () => {
+      const pending = JSON.parse(localStorage.getItem("offlineFarmers") || "[]");
+      if (pending.length === 0) return;
+
+      setSyncing(true);
+      try {
+        for (const farmerData of pending) {
+          await registerFarmer(farmerData);
+        }
+        localStorage.removeItem("offlineFarmers");
+        setOfflineCount(0);
+        alert("Success! All offline farmers have been registered to the database.");
+      } catch (err) {
+        console.error("Sync failed", err);
+      }
+      setSyncing(false);
+    };
+
+    window.addEventListener("online", handleOnline);
+    if (navigator.onLine && queue.length > 0) {
+      handleOnline();
+    }
+
+    return () => window.removeEventListener("online", handleOnline);
+  }, []);
+
   function reset() {
     setStep(1);
     setName("");
@@ -71,17 +104,42 @@ export default function FarmerRegistrationModal({
     setLoading(true);
     setError("");
 
-    try {
-      const result = await registerFarmer({
+    const payload = {
+      name,
+      fatherName,
+      phone,
+      address,
+      village,
+      district,
+      block,
+      agentId: selectedAgentId || undefined,
+    };
+
+    if (!navigator.onLine) {
+      const queue = JSON.parse(localStorage.getItem("offlineFarmers") || "[]");
+      queue.push(payload);
+      localStorage.setItem("offlineFarmers", JSON.stringify(queue));
+      setOfflineCount(queue.length);
+      
+      onSuccess({
+        id: Date.now(),
         name,
-        fatherName,
         phone,
         address,
         village,
         district,
         block,
-        agentId: selectedAgentId || undefined,
+        fatherName,
+        farmerCode: "PENDING-SYNC",
       });
+      reset();
+      onClose();
+      alert("⚠️ No internet connection! Farmer saved locally. Do not close the app; it will automatically sync when internet is restored.");
+      return;
+    }
+
+    try {
+      const result = await registerFarmer(payload);
 
       if (result.success) {
         onSuccess(result.farmer as {
@@ -100,7 +158,7 @@ export default function FarmerRegistrationModal({
         onClose();
       }
     } catch {
-      setError("Failed to register farmer. Please try again.");
+      setError("Network error. Turn off WiFi to save offline and sync later.");
     }
 
     setLoading(false);
@@ -141,6 +199,15 @@ export default function FarmerRegistrationModal({
               <X size={20} />
             </button>
           </div>
+
+          {offlineCount > 0 && (
+            <div className="px-6 py-3 bg-amber-50 border-b border-amber-100 flex items-center justify-between">
+              <span className="text-xs font-semibold text-amber-800 flex items-center gap-2">
+                <Shield size={14} /> 
+                {syncing ? "Syncing to database..." : `${offlineCount} farmer${offlineCount > 1 ? 's' : ''} saved locally`}
+              </span>
+            </div>
+          )}
 
           {/* Progress */}
           <div className="px-6 pt-4">
