@@ -185,7 +185,7 @@ export default function FarmersPage() {
       {/* Mobile FAB */}
       <button
         onClick={() => setShowModal(true)}
-        className="md:hidden fixed bottom-6 right-6 w-14 h-14 rounded-2xl 
+        className="md:hidden fixed bottom-24 right-6 w-14 h-14 rounded-2xl 
           bg-gradient-to-br from-forest-600 to-forest-700 text-white 
           shadow-xl shadow-forest-900/30 flex items-center justify-center
           active:scale-95 transition-transform z-30"
