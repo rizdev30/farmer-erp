@@ -5,7 +5,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: "#f8fafc", // matches bg-slate-50
+  themeColor: "#10B981", // forest-500
 };
 import { Inter } from "next/font/google";
 import SessionProvider from "@/components/providers/SessionProvider";
