@@ -34,6 +34,7 @@ export default function FarmersPage() {
 
   useEffect(() => {
     loadFarmers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [districtFilter, blockFilter]);
 
   async function loadFarmers() {
