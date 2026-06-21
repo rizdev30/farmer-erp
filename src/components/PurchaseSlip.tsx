@@ -33,6 +33,15 @@ export default function PurchaseSlip({ receipt, onClose }: Props) {
   async function handleWhatsApp() {
     setIsSharing(true);
     try {
+      // Update the timestamp right before snapshot
+      const el = document.getElementById("timestamp-text");
+      if (el) {
+        el.innerText = `Downloaded / Printed on: ${new Date().toLocaleString("en-IN", {
+          dateStyle: "medium",
+          timeStyle: "short",
+        })}`;
+      }
+
       const { default: html2canvas } = await import("html2canvas");
       const element = document.getElementById("purchase-slip");
       if (!element) return;
@@ -76,6 +85,15 @@ export default function PurchaseSlip({ receipt, onClose }: Props) {
   }
 
   function handlePrint() {
+    // Update the timestamp right before printing
+    const el = document.getElementById("timestamp-text");
+    if (el) {
+      el.innerText = `Downloaded / Printed on: ${new Date().toLocaleString("en-IN", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      })}`;
+    }
+
     const originalTitle = document.title;
     document.title = `Receipt_${receipt.farmerName.replace(/\s+/g, "_")}_${receipt.slipId}`;
     window.print();
@@ -235,7 +253,7 @@ export default function PurchaseSlip({ receipt, onClose }: Props) {
 
               {/* Timestamp of Generation */}
               <div className="mt-6 pt-3 border-t border-slate-100 print:border-black/10 text-center">
-                <p className="text-[10px] text-slate-400 print:text-black/60 font-mono">
+                <p id="timestamp-text" className="text-[10px] text-slate-400 print:text-black/60 font-mono">
                   Downloaded / Printed on: {currentTime}
                 </p>
               </div>
