@@ -21,6 +21,7 @@ export default function ReceiptPage() {
   const [record, setRecord] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [isSharing, setIsSharing] = useState(false);
 
   useEffect(() => {
     async function loadRecord() {
@@ -74,31 +75,49 @@ export default function ReceiptPage() {
     document.title = originalTitle;
   };
 
-  function handleWhatsApp() {
-    const text = encodeURIComponent(
-      `🌾 *FARMER ERP PVT. LTD. — Purchase Slip*\n` +
-        `----------------------------------------\n` +
-        `📋 Slip ID: ${record.slipId}\n` +
-        `📅 Date: ${formattedDate}\n` +
-        `👨‍💼 Agent: ${record.agentName || "Unknown"} (${record.agentDetails?.email || "N/A"})\n\n` +
-        `*FARMER DETAILS*\n` +
-        `👤 Name: ${record.farmerName}\n` +
-        `👨‍👦 Father: ${record.fatherName || "N/A"}\n` +
-        `🆔 Code: ${record.farmerCode || "N/A"}\n` +
-        `📍 Village: ${record.village || "N/A"}\n\n` +
-        `*CROP DETAILS*\n` +
-        `🌾 Crop: ${record.crop}\n` +
-        `🏷️ Variety: ${record.variety || "N/A"}\n` +
-        `📦 Bags: ${record.bags || 0}\n\n` +
-        `*PAYMENT CALCULATION*\n` +
-        `⚖️ Gross Qty: ${record.grossQuantity} Qtl\n` +
-        `➖ Deduction: ${record.deduction} Qtl\n` +
-        `✅ Net Qty: ${record.netQuantity} Qtl\n` +
-        `💰 Rate: ₹${record.rate.toLocaleString("en-IN")}/Qtl\n\n` +
-        `💵 *TOTAL PAYOUT: ₹${record.total.toLocaleString("en-IN")}*\n` +
-        `----------------------------------------`
-    );
-    window.open(`https://wa.me/?text=${text}`, "_blank");
+  async function handleWhatsApp() {
+    setIsSharing(true);
+    try {
+      const { default: html2canvas } = await import("html2canvas");
+      const element = document.getElementById("purchase-slip");
+      if (!element) return;
+
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+      });
+
+      canvas.toBlob(async (blob) => {
+        if (!blob) return;
+        const file = new File([blob], `Receipt_${record.slipId}.jpg`, {
+          type: "image/jpeg",
+        });
+
+        const shareData = {
+          files: [file],
+          title: "Purchase Receipt",
+          text: `Farmer ERP Receipt - ${record.slipId}`,
+        };
+
+        if (navigator.canShare && navigator.canShare(shareData)) {
+          await navigator.share(shareData);
+        } else {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = file.name;
+          a.click();
+          URL.revokeObjectURL(url);
+          alert("Your device doesn't support direct WhatsApp image sharing. The receipt has been downloaded as an image so you can send it manually.");
+        }
+      }, "image/jpeg", 0.9);
+    } catch (err) {
+      console.error("Error generating receipt image:", err);
+      alert("Failed to generate receipt image.");
+    } finally {
+      setIsSharing(false);
+    }
   }
 
   return (
@@ -268,12 +287,17 @@ export default function ReceiptPage() {
         <div className="px-6 pb-6 flex gap-3 print:hidden">
           <button
             onClick={handleWhatsApp}
+            disabled={isSharing}
             className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl
               bg-green-600 text-white text-sm font-semibold 
-              hover:bg-green-700 transition-colors shadow-sm"
+              hover:bg-green-700 transition-colors shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
           >
-            <Share2 size={16} />
-            WhatsApp
+            {isSharing ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <Share2 size={16} />
+            )}
+            {isSharing ? "Generating..." : "WhatsApp"}
           </button>
 
           <button

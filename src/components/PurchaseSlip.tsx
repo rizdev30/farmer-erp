@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { ProcurementReceipt } from "@/app/actions/procurement";
 import {
   X,
@@ -7,6 +8,7 @@ import {
   Share2,
   CheckCircle2,
   Sprout,
+  Loader2,
 } from "lucide-react";
 
 interface Props {
@@ -15,36 +17,56 @@ interface Props {
 }
 
 export default function PurchaseSlip({ receipt, onClose }: Props) {
+  const [isSharing, setIsSharing] = useState(false);
+
   const formattedDate = new Date(receipt.timestamp).toLocaleString("en-IN", {
     dateStyle: "long",
     timeStyle: "short",
   });
 
-  function handleWhatsApp() {
-    const text = encodeURIComponent(
-      `🌾 *FARMER ERP PVT. LTD. — Purchase Slip*\n` +
-        `----------------------------------------\n` +
-        `📋 Slip ID: ${receipt.slipId}\n` +
-        `📅 Date: ${formattedDate}\n` +
-        `👨‍💼 Agent: ${receipt.agentName || "Agent"}\n\n` +
-        `*FARMER DETAILS*\n` +
-        `👤 Name: ${receipt.farmerName}\n` +
-        `👨‍👦 Father: ${receipt.fatherName || "N/A"}\n` +
-        `🆔 Code: ${receipt.farmerCode || "N/A"}\n` +
-        `📍 Village: ${receipt.village || "N/A"}\n\n` +
-        `*CROP DETAILS*\n` +
-        `🌾 Crop: ${receipt.crop}\n` +
-        `🏷️ Variety: ${receipt.variety || "N/A"}\n` +
-        `📦 Bags: ${receipt.bags || 0}\n\n` +
-        `*PAYMENT CALCULATION*\n` +
-        `⚖️ Gross Qty: ${receipt.grossQuantity} Qtl\n` +
-        `➖ Deduction: ${receipt.deduction} Qtl\n` +
-        `✅ Net Qty: ${receipt.netQuantity} Qtl\n` +
-        `💰 Rate: ₹${receipt.rate.toLocaleString("en-IN")}/Qtl\n\n` +
-        `💵 *TOTAL PAYOUT: ₹${receipt.total.toLocaleString("en-IN")}*\n` +
-        `----------------------------------------`
-    );
-    window.open(`https://wa.me/?text=${text}`, "_blank");
+  async function handleWhatsApp() {
+    setIsSharing(true);
+    try {
+      const { default: html2canvas } = await import("html2canvas");
+      const element = document.getElementById("purchase-slip");
+      if (!element) return;
+
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+      });
+
+      canvas.toBlob(async (blob) => {
+        if (!blob) return;
+        const file = new File([blob], `Receipt_${receipt.slipId}.jpg`, {
+          type: "image/jpeg",
+        });
+
+        const shareData = {
+          files: [file],
+          title: "Purchase Receipt",
+          text: `Farmer ERP Receipt - ${receipt.slipId}`,
+        };
+
+        if (navigator.canShare && navigator.canShare(shareData)) {
+          await navigator.share(shareData);
+        } else {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = file.name;
+          a.click();
+          URL.revokeObjectURL(url);
+          alert("Your device doesn't support direct WhatsApp image sharing. The receipt has been downloaded as an image so you can send it manually.");
+        }
+      }, "image/jpeg", 0.9);
+    } catch (err) {
+      console.error("Error generating receipt image:", err);
+      alert("Failed to generate receipt image.");
+    } finally {
+      setIsSharing(false);
+    }
   }
 
   function handlePrint() {
@@ -213,12 +235,17 @@ export default function PurchaseSlip({ receipt, onClose }: Props) {
           <div className="px-6 pb-6 flex gap-3 print:hidden">
             <button
               onClick={handleWhatsApp}
+              disabled={isSharing}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl
                 bg-green-600 text-white text-sm font-semibold 
-                hover:bg-green-700 transition-colors shadow-sm"
+                hover:bg-green-700 transition-colors shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              <Share2 size={16} />
-              WhatsApp
+              {isSharing ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <Share2 size={16} />
+              )}
+              {isSharing ? "Generating..." : "WhatsApp"}
             </button>
 
             <button
