@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ProcurementReceipt } from "@/app/actions/procurement";
 import {
   X,
@@ -18,6 +18,14 @@ interface Props {
 
 export default function PurchaseSlip({ receipt, onClose }: Props) {
   const [isSharing, setIsSharing] = useState(false);
+  const [currentTime, setCurrentTime] = useState("");
+
+  useEffect(() => {
+    setCurrentTime(new Date().toLocaleString("en-IN", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }));
+  }, []);
 
   const formattedDate = new Date(receipt.timestamp).toLocaleString("en-IN", {
     dateStyle: "long",
@@ -226,6 +234,15 @@ export default function PurchaseSlip({ receipt, onClose }: Props) {
                   ₹{receipt.total.toLocaleString("en-IN")}
                 </span>
               </div>
+
+              {/* Timestamp of Generation */}
+              {currentTime && (
+                <div className="mt-6 pt-3 border-t border-slate-100 print:border-black/10 text-center">
+                  <p className="text-[10px] text-slate-400 print:text-black/60 font-mono">
+                    Downloaded / Printed on: {currentTime}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
