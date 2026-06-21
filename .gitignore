@@ -44,8 +44,6 @@ next-env.d.ts
 *.db
 *.db-journal
 
-# dolibarr backend (NEVER commit this)
-/dolibarr/
 
 # security / secrets
 *.key
