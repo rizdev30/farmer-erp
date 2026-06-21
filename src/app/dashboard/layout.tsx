@@ -126,7 +126,7 @@ export default function DashboardLayout({
         </nav>
 
         {/* Profile */}
-        <div className="px-4 pb-4">
+        <div className="px-4 pb-8 md:pb-4">
           <div className="p-4 rounded-2xl bg-white/8 border border-white/5">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-forest-400 to-forest-500 flex items-center justify-center text-white text-sm font-bold">
@@ -183,7 +183,7 @@ export default function DashboardLayout({
         </div>
 
         {/* Mobile Bottom Navigation */}
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 glass border-t border-slate-200/50 z-50 print:hidden shadow-[0_-4px_24px_rgba(0,0,0,0.04)]" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+        <nav className={`md:hidden fixed bottom-0 left-0 right-0 glass border-t border-slate-200/50 z-40 print:hidden shadow-[0_-4px_24px_rgba(0,0,0,0.04)] ${sidebarOpen ? "hidden" : "block"}`} style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
           <div className="flex items-center justify-around h-16 px-2">
             {allNavItems.map((item) => {
               const isActive = pathname === item.href;
