@@ -5,8 +5,8 @@ import { NextResponse } from "next/server";
 const { auth } = NextAuth(authConfig);
 import type { NextRequest } from "next/server";
 
-export default async function middleware(req: NextRequest) {
-  const session = await auth();
+export default auth((req) => {
+  const session = req.auth;
   const { pathname } = req.nextUrl;
 
   // Public routes
@@ -31,7 +31,7 @@ export default async function middleware(req: NextRequest) {
   }
 
   return NextResponse.next();
-}
+});
 
 export const config = {
   matcher: ["/dashboard/:path*", "/login"],
