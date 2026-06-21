@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   title: "Farmer ERP — Premium Procurement Management",
   description:
     "A premium ERP system for managing farmer procurement, inventory tracking, and digital receipts.",
-  manifest: "/site.webmanifest",
+  manifest: "/site.webmanifest?v2353454",
   appleWebApp: {
     title: "Farmer ERP",
   },
