@@ -4,8 +4,9 @@ import { useState, useEffect, useOptimistic } from "react";
 import { getFarmers } from "@/app/actions/farmers";
 import CommandBar from "@/components/CommandBar";
 import FarmerRegistrationModal from "@/components/FarmerRegistrationModal";
-import { Plus, Phone, MapPin, User } from "lucide-react";
+import { Plus, Phone, MapPin, User, ArrowRight } from "lucide-react";
 import { ListSkeleton } from "@/components/LoadingSkeleton";
+import Link from "next/link";
 
 interface Farmer {
   id: number;
@@ -15,6 +16,7 @@ interface Farmer {
   town: string;
   district: string;
   block: string;
+  farmerCode: string;
 }
 
 export default function FarmersPage() {
@@ -134,25 +136,33 @@ export default function FarmersPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {optimisticFarmers.map((farmer) => (
-            <div key={farmer.id} className="glass-card rounded-2xl p-5">
+            <Link 
+              key={farmer.id} 
+              href={`/dashboard/farmers/${farmer.id}`}
+              className="glass-card rounded-2xl p-5 hover:shadow-md transition-shadow group relative block"
+            >
               <div className="flex items-start gap-3.5">
                 <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-forest-100 to-forest-200 flex items-center justify-center shrink-0">
                   <span className="text-sm font-bold text-forest-700">
                     {farmer.name?.[0] || "F"}
                   </span>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-slate-800 truncate">
-                    {farmer.name}
+                <div className="flex-1 min-w-0 pr-6">
+                  <h3 className="font-semibold text-slate-800 flex items-center gap-2">
+                    <span className="truncate">{farmer.name}</span>
                   </h3>
+                  <p className="text-[10px] font-mono bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md inline-block mt-0.5">
+                    {farmer.farmerCode || "—"}
+                  </p>
+                  
                   {farmer.phone && (
-                    <p className="flex items-center gap-1.5 text-sm text-slate-500 mt-1">
+                    <p className="flex items-center gap-1.5 text-sm text-slate-500 mt-2">
                       <Phone size={13} />
                       {farmer.phone}
                     </p>
                   )}
                   {(farmer.district || farmer.block) && (
-                    <p className="flex items-center gap-1.5 text-sm text-slate-400 mt-0.5">
+                    <p className="flex items-center gap-1.5 text-sm text-slate-400 mt-1">
                       <MapPin size={13} />
                       {[farmer.district, farmer.block]
                         .filter(Boolean)
@@ -161,7 +171,10 @@ export default function FarmersPage() {
                   )}
                 </div>
               </div>
-            </div>
+              <div className="absolute top-1/2 -translate-y-1/2 right-4 text-slate-300 group-hover:text-forest-500 transition-colors">
+                <ArrowRight size={18} />
+              </div>
+            </Link>
           ))}
         </div>
       )}

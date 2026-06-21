@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { X, Loader2, ChevronRight, ChevronLeft, User, MapPin } from "lucide-react";
+import { useState, useEffect } from "react";
+import { X, Loader2, ChevronRight, ChevronLeft, User, MapPin, Shield } from "lucide-react";
 import { registerFarmer } from "@/app/actions/farmers";
+import { getAgentsList } from "@/app/actions/procurement";
+import { useSession } from "next-auth/react";
 
 interface Props {
   open: boolean;
@@ -29,6 +31,18 @@ export default function FarmerRegistrationModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.role === "ADMIN";
+  const [agents, setAgents] = useState<{id: string, name: string}[]>([]);
+  const [selectedAgentId, setSelectedAgentId] = useState("");
+
+  // Fetch agents if admin
+  useEffect(() => {
+    if (isAdmin && open) {
+      getAgentsList().then(setAgents).catch(console.error);
+    }
+  }, [isAdmin, open]);
+
   // Form data
   const [name, setName] = useState("");
   const [fatherName, setFatherName] = useState("");
@@ -47,6 +61,7 @@ export default function FarmerRegistrationModal({
     setVillage("");
     setDistrict("");
     setBlock("");
+    setSelectedAgentId("");
     setError("");
     setLoading(false);
   }
@@ -64,6 +79,7 @@ export default function FarmerRegistrationModal({
         village,
         district,
         block,
+        agentId: selectedAgentId || undefined,
       });
 
       if (result.success) {
@@ -204,6 +220,27 @@ export default function FarmerRegistrationModal({
                       transition-all duration-200 text-base"
                   />
                 </div>
+
+                {isAdmin && (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5 flex items-center gap-1.5">
+                      <Shield size={14} className="text-purple-600" />
+                      Assign to Agent (Admin Only)
+                    </label>
+                    <select
+                      value={selectedAgentId}
+                      onChange={(e) => setSelectedAgentId(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                        text-slate-800 focus:outline-none focus:ring-2 focus:ring-forest-500/30 
+                        focus:border-forest-500 transition-all duration-200 text-base appearance-none"
+                    >
+                      <option value="">Assign to myself</option>
+                      {agents.map(a => (
+                        <option key={a.id} value={a.id}>{a.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
             )}
 

@@ -5,6 +5,7 @@ import {
   ShoppingCart,
   Scale,
   IndianRupee,
+  ClipboardList,
 } from "lucide-react";
 import BentoGrid from "@/components/BentoGrid";
 import CommandBar from "@/components/CommandBar";
@@ -98,6 +99,25 @@ export default async function DashboardPage() {
               </h3>
               <p className="text-sm text-slate-500">
                 View, search, or register new farmers
+              </p>
+            </div>
+          </div>
+        </Link>
+
+        <Link
+          href="/dashboard/history"
+          className="glass-card rounded-2xl p-6 group"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
+              <ClipboardList size={22} className="text-white" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-slate-800 group-hover:text-indigo-700 transition-colors">
+                Procurement Records
+              </h3>
+              <p className="text-sm text-slate-500">
+                View history, monthly reports & records
               </p>
             </div>
           </div>

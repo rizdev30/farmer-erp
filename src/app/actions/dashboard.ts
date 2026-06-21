@@ -1,6 +1,7 @@
 "use server";
 
-import dolibarr from "@/lib/dolibarr";
+import prisma from "@/lib/prisma";
+import { auth } from "@/auth";
 
 export interface DashboardStats {
   totalFarmers: number;
@@ -11,38 +12,57 @@ export interface DashboardStats {
 
 export async function getDashboardStats(): Promise<DashboardStats> {
   try {
-    // Get total farmers (suppliers)
-    const farmers = await dolibarr.getThirdParties({ limit: "0" });
-    const totalFarmers = Array.isArray(farmers) ? farmers.length : 0;
+    const session = await auth();
+    const role = (session?.user as { role?: string })?.role || "AGENT";
+    const userId = session?.user?.id || "";
+    const isAdmin = role === "ADMIN";
 
-    // Get recent invoices
-    const invoices = await dolibarr.getSupplierInvoices({ limit: "100" });
-    const invoiceList = Array.isArray(invoices) ? invoices : [];
+    // Scope filter: agents only see their own data
+    const farmerWhere: Record<string, unknown> = { active: true };
+    const procurementWhere: Record<string, unknown> = {};
 
-    // Calculate today's procurements
-    const today = new Date().toISOString().slice(0, 10);
-    const todayInvoices = invoiceList.filter((inv: unknown) => {
-      const i = inv as { datec?: string; date_creation?: string };
-      const dateStr = i.datec || i.date_creation || "";
-      return dateStr.startsWith(today);
+    if (!isAdmin) {
+      farmerWhere.registeredBy = userId;
+      procurementWhere.agentId = userId;
+    }
+
+    // Get total farmers
+    const totalFarmers = await prisma.farmer.count({
+      where: farmerWhere,
     });
 
-    // Calculate totals from all invoices
-    let totalQty = 0;
-    let totalAmount = 0;
-    invoiceList.forEach((inv: unknown) => {
-      const i = inv as { total_ht?: number; lines?: { qty?: number }[] };
-      totalAmount += Number(i.total_ht) || 0;
-      if (i.lines) {
-        i.lines.forEach((line) => {
-          totalQty += Number(line.qty) || 0;
-        });
-      }
+    // Get today's date range
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    // Count today's procurements
+    const todayProcurements = await prisma.procurement.count({
+      where: {
+        ...procurementWhere,
+        createdAt: {
+          gte: todayStart,
+          lte: todayEnd,
+        },
+      },
     });
+
+    // Calculate totals from all procurements
+    const aggregation = await prisma.procurement.aggregate({
+      where: procurementWhere,
+      _sum: {
+        netQuantity: true,
+        total: true,
+      },
+    });
+
+    const totalQty = aggregation._sum.netQuantity || 0;
+    const totalAmount = aggregation._sum.total || 0;
 
     return {
       totalFarmers,
-      todayProcurements: todayInvoices.length,
+      todayProcurements,
       totalQuantity: (Math.round(totalQty * 100) / 100).toFixed(2),
       totalPayout: new Intl.NumberFormat("en-IN", {
         style: "currency",

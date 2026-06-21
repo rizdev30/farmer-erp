@@ -1,6 +1,7 @@
 "use server";
 
-import dolibarr from "@/lib/dolibarr";
+import prisma from "@/lib/prisma";
+import { auth } from "@/auth";
 
 function generateSlipId(): string {
   const now = new Date();
@@ -11,6 +12,19 @@ function generateSlipId(): string {
 
 function roundQuintal(value: number): number {
   return Math.round(value * 100) / 100;
+}
+
+/**
+ * Get current session user info for agent-scoping.
+ */
+async function getSessionUser() {
+  const session = await auth();
+  if (!session?.user) throw new Error("Not authenticated");
+  return {
+    userId: session.user.id,
+    userName: session.user.name || "Unknown",
+    role: (session.user as { role?: string }).role || "AGENT",
+  };
 }
 
 export interface ProcurementData {
@@ -25,7 +39,7 @@ export interface ProcurementData {
   grossQuantity: number; // in Quintals
   deduction: number; // in Quintals
   rate: number; // ₹ per Quintal
-  agentName?: string;
+  agentId?: string; // Admin can assign to a specific agent
 }
 
 export interface ProcurementReceipt {
@@ -51,6 +65,32 @@ export interface ProcurementReceipt {
 export async function createProcurement(
   data: ProcurementData
 ): Promise<ProcurementReceipt> {
+  const user = await getSessionUser();
+
+  let procurementAgentId = user.userId;
+  let procurementAgentName = user.userName;
+  let createdByAdmin = false;
+
+  if (user.role === "ADMIN" && data.agentId && data.agentId !== user.userId) {
+    const agent = await prisma.user.findUnique({ where: { id: data.agentId } });
+    if (agent) {
+      procurementAgentId = agent.id;
+      procurementAgentName = agent.name;
+      createdByAdmin = true;
+    }
+  }
+
+  // Verify the farmer belongs to this agent (if not admin)
+  if (user.role !== "ADMIN") {
+    const farmer = await prisma.farmer.findUnique({
+      where: { id: data.farmerId },
+      select: { registeredBy: true },
+    });
+    if (!farmer || farmer.registeredBy !== user.userId) {
+      throw new Error("You can only procure from farmers you registered");
+    }
+  }
+
   const grossQuantity = roundQuintal(data.grossQuantity);
   const deduction = roundQuintal(data.deduction || 0);
   const netQuantity = roundQuintal(grossQuantity - deduction);
@@ -58,42 +98,40 @@ export async function createProcurement(
   const total = roundQuintal(netQuantity * rate);
   const slipId = generateSlipId();
 
-  // 1. Create Supplier Invoice in Dolibarr
-  const invoiceId = await dolibarr.createSupplierInvoice({
-    socid: data.farmerId,
-    label: `Procurement: ${data.crop} (${data.variety}) - ${slipId}`,
-    ref_supplier: slipId,
+  // Create procurement record in local DB
+  const procurement = await prisma.procurement.create({
+    data: {
+      slipId,
+      farmerId: data.farmerId,
+      farmerName: data.farmerName,
+      fatherName: data.fatherName || "",
+      farmerCode: data.farmerCode || "",
+      village: data.village || "",
+      crop: data.crop,
+      variety: data.variety,
+      bags: data.bags,
+      grossQuantity,
+      deduction,
+      netQuantity,
+      rate,
+      total,
+      agentId: procurementAgentId,
+      agentName: procurementAgentName,
+      createdByAdmin,
+      validated: true,
+    },
   });
-
-  // 2. Add line item
-  const desc = `${data.crop} (${data.variety}) procurement\nBags: ${data.bags}\nGross Qty: ${grossQuantity} Qtl\nDeduction: ${deduction} Qtl\nNet Qty: ${netQuantity} Qtl @ ₹${rate}/Qtl`;
-  
-  await dolibarr.addInvoiceLine(invoiceId, {
-    label: data.crop,
-    description: desc,
-    qty: netQuantity,
-    subprice: rate,
-    tva_tx: 0,
-  });
-
-  // 3. Validate the invoice
-  try {
-    await dolibarr.validateInvoice(invoiceId);
-  } catch {
-    // Invoice created but validation may need manual approval
-    console.warn("Invoice created but auto-validation skipped");
-  }
 
   return {
     success: true,
     slipId,
-    invoiceId,
-    timestamp: new Date().toISOString(),
+    invoiceId: procurement.id,
+    timestamp: procurement.createdAt.toISOString(),
     farmerName: data.farmerName,
     fatherName: data.fatherName,
     farmerCode: data.farmerCode,
     village: data.village,
-    agentName: data.agentName,
+    agentName: user.userName,
     crop: data.crop,
     variety: data.variety,
     bags: data.bags,
@@ -105,12 +143,198 @@ export async function createProcurement(
   };
 }
 
-export async function getProcurementHistory() {
-  const invoices = await dolibarr.getSupplierInvoices({
-    limit: "50",
-    sortfield: "t.datec",
-    sortorder: "DESC",
+/**
+ * Get procurement history.
+ * - Agents: only their own procurements
+ * - Admins: all procurements (can filter by agentId)
+ * - Supports monthly filtering via year/month params
+ */
+export async function getProcurementHistory(filters?: {
+  year?: number;
+  month?: number;
+  agentId?: string;
+}) {
+  const user = await getSessionUser();
+  const isAdmin = user.role === "ADMIN";
+
+  const where: Record<string, unknown> = {};
+
+  // Agents can only see their own procurements
+  if (!isAdmin) {
+    where.agentId = user.userId;
+  } else if (filters?.agentId) {
+    // Admin can filter by specific agent
+    where.agentId = filters.agentId;
+  }
+
+  // Monthly filter
+  if (filters?.year && filters?.month) {
+    const startDate = new Date(filters.year, filters.month - 1, 1);
+    const endDate = new Date(filters.year, filters.month, 0, 23, 59, 59, 999);
+    where.createdAt = {
+      gte: startDate,
+      lte: endDate,
+    };
+  }
+
+  const procurements = await prisma.procurement.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    take: 200,
+    include: {
+      farmer: {
+        select: { name: true, farmerCode: true, village: true, registeredByName: true },
+      },
+    },
   });
 
-  return invoices;
+  return procurements.map((p) => ({
+    id: p.id,
+    slipId: p.slipId,
+    farmerId: p.farmerId,
+    farmerName: p.farmerName,
+    fatherName: p.fatherName,
+    farmerCode: p.farmerCode,
+    village: p.village,
+    crop: p.crop,
+    variety: p.variety,
+    bags: p.bags,
+    grossQuantity: p.grossQuantity,
+    deduction: p.deduction,
+    netQuantity: p.netQuantity,
+    rate: p.rate,
+    total: p.total,
+    agentId: p.agentId,
+    agentName: p.agentName,
+    createdByAdmin: p.createdByAdmin,
+    validated: p.validated,
+    createdAt: p.createdAt.toISOString(),
+  }));
+}
+
+/**
+ * Get full details of a specific procurement record by Slip ID.
+ */
+export async function getProcurementBySlipId(slipId: string) {
+  const user = await getSessionUser();
+  const isAdmin = user.role === "ADMIN";
+
+  const procurement = await prisma.procurement.findUniqueOrThrow({
+    where: { slipId },
+    include: {
+      farmer: true,
+    },
+  });
+
+  if (!isAdmin && procurement.agentId !== user.userId) {
+    throw new Error("You are not authorized to view this record.");
+  }
+
+  const agent = await prisma.user.findUnique({
+    where: { id: procurement.agentId },
+    select: { email: true, name: true },
+  });
+
+  return {
+    ...procurement,
+    farmer: {
+      ...procurement.farmer,
+    },
+    agentDetails: agent,
+  };
+}
+
+/**
+ * Get monthly summary for cross-verification.
+ * Groups procurement data by month with totals.
+ */
+export async function getMonthlySummary(filters?: { agentId?: string }) {
+  const user = await getSessionUser();
+  const isAdmin = user.role === "ADMIN";
+
+  const where: Record<string, unknown> = {};
+
+  if (!isAdmin) {
+    where.agentId = user.userId;
+  } else if (filters?.agentId) {
+    where.agentId = filters.agentId;
+  }
+
+  const procurements = await prisma.procurement.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    select: {
+      netQuantity: true,
+      total: true,
+      createdAt: true,
+      agentName: true,
+      agentId: true,
+    },
+  });
+
+  // Group by month
+  const monthMap = new Map<
+    string,
+    {
+      monthKey: string;
+      label: string;
+      totalTransactions: number;
+      totalQuantity: number;
+      totalPayout: number;
+      agents: Set<string>;
+    }
+  >();
+
+  for (const p of procurements) {
+    const d = new Date(p.createdAt);
+    const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const label = d.toLocaleDateString("en-IN", {
+      year: "numeric",
+      month: "long",
+    });
+
+    if (!monthMap.has(monthKey)) {
+      monthMap.set(monthKey, {
+        monthKey,
+        label,
+        totalTransactions: 0,
+        totalQuantity: 0,
+        totalPayout: 0,
+        agents: new Set(),
+      });
+    }
+
+    const entry = monthMap.get(monthKey)!;
+    entry.totalTransactions += 1;
+    entry.totalQuantity += p.netQuantity;
+    entry.totalPayout += p.total;
+    if (p.agentName) entry.agents.add(p.agentName);
+  }
+
+  return Array.from(monthMap.values()).map((m) => ({
+    ...m,
+    totalQuantity: Math.round(m.totalQuantity * 100) / 100,
+    totalPayout: Math.round(m.totalPayout * 100) / 100,
+    agents: Array.from(m.agents),
+  }));
+}
+
+/**
+ * Get list of all agents (for admin filter dropdown).
+ */
+export async function getAgentsList() {
+  const user = await getSessionUser();
+  if (user.role !== "ADMIN") return [];
+
+  const agents = await prisma.user.findMany({
+    where: { active: true },
+    select: { id: true, name: true, role: true },
+    orderBy: { name: "asc" },
+  });
+
+  return agents.map((a) => ({
+    id: a.id,
+    name: a.name,
+    role: a.role,
+  }));
 }

@@ -43,3 +43,11 @@ next-env.d.ts
 # prisma db
 *.db
 *.db-journal
+
+# dolibarr backend (NEVER commit this)
+/dolibarr/
+
+# security / secrets
+*.key
+*.secret
+*.credentials

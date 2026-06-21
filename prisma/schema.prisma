@@ -24,3 +24,53 @@ model FarmerSequence {
   monthKey String @id // format: "YYMM" e.g., "2604"
   lastSeq  Int    @default(0)
 }
+
+model Farmer {
+  id               Int      @id @default(autoincrement())
+  name             String
+  phone            String   @default("")
+  address          String   @default("")
+  town             String   @default("")
+  village          String   @default("")
+  district         String   @default("")
+  block            String   @default("")
+  fatherName       String   @default("")
+  farmerCode       String   @unique
+  registeredBy     String   @default("")  // Agent user ID who registered this farmer
+  registeredByName String   @default("")  // Agent name for display
+  createdByAdmin   Boolean  @default(false)
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  procurements Procurement[]
+
+  @@map("farmers")
+}
+
+model Procurement {
+  id            Int      @id @default(autoincrement())
+  slipId        String   @unique
+  farmerId      Int
+  farmer        Farmer   @relation(fields: [farmerId], references: [id])
+  farmerName    String   @default("")
+  fatherName    String   @default("")
+  farmerCode    String   @default("")
+  village       String   @default("")
+  crop          String
+  variety       String   @default("")
+  bags          Int      @default(0)
+  grossQuantity Float    @default(0)
+  deduction     Float    @default(0)
+  netQuantity   Float    @default(0)
+  rate          Float    @default(0)
+  total         Float    @default(0)
+  agentId       String   @default("")  // Agent user ID who did this procurement
+  agentName     String   @default("")
+  createdByAdmin Boolean @default(false)
+  validated     Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("procurements")
+}

@@ -9,6 +9,7 @@ import {
   Users,
   ShoppingCart,
   UserCog,
+  ClipboardList,
   Menu,
   X,
   LogOut,
@@ -20,6 +21,7 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/farmers", label: "Farmers", icon: Users },
   { href: "/dashboard/procurement", label: "Procurement", icon: ShoppingCart },
+  { href: "/dashboard/history", label: "Records", icon: ClipboardList },
 ];
 
 const adminItems = [
@@ -54,7 +56,7 @@ export default function DashboardLayout({
           fixed md:static inset-y-0 left-0 z-50
           w-72 flex flex-col
           glass-dark
-          transform transition-transform duration-300 ease-out
+          transform transition-transform duration-300 ease-out print:hidden
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
         `}
       >
@@ -155,7 +157,7 @@ export default function DashboardLayout({
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Mobile Header */}
-        <header className="md:hidden flex items-center justify-between px-4 py-3 glass border-b border-slate-200/50">
+        <header className="md:hidden flex items-center justify-between px-4 py-3 glass border-b border-slate-200/50 print:hidden">
           <button
             onClick={() => setSidebarOpen(true)}
             className="p-2 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors"
@@ -181,7 +183,7 @@ export default function DashboardLayout({
         </div>
 
         {/* Mobile Bottom Navigation */}
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 glass border-t border-slate-200/50 z-50 pb-safe">
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 glass border-t border-slate-200/50 z-50 pb-safe print:hidden">
           <div className="flex items-center justify-around h-16 px-2">
             {allNavItems.map((item) => {
               const isActive = pathname === item.href;

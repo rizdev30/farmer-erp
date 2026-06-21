@@ -11,6 +11,7 @@ interface SearchResult {
   phone: string;
   district: string;
   block: string;
+  farmerCode: string;
 }
 
 export default function CommandBar() {
@@ -123,7 +124,7 @@ export default function CommandBar() {
               value={query}
               onChange={(e) => handleSearch(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Search farmers by name, district, or block..."
+              placeholder="Search farmers by name, unique id, or phone..."
               className="flex-1 bg-transparent text-slate-800 placeholder:text-slate-400 
                 outline-none text-base"
             />
@@ -177,12 +178,12 @@ export default function CommandBar() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-slate-800 truncate">
-                      {farmer.name}
+                      {farmer.name} <span className="ml-1 text-[10px] font-mono bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md">{farmer.farmerCode || "—"}</span>
                     </p>
                     <p className="text-xs text-slate-400 truncate">
-                      {[farmer.district, farmer.block]
+                      {farmer.phone} • {[farmer.district, farmer.block]
                         .filter(Boolean)
-                        .join(" • ") || farmer.phone}
+                        .join(", ")}
                     </p>
                   </div>
                   <ArrowRight

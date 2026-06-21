@@ -13,7 +13,10 @@ import {
   Loader2,
   User,
   ShoppingCart,
+  Shield,
 } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { getAgentsList } from "@/app/actions/procurement";
 
 interface Farmer {
   id: number;
@@ -44,6 +47,17 @@ export default function ProcurementPage() {
   const [error, setError] = useState("");
 
   const [receipt, setReceipt] = useState<ProcurementReceipt | null>(null);
+
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.role === "ADMIN";
+  const [agents, setAgents] = useState<{ id: string, name: string }[]>([]);
+  const [selectedAgentId, setSelectedAgentId] = useState("");
+
+  useEffect(() => {
+    if (isAdmin) {
+      getAgentsList().then(setAgents).catch(console.error);
+    }
+  }, [isAdmin]);
 
   // Live math
   const netQuantity = useMemo(() => {
@@ -109,6 +123,7 @@ export default function ProcurementPage() {
         grossQuantity: parseFloat(grossQuantity),
         deduction: parseFloat(deduction) || 0,
         rate: parseFloat(rate),
+        agentId: selectedAgentId || undefined,
       });
 
       setReceipt(result);
@@ -151,7 +166,7 @@ export default function ProcurementPage() {
         )}
 
         {/* Farmer Select */}
-        <div className="glass-card rounded-2xl p-5">
+        <div className="glass-card rounded-2xl p-5 relative z-50">
           <label className="block text-sm font-semibold text-slate-700 mb-3">
             1. Select Farmer
           </label>
@@ -172,10 +187,10 @@ export default function ProcurementPage() {
                 </div>
               </div>
               <div className="text-right">
-                 <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-500">
                   {selectedFarmer.village ? selectedFarmer.village + ", " : ""}{selectedFarmer.district}
-                 </p>
-                 <p className="text-xs text-slate-500 mt-0.5">{selectedFarmer.phone}</p>
+                </p>
+                <p className="text-xs text-slate-500 mt-0.5">{selectedFarmer.phone}</p>
               </div>
               <button
                 type="button"
@@ -209,7 +224,7 @@ export default function ProcurementPage() {
 
               {/* Dropdown */}
               {showDropdown && farmerQuery.length >= 2 && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-lg border border-slate-200 max-h-48 overflow-y-auto z-10">
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-slate-200 max-h-60 overflow-y-auto z-[60]">
                   {farmerResults.length === 0 ? (
                     <p className="px-4 py-3 text-sm text-slate-400 text-center">
                       {searchingFarmer ? "Searching..." : "No results"}
@@ -229,12 +244,12 @@ export default function ProcurementPage() {
                         <div className="w-8 h-8 rounded-lg bg-forest-100 flex items-center justify-center">
                           <User size={14} className="text-forest-600" />
                         </div>
-                        <div>
-                          <p className="text-sm font-medium text-slate-800">
-                            {farmer.name}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-slate-800 truncate">
+                            {farmer.name} <span className="ml-1 text-[10px] font-mono bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md">{farmer.farmerCode || "—"}</span>
                           </p>
-                          <p className="text-xs text-slate-400">
-                            {farmer.phone}
+                          <p className="text-xs text-slate-400 truncate">
+                            {farmer.phone} • {[farmer.district, farmer.block].filter(Boolean).join(", ")}
                           </p>
                         </div>
                       </button>
@@ -364,11 +379,33 @@ export default function ProcurementPage() {
                 </div>
               </div>
             </div>
-            
+
             <div className="bg-white/50 rounded-xl p-3 mt-4 border border-slate-200/50 flex justify-between items-center">
-               <span className="text-xs text-slate-500 font-medium">Net Quantity</span>
-               <span className="text-sm font-bold text-slate-700">{netQuantity} Quintals</span>
+              <span className="text-xs text-slate-500 font-medium">Net Quantity</span>
+              <span className="text-sm font-bold text-slate-700">{netQuantity} Quintals</span>
             </div>
+
+            {isAdmin && (
+              <div className="mt-4 pt-4 border-t border-slate-100">
+                <label className="block text-sm font-medium text-slate-700 mb-1.5 flex items-center gap-1.5">
+                  <Shield size={14} className="text-purple-600" />
+                  Assign to Agent (Admin Only)
+                </label>
+                <select
+                  value={selectedAgentId}
+                  onChange={(e) => setSelectedAgentId(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                    text-slate-800 focus:outline-none focus:ring-2 focus:ring-forest-500/30 
+                    focus:border-forest-500 transition-all duration-200 text-base appearance-none"
+                >
+                  <option value="">Assign to myself</option>
+                  {agents.map(a => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-slate-400 mt-1">If not selected, it will be assigned to you.</p>
+              </div>
+            )}
           </div>
         </div>
 
