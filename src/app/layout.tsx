@@ -20,18 +20,18 @@ export const metadata: Metadata = {
   title: "Farmer ERP — Premium Procurement Management",
   description:
     "A premium ERP system for managing farmer procurement, inventory tracking, and digital receipts.",
-  manifest: "/site.webmanifest?v=20260622",
+  manifest: "/site.webmanifest",
   appleWebApp: {
     title: "Farmer ERP",
   },
   icons: {
     icon: [
-      { url: "/favicon-96x96.png?v=20260622", sizes: "96x96", type: "image/png" },
-      { url: "/favicon.svg?v=20260622", type: "image/svg+xml" },
+      { url: "/favicon-96x96.png", sizes: "96x96", type: "image/png" },
+      { url: "/favicon.svg", type: "image/svg+xml" },
     ],
-    shortcut: ["/favicon.ico?v=20260622"],
+    shortcut: ["/favicon.ico"],
     apple: [
-      { url: "/apple-touch-icon.png?v=20260622", sizes: "180x180" },
+      { url: "/apple-touch-icon.png", sizes: "180x180" },
     ],
   },
 };
