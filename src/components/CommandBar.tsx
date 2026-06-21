@@ -201,7 +201,7 @@ export default function CommandBar() {
                 ? `${results.length} results`
                 : "Search farmers"}
             </span>
-            <div className="flex items-center gap-2">
+            <div className="hidden md:flex items-center gap-2">
               <kbd className="px-1.5 py-0.5 rounded bg-slate-100 font-mono text-[10px]">
                 ↑↓
               </kbd>
