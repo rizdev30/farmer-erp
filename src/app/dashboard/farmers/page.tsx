@@ -94,18 +94,18 @@ export default function FarmersPage() {
             value={districtFilter}
             onChange={(e) => setDistrictFilter(e.target.value)}
             className="px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-              text-sm text-slate-800 placeholder:text-slate-400
+              text-base text-slate-800 placeholder:text-slate-400
               focus:outline-none focus:ring-2 focus:ring-forest-500/30 focus:border-forest-500
-              transition-all w-40"
+              transition-all w-full md:w-40"
           />
           <input
             placeholder="Filter by block"
             value={blockFilter}
             onChange={(e) => setBlockFilter(e.target.value)}
             className="px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-              text-sm text-slate-800 placeholder:text-slate-400
+              text-base text-slate-800 placeholder:text-slate-400
               focus:outline-none focus:ring-2 focus:ring-forest-500/30 focus:border-forest-500
-              transition-all w-40"
+              transition-all w-full md:w-40"
           />
         </div>
       </div>

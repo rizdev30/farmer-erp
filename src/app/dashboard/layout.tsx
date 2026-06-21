@@ -176,14 +176,14 @@ export default function DashboardLayout({
         </header>
 
         {/* Page Content */}
-        <div className="flex-1 overflow-y-auto pb-20 md:pb-0">
+        <div className="flex-1 overflow-y-auto pb-24 md:pb-0">
           <div className="max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-8">
             {children}
           </div>
         </div>
 
         {/* Mobile Bottom Navigation */}
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 glass border-t border-slate-200/50 z-50 pb-safe print:hidden">
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 glass border-t border-slate-200/50 z-50 print:hidden shadow-[0_-4px_24px_rgba(0,0,0,0.04)]" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
           <div className="flex items-center justify-around h-16 px-2">
             {allNavItems.map((item) => {
               const isActive = pathname === item.href;
@@ -197,7 +197,7 @@ export default function DashboardLayout({
                     ${
                       isActive
                         ? "text-forest-600"
-                        : "text-slate-400 hover:text-slate-600"
+                        : "text-slate-400 hover:text-slate-600 active:text-slate-800"
                     }
                   `}
                 >

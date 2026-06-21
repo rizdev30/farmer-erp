@@ -234,7 +234,7 @@ export default function HistoryPage() {
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-                  text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 
+                  text-base text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 
                   focus:border-indigo-500 transition-all appearance-none"
               >
                 <option value="">All Months</option>
@@ -257,7 +257,7 @@ export default function HistoryPage() {
                   value={selectedAgent}
                   onChange={(e) => setSelectedAgent(e.target.value)}
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-                    text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 
+                    text-base text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 
                     focus:border-indigo-500 transition-all appearance-none"
                 >
                   <option value="">All Agents</option>
@@ -366,7 +366,7 @@ export default function HistoryPage() {
               placeholder="Search by Slip ID, Name or Code..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all"
+              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all"
             />
           </div>
         )}

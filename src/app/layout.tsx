@@ -1,4 +1,12 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: "#0f766e", // forest-700
+};
 import { Inter } from "next/font/google";
 import SessionProvider from "@/components/providers/SessionProvider";
 import "./globals.css";
