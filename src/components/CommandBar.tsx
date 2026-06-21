@@ -83,7 +83,7 @@ export default function CommandBar() {
       e.preventDefault();
       setSelectedIndex((i) => Math.max(i - 1, 0));
     } else if (e.key === "Enter" && results[selectedIndex]) {
-      router.push(`/dashboard/farmers?id=${results[selectedIndex].id}`);
+      router.push(`/dashboard/farmers/${results[selectedIndex].id}`);
       setOpen(false);
     }
   }
@@ -166,7 +166,7 @@ export default function CommandBar() {
                 <button
                   key={farmer.id}
                   onClick={() => {
-                    router.push(`/dashboard/farmers?id=${farmer.id}`);
+                    router.push(`/dashboard/farmers/${farmer.id}`);
                     setOpen(false);
                   }}
                   className={`w-full flex items-center gap-3 px-5 py-3.5 text-left

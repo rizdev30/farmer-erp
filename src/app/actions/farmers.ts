@@ -54,10 +54,10 @@ export async function searchFarmers(query: string) {
   const where: Record<string, unknown> = {
     active: true,
     OR: [
-      { name: { contains: query } },
-      { phone: { contains: query } },
-      { farmerCode: { contains: query } },
-      { village: { contains: query } },
+      { name: { contains: query, mode: "insensitive" } },
+      { phone: { contains: query, mode: "insensitive" } },
+      { farmerCode: { contains: query, mode: "insensitive" } },
+      { village: { contains: query, mode: "insensitive" } },
     ],
   };
 
@@ -102,10 +102,10 @@ export async function getFarmers(filters?: {
   }
 
   if (filters?.district) {
-    where.district = { contains: filters.district };
+    where.district = { contains: filters.district, mode: "insensitive" };
   }
   if (filters?.block) {
-    where.block = { contains: filters.block };
+    where.block = { contains: filters.block, mode: "insensitive" };
   }
 
   const page = filters?.page || 0;
