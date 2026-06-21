@@ -23,6 +23,8 @@ export const metadata: Metadata = {
   manifest: "/site.webmanifest?v2353454",
   appleWebApp: {
     title: "Farmer ERP",
+    capable: true,
+    statusBarStyle: "default",
   },
   icons: {
     icon: [

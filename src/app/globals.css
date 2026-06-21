@@ -9,11 +9,14 @@
 
 html {
   scroll-behavior: smooth;
+  overscroll-behavior-y: none;
 }
 
 body {
   @apply bg-slate-50 text-slate-800 antialiased;
   font-family: "Inter", system-ui, -apple-system, sans-serif;
+  overscroll-behavior-y: none;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* === Glassmorphism Utilities === */
