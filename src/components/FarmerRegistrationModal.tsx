@@ -109,16 +109,16 @@ export default function FarmerRegistrationModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[100] flex justify-center p-4 sm:p-6 overflow-y-auto items-start md:items-center">
       <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm backdrop-fade"
+        className="fixed inset-0 bg-black/40 backdrop-blur-sm backdrop-fade"
         onClick={() => {
           reset();
           onClose();
         }}
       />
 
-      <div className="relative w-full max-w-lg modal-spring">
+      <div className="relative w-full max-w-lg modal-spring my-auto z-10">
         <div className="glass rounded-3xl shadow-2xl shadow-black/15 overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-5 border-b border-slate-200/50">

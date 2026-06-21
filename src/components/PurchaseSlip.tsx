@@ -77,13 +77,13 @@ export default function PurchaseSlip({ receipt, onClose }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[100] flex justify-center p-4 sm:p-6 overflow-y-auto items-start md:items-center">
       <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm backdrop-fade"
+        className="fixed inset-0 bg-black/40 backdrop-blur-sm backdrop-fade"
         onClick={onClose}
       />
 
-      <div className="relative w-full max-w-md modal-spring">
+      <div className="relative w-full max-w-md modal-spring my-auto">
         <div className="bg-white rounded-3xl shadow-2xl shadow-black/15 overflow-hidden print:shadow-none print:w-full print:max-w-full">
           {/* Success Banner */}
           <div className="bg-gradient-to-r from-forest-800 to-forest-700 px-6 py-5 text-center print:hidden">
