@@ -13,10 +13,12 @@ interface Farmer {
   name: string;
   phone: string;
   address: string;
-  town: string;
+  town?: string;
+  village?: string;
   district: string;
   block: string;
   farmerCode: string;
+  fatherName?: string;
 }
 
 export default function FarmersPage() {

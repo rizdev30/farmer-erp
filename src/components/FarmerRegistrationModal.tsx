@@ -14,10 +14,11 @@ interface Props {
     name: string;
     phone: string;
     address: string;
-    village: string;
+    town?: string;
+    village?: string;
     district: string;
     block: string;
-    fatherName: string;
+    fatherName?: string;
     farmerCode: string;
   }) => void;
 }
@@ -88,10 +89,11 @@ export default function FarmerRegistrationModal({
           name: string;
           phone: string;
           address: string;
-          village: string;
+          town?: string;
+          village?: string;
           district: string;
           block: string;
-          fatherName: string;
+          fatherName?: string;
           farmerCode: string;
         });
         reset();
