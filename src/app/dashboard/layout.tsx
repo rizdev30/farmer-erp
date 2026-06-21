@@ -10,11 +10,11 @@ import {
   ShoppingCart,
   UserCog,
   ClipboardList,
-  Menu,
   X,
   LogOut,
   Sprout,
   ChevronRight,
+  Settings as SettingsIcon,
 } from "lucide-react";
 
 const navItems = [
@@ -22,6 +22,7 @@ const navItems = [
   { href: "/dashboard/farmers", label: "Farmers", icon: Users },
   { href: "/dashboard/procurement", label: "Procurement", icon: ShoppingCart },
   { href: "/dashboard/history", label: "Records", icon: ClipboardList },
+  { href: "/dashboard/settings", label: "Settings", icon: SettingsIcon },
 ];
 
 const adminItems = [
@@ -125,8 +126,8 @@ export default function DashboardLayout({
           })}
         </nav>
 
-        {/* Profile */}
-        <div className="px-4 pb-8 md:pb-4">
+        {/* Profile (Desktop only since Mobile has Settings tab now) */}
+        <div className="hidden md:block px-4 pb-4">
           <div className="p-4 rounded-2xl bg-white/8 border border-white/5">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-forest-400 to-forest-500 flex items-center justify-center text-white text-sm font-bold">
@@ -156,14 +157,8 @@ export default function DashboardLayout({
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden">
-        {/* Mobile Header */}
-        <header className="md:hidden flex items-center justify-between px-4 py-3 glass border-b border-slate-200/50 print:hidden">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="p-2 -ml-2 rounded-xl text-slate-600 hover:bg-slate-100 active:bg-slate-200 active:scale-95 transition-all touch-manipulation"
-          >
-            <Menu size={22} />
-          </button>
+        {/* Mobile Header (No longer has hamburger) */}
+        <header className="md:hidden flex items-center justify-center px-4 py-3 glass border-b border-slate-200/50 print:hidden relative">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-gradient-to-br from-forest-500 to-forest-600 rounded-lg flex items-center justify-center">
               <Sprout className="w-4 h-4 text-white" />
@@ -172,7 +167,6 @@ export default function DashboardLayout({
               Farmer ERP
             </span>
           </div>
-          <div className="w-10" /> {/* Spacer for centering */}
         </header>
 
         {/* Page Content */}
