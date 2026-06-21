@@ -77,7 +77,7 @@ export default function DashboardLayout({
           </Link>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="md:hidden p-2 text-forest-300 hover:text-white transition-colors rounded-lg"
+            className="md:hidden p-2 -mr-2 text-forest-300 hover:text-white hover:bg-white/10 active:bg-white/20 active:scale-95 transition-all rounded-lg touch-manipulation"
           >
             <X size={20} />
           </button>
@@ -160,7 +160,7 @@ export default function DashboardLayout({
         <header className="md:hidden flex items-center justify-between px-4 py-3 glass border-b border-slate-200/50 print:hidden">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="p-2 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors"
+            className="p-2 -ml-2 rounded-xl text-slate-600 hover:bg-slate-100 active:bg-slate-200 active:scale-95 transition-all touch-manipulation"
           >
             <Menu size={22} />
           </button>
