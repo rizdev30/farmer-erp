@@ -95,14 +95,8 @@ export default function PurchaseSlip({ receipt, onClose }: Props) {
             </h2>
           </div>
 
-          {/* Print-only Banner */}
-          <div className="hidden print:block border-b-2 border-black pb-4 mt-6 text-center">
-             <h2 className="text-xl font-bold uppercase tracking-widest">FARMER ERP PVT. LTD.</h2>
-             <p className="text-sm">Official Purchase Slip</p>
-          </div>
-
           {/* Slip Content */}
-          <div className="px-6 py-6 relative" id="purchase-slip">
+          <div className="px-6 py-6 relative bg-white" id="purchase-slip">
             {/* Watermark for anti-copy */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden opacity-30 print:opacity-[0.15]">
               <div className="transform -rotate-45 text-4xl sm:text-6xl font-black text-slate-300 tracking-widest whitespace-nowrap">
@@ -110,16 +104,20 @@ export default function PurchaseSlip({ receipt, onClose }: Props) {
               </div>
             </div>
 
-            {/* Slip ID */}
-            <div className="flex items-center justify-between mb-5 pb-4 border-b border-dashed border-slate-200 print:border-black relative z-10">
-              <div className="relative z-10">
-              <span className="text-sm font-bold text-forest-800 block print:hidden">
-                FARMER ERP PVT. LTD.
-              </span>
-              <span className="text-xs text-slate-500 font-medium print:text-black">
-                Authorized Agent: {receipt.agentName || "Agent"}
-              </span>
+            {/* Official Header */}
+            <div className="text-center mb-5 pb-4 border-b-2 border-slate-800 print:border-black relative z-10">
+              <h2 className="text-xl font-black uppercase tracking-widest text-forest-900 print:text-black">FARMER ERP PVT. LTD.</h2>
+              <p className="text-sm font-semibold text-slate-500 print:text-black mt-1">Official Purchase Slip</p>
             </div>
+
+            {/* Slip ID & Agent */}
+            <div className="flex items-center justify-between mb-5 pb-4 border-b border-dashed border-slate-200 print:border-black relative z-10">
+              <div className="relative z-10 text-left">
+                <span className="text-xs text-slate-400 print:text-black">Authorized Agent</span>
+                <span className="block text-sm font-semibold text-slate-800 print:text-black">
+                  {receipt.agentName || "Agent"}
+                </span>
+              </div>
               <div className="text-right">
                 <p className="text-xs text-slate-400 print:text-black">Slip ID</p>
                 <p className="text-sm font-mono font-bold text-slate-800 print:text-black">
