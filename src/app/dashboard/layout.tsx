@@ -157,12 +157,12 @@ export default function DashboardLayout({
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Mobile Header (No longer has hamburger) */}
-        <header className="md:hidden flex items-center justify-center px-4 py-3 bg-forest-500 print:hidden relative shadow-md">
+        <header className="md:hidden flex items-center justify-center px-4 py-3 glass border-b border-slate-200/50 print:hidden relative">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-gradient-to-br from-forest-500 to-forest-600 rounded-lg flex items-center justify-center">
               <Sprout className="w-4 h-4 text-white" />
             </div>
-            <span className="font-semibold text-white text-base">
+            <span className="font-semibold text-forest-900 text-sm">
               Farmer ERP
             </span>
           </div>
