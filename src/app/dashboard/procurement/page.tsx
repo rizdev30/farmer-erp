@@ -293,7 +293,7 @@ export default function ProcurementPage() {
                 type="button"
                 onClick={() => setCategoryFilter("FARMER")}
                 className={`flex-1 py-1 px-2 text-xs text-center font-semibold rounded-xl transition-all ${
-                  categoryFilter === "FARMER" ? "bg-forest-100 text-forest-800 shadow-sm ring-1 ring-forest-200/50" : "text-slate-500 hover:text-slate-700"
+                  categoryFilter === "FARMER" ? "bg-white text-forest-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
                 }`}
               >
                 Farmer
@@ -302,7 +302,7 @@ export default function ProcurementPage() {
                 type="button"
                 onClick={() => setCategoryFilter("TRADER")}
                 className={`flex-1 py-1 px-2 text-xs text-center font-semibold rounded-xl transition-all ${
-                  categoryFilter === "TRADER" ? "bg-blue-100 text-blue-800 shadow-sm ring-1 ring-blue-200/50" : "text-slate-500 hover:text-slate-700"
+                  categoryFilter === "TRADER" ? "bg-white text-blue-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
                 }`}
               >
                 Trader
@@ -413,14 +413,16 @@ export default function ProcurementPage() {
                 <label className="block text-xs font-medium text-slate-500 mb-1.5">
                   Crop
                 </label>
-                <input
-                  type="text"
+                <select
                   value={crop}
                   onChange={(e) => setCrop(e.target.value)}
                   className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-                    text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
+                    text-slate-800 focus:outline-none focus:ring-2 
                     transition-all text-base font-medium ${ringClass}`}
-                />
+                >
+                  <option value="Rice">Rice</option>
+                  <option value="Paddy">Paddy</option>
+                </select>
               </div>
 
               {/* Variety */}

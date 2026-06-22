@@ -98,7 +98,7 @@ export default function FarmersPage() {
             <button
               onClick={() => setCategoryFilter("")}
               className={`flex-1 text-sm font-semibold rounded-xl transition-all ${
-                categoryFilter === "" ? "bg-white text-slate-800 shadow-sm ring-1 ring-slate-200/50" : "text-slate-500 hover:text-slate-700"
+                categoryFilter === "" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
               }`}
             >
               All
@@ -106,7 +106,7 @@ export default function FarmersPage() {
             <button
               onClick={() => setCategoryFilter("FARMER")}
               className={`flex-1 text-sm font-semibold rounded-xl transition-all ${
-                categoryFilter === "FARMER" ? "bg-forest-100 text-forest-800 shadow-sm ring-1 ring-forest-200/50" : "text-slate-500 hover:text-slate-700"
+                categoryFilter === "FARMER" ? "bg-white text-forest-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
               }`}
             >
               Farmer
@@ -114,7 +114,7 @@ export default function FarmersPage() {
             <button
               onClick={() => setCategoryFilter("TRADER")}
               className={`flex-1 text-sm font-semibold rounded-xl transition-all ${
-                categoryFilter === "TRADER" ? "bg-blue-100 text-blue-800 shadow-sm ring-1 ring-blue-200/50" : "text-slate-500 hover:text-slate-700"
+                categoryFilter === "TRADER" ? "bg-white text-blue-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
               }`}
             >
               Trader

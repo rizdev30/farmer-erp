@@ -280,10 +280,10 @@ export default function FarmerRegistrationModal({
 
             {step === 1 && (
               <div className="space-y-4">
-                <div className="flex bg-slate-100 p-1 rounded-xl mb-4">
+                <div className="flex bg-slate-100 p-1 rounded-2xl mb-4">
                   <button
                     onClick={() => setCategory("FARMER")}
-                    className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${
+                    className={`flex-1 py-2 text-sm font-semibold rounded-xl transition-all ${
                       !isTrader ? "bg-white text-forest-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
                     }`}
                   >
@@ -291,7 +291,7 @@ export default function FarmerRegistrationModal({
                   </button>
                   <button
                     onClick={() => setCategory("TRADER")}
-                    className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${
+                    className={`flex-1 py-2 text-sm font-semibold rounded-xl transition-all ${
                       isTrader ? "bg-white text-blue-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
                     }`}
                   >
