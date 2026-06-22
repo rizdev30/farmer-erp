@@ -36,9 +36,13 @@ export interface ProcurementData {
   crop: string;
   variety: string;
   bags: number;
-  grossQuantity: number; // in Quintals
-  deduction: number; // in Quintals
-  rate: number; // ₹ per Quintal
+  packingSize: number;
+  grossQuantity: number; // in Quintals (Weight Qtl.)
+  deduction: number; // Deduction Qtl./Bag
+  rate: number; // RATE PER QUINTAL
+  bones: number;
+  adtiyaName?: string;
+  lotNo?: string;
   agentId?: string; // Admin can assign to a specific agent
 }
 
@@ -54,10 +58,14 @@ export interface ProcurementReceipt {
   crop: string;
   variety: string;
   bags: number;
+  packingSize: number;
   grossQuantity: number;
   deduction: number;
   netQuantity: number;
   rate: number;
+  bones: number;
+  adtiyaName?: string;
+  lotNo?: string;
   total: number;
   agentName?: string;
 }
@@ -93,7 +101,8 @@ export async function createProcurement(
 
   const grossQuantity = roundQuintal(data.grossQuantity);
   const deduction = roundQuintal(data.deduction || 0);
-  const netQuantity = roundQuintal(grossQuantity - deduction);
+  const totalDeduction = roundQuintal(deduction * data.bags);
+  const netQuantity = roundQuintal(grossQuantity - totalDeduction);
   const rate = roundQuintal(data.rate);
   const total = roundQuintal(netQuantity * rate);
   const slipId = generateSlipId();
@@ -110,10 +119,14 @@ export async function createProcurement(
       crop: data.crop,
       variety: data.variety,
       bags: data.bags,
+      packingSize: data.packingSize,
       grossQuantity,
       deduction,
       netQuantity,
       rate,
+      bones: data.bones,
+      adtiyaName: data.adtiyaName || "",
+      lotNo: data.lotNo || "",
       total,
       agentId: procurementAgentId,
       agentName: procurementAgentName,
@@ -135,10 +148,14 @@ export async function createProcurement(
     crop: data.crop,
     variety: data.variety,
     bags: data.bags,
+    packingSize: data.packingSize,
     grossQuantity,
     deduction,
     netQuantity,
     rate,
+    bones: data.bones,
+    adtiyaName: data.adtiyaName,
+    lotNo: data.lotNo,
     total,
   };
 }
@@ -199,10 +216,14 @@ export async function getProcurementHistory(filters?: {
     crop: p.crop,
     variety: p.variety,
     bags: p.bags,
+    packingSize: p.packingSize,
     grossQuantity: p.grossQuantity,
     deduction: p.deduction,
     netQuantity: p.netQuantity,
     rate: p.rate,
+    bones: p.bones,
+    adtiyaName: p.adtiyaName,
+    lotNo: p.lotNo,
     total: p.total,
     agentId: p.agentId,
     agentName: p.agentName,

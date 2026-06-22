@@ -36,6 +36,10 @@ model Farmer {
   district         String   @default("")
   block            String   @default("")
   fatherName       String   @default("")
+  gender           String   @default("")
+  pinCode          String   @default("")
+  projectName      String   @default("")
+  category         String   @default("FARMER") // "FARMER" or "TRADER"
   farmerCode       String   @unique
   registeredBy     String   @default("")  // Agent user ID who registered this farmer
   registeredByName String   @default("")  // Agent name for display
@@ -61,11 +65,15 @@ model Procurement {
   crop          String
   variety       String   @default("")
   bags          Int      @default(0)
+  packingSize   Int      @default(0)
   grossQuantity Float    @default(0)
   deduction     Float    @default(0)
   netQuantity   Float    @default(0)
   rate          Float    @default(0)
+  bones         Float    @default(0)
   total         Float    @default(0)
+  adtiyaName    String   @default("")
+  lotNo         String   @default("")
   agentId       String   @default("")  // Agent user ID who did this procurement
   agentName     String   @default("")
   createdByAdmin Boolean @default(false)

@@ -37,12 +37,18 @@ export default function ProcurementPage() {
   const [searchingFarmer, setSearchingFarmer] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
 
+  const [categoryFilter, setCategoryFilter] = useState("FARMER");
+
   const [crop, setCrop] = useState("Rice");
   const [variety, setVariety] = useState("");
   const [bags, setBags] = useState("");
+  const [packingSize, setPackingSize] = useState("");
   const [grossQuantity, setGrossQuantity] = useState("");
   const [deduction, setDeduction] = useState("");
   const [rate, setRate] = useState("");
+  const [bones, setBones] = useState("");
+  const [adtiyaName, setAdtiyaName] = useState("");
+  const [lotNo, setLotNo] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -63,13 +69,22 @@ export default function ProcurementPage() {
   const netQuantity = useMemo(() => {
     const gross = parseFloat(grossQuantity) || 0;
     const ded = parseFloat(deduction) || 0;
-    return Math.max(0, Math.round((gross - ded) * 100) / 100);
-  }, [grossQuantity, deduction]);
+    const b = parseInt(bags) || 0;
+    return Math.max(0, Math.round((gross - ded * b) * 100) / 100);
+  }, [grossQuantity, deduction, bags]);
 
   const total = useMemo(() => {
     const r = parseFloat(rate) || 0;
     return Math.round(netQuantity * r * 100) / 100;
   }, [netQuantity, rate]);
+
+  const ringClass = categoryFilter === "TRADER" 
+    ? "focus:ring-blue-500/30 focus:border-blue-500" 
+    : "focus:ring-forest-500/30 focus:border-forest-500";
+
+  const submitButtonClass = categoryFilter === "TRADER"
+    ? "from-blue-700 to-blue-600 hover:from-blue-600 hover:to-blue-500 shadow-blue-900/20"
+    : "from-forest-800 to-forest-700 hover:from-forest-700 hover:to-forest-600 shadow-forest-900/20";
 
   // Farmer search
   useEffect(() => {
@@ -81,7 +96,7 @@ export default function ProcurementPage() {
     setSearchingFarmer(true);
     const timeout = setTimeout(async () => {
       try {
-        const data = await searchFarmers(farmerQuery);
+        const data = await searchFarmers(farmerQuery, categoryFilter);
         setFarmerResults(data as Farmer[]);
       } catch {
         setFarmerResults([]);
@@ -90,7 +105,7 @@ export default function ProcurementPage() {
     }, 300);
 
     return () => clearTimeout(timeout);
-  }, [farmerQuery]);
+  }, [farmerQuery, categoryFilter]);
 
   // Offline Sync State
   const [syncing, setSyncing] = useState(false);
@@ -131,9 +146,13 @@ export default function ProcurementPage() {
     setFarmerQuery("");
     setVariety("");
     setBags("");
+    setPackingSize("");
     setGrossQuantity("");
     setDeduction("");
     setRate("");
+    setBones("");
+    setAdtiyaName("");
+    setLotNo("");
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -163,9 +182,13 @@ export default function ProcurementPage() {
       crop,
       variety,
       bags: parseInt(bags) || 0,
+      packingSize: parseInt(packingSize) || 0,
       grossQuantity: parseFloat(grossQuantity),
       deduction: parseFloat(deduction) || 0,
       rate: parseFloat(rate),
+      bones: parseFloat(bones) || 0,
+      adtiyaName,
+      lotNo,
       agentId: selectedAgentId || undefined,
     };
 
@@ -183,10 +206,14 @@ export default function ProcurementPage() {
         crop: payload.crop,
         variety: payload.variety,
         bags: payload.bags,
+        packingSize: payload.packingSize,
         grossQuantity: payload.grossQuantity,
         deduction: payload.deduction,
         netQuantity,
         rate: payload.rate,
+        bones: payload.bones,
+        adtiyaName: payload.adtiyaName,
+        lotNo: payload.lotNo,
         total,
         timestamp: new Date().toISOString(),
         agentName: session?.user?.name || "Agent",
@@ -257,9 +284,31 @@ export default function ProcurementPage() {
 
         {/* Farmer Select */}
         <div className="glass-card rounded-2xl p-5 relative z-50">
-          <label className="block text-sm font-semibold text-slate-700 mb-3">
-            1. Select Farmer
-          </label>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+            <label className="block text-sm font-semibold text-slate-700">
+              1. Select Farmer/Trader
+            </label>
+            <div className="flex bg-slate-100 p-1 rounded-2xl w-full sm:w-auto sm:min-w-[240px]">
+              <button
+                type="button"
+                onClick={() => setCategoryFilter("FARMER")}
+                className={`flex-1 py-1 px-2 text-xs text-center font-semibold rounded-xl transition-all ${
+                  categoryFilter === "FARMER" ? "bg-forest-100 text-forest-800 shadow-sm ring-1 ring-forest-200/50" : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                Farmer
+              </button>
+              <button
+                type="button"
+                onClick={() => setCategoryFilter("TRADER")}
+                className={`flex-1 py-1 px-2 text-xs text-center font-semibold rounded-xl transition-all ${
+                  categoryFilter === "TRADER" ? "bg-blue-100 text-blue-800 shadow-sm ring-1 ring-blue-200/50" : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                Trader
+              </button>
+            </div>
+          </div>
 
           {selectedFarmer ? (
             <div className="flex items-center justify-between p-3 rounded-xl bg-forest-50 border border-forest-200">
@@ -295,7 +344,7 @@ export default function ProcurementPage() {
             </div>
           ) : (
             <div className="relative">
-              <div className="flex items-center gap-2 px-4 py-3 rounded-xl border border-slate-200 bg-white/60">
+              <div className={`flex items-center gap-2 px-4 py-3 rounded-xl border border-slate-200 bg-white/60 focus-within:outline-none focus-within:ring-2 transition-all ${categoryFilter === "TRADER" ? "focus-within:ring-blue-500/30 focus-within:border-blue-500" : "focus-within:ring-forest-500/30 focus-within:border-forest-500"}`}>
                 <Search size={16} className="text-slate-400" />
                 <input
                   value={farmerQuery}
@@ -304,7 +353,7 @@ export default function ProcurementPage() {
                     setShowDropdown(true);
                   }}
                   onFocus={() => setShowDropdown(true)}
-                  placeholder="Type farmer name to search..."
+                  placeholder="Type name to search..."
                   className="flex-1 bg-transparent outline-none text-sm text-slate-800 placeholder:text-slate-400"
                 />
                 {searchingFarmer && (
@@ -368,9 +417,9 @@ export default function ProcurementPage() {
                   type="text"
                   value={crop}
                   onChange={(e) => setCrop(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                  className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
                     text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
-                    focus:ring-forest-500/30 transition-all text-base font-medium"
+                    transition-all text-base font-medium ${ringClass}`}
                 />
               </div>
 
@@ -384,14 +433,14 @@ export default function ProcurementPage() {
                   value={variety}
                   onChange={(e) => setVariety(e.target.value)}
                   placeholder="e.g. Basmati"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                  className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
                     text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
-                    focus:ring-forest-500/30 transition-all text-base"
+                    transition-all text-base ${ringClass}`}
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               {/* Bags */}
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1.5">
@@ -403,16 +452,33 @@ export default function ProcurementPage() {
                   onChange={(e) => setBags(e.target.value)}
                   placeholder="0"
                   min="0"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                  className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
                     text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
-                    focus:ring-forest-500/30 transition-all text-base"
+                    transition-all text-base ${ringClass}`}
                 />
               </div>
 
-              {/* Gross Quantity */}
+              {/* Packing Size */}
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1.5">
-                  Gross Qty (Qtl)
+                  Packing Size
+                </label>
+                <input
+                  type="number"
+                  value={packingSize}
+                  onChange={(e) => setPackingSize(e.target.value)}
+                  placeholder="0"
+                  min="0"
+                  className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                    text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
+                    transition-all text-base ${ringClass}`}
+                />
+              </div>
+
+              {/* Weight Qtl */}
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1.5">
+                  Weight Qtl.
                 </label>
                 <input
                   type="number"
@@ -421,16 +487,16 @@ export default function ProcurementPage() {
                   placeholder="0.00"
                   step="0.01"
                   min="0"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                  className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
                     text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
-                    focus:ring-forest-500/30 transition-all text-base"
+                    transition-all text-base ${ringClass}`}
                 />
               </div>
 
-              {/* Deduction */}
+              {/* Deduction Qtl/Bag */}
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1.5">
-                  Deduction (Qtl)
+                  Deduction Qtl./Bag
                 </label>
                 <input
                   type="number"
@@ -439,16 +505,16 @@ export default function ProcurementPage() {
                   placeholder="0.00"
                   step="0.01"
                   min="0"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                  className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
                     text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
-                    focus:ring-forest-500/30 transition-all text-base"
+                    transition-all text-base ${ringClass}`}
                 />
               </div>
 
               {/* Rate */}
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1.5">
-                  Rate (₹ per Quintal)
+                  RATE PER QUINTAL
                 </label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">
@@ -461,12 +527,61 @@ export default function ProcurementPage() {
                     placeholder="0.00"
                     step="0.01"
                     min="0"
-                    className="w-full pl-8 pr-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                    className={`w-full pl-8 pr-4 py-3 rounded-xl border border-slate-200 bg-white/60 
                       text-slate-800 placeholder:text-slate-400 
-                      focus:outline-none focus:ring-2 focus:ring-forest-500/30 focus:border-forest-500 
-                      transition-all text-base"
+                      focus:outline-none focus:ring-2 transition-all text-base ${ringClass}`}
                   />
                 </div>
+              </div>
+
+              {/* Bones */}
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1.5">
+                  Bones
+                </label>
+                <input
+                  type="number"
+                  value={bones}
+                  onChange={(e) => setBones(e.target.value)}
+                  placeholder="0"
+                  step="0.01"
+                  min="0"
+                  className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                    text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
+                    transition-all text-base ${ringClass}`}
+                />
+              </div>
+
+              {/* Adtiya Name */}
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1.5">
+                  Adtiya Name
+                </label>
+                <input
+                  type="text"
+                  value={adtiyaName}
+                  onChange={(e) => setAdtiyaName(e.target.value)}
+                  placeholder=""
+                  className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                    text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
+                    transition-all text-base ${ringClass}`}
+                />
+              </div>
+
+              {/* Lot no */}
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1.5">
+                  Lot no.
+                </label>
+                <input
+                  type="text"
+                  value={lotNo}
+                  onChange={(e) => setLotNo(e.target.value)}
+                  placeholder=""
+                  className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                    text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
+                    transition-all text-base ${ringClass}`}
+                />
               </div>
             </div>
 
@@ -484,9 +599,8 @@ export default function ProcurementPage() {
                 <select
                   value={selectedAgentId}
                   onChange={(e) => setSelectedAgentId(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-                    text-slate-800 focus:outline-none focus:ring-2 focus:ring-forest-500/30 
-                    focus:border-forest-500 transition-all duration-200 text-base appearance-none"
+                  className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                    text-slate-800 focus:outline-none focus:ring-2 transition-all duration-200 text-base appearance-none ${ringClass}`}
                 >
                   <option value="">Assign to myself</option>
                   {agents.map(a => (
@@ -530,12 +644,7 @@ export default function ProcurementPage() {
         <button
           type="submit"
           disabled={submitting || !selectedFarmer || !grossQuantity || !rate}
-          className="w-full py-4 rounded-2xl bg-gradient-to-r from-forest-800 to-forest-700 
-            text-white text-base font-semibold
-            hover:from-forest-700 hover:to-forest-600 
-            disabled:opacity-50 disabled:cursor-not-allowed
-            transition-all shadow-lg shadow-forest-900/20 
-            hover:shadow-xl active:scale-[0.99]"
+          className={`w-full py-4 rounded-2xl bg-gradient-to-r text-white text-base font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl active:scale-[0.99] ${submitButtonClass}`}
         >
           {submitting ? (
             <span className="flex items-center justify-center gap-2">

@@ -188,67 +188,60 @@ export default function PurchaseSlip({ receipt, onClose }: Props) {
                 </div>
               </div>
 
-              <div className="h-px bg-slate-100 print:bg-black" />
+              <div className="h-px bg-slate-100 print:bg-black mb-3" />
 
-              {/* Crop Section */}
-              <div className="pt-2">
-                <p className="text-[10px] font-bold text-forest-600 uppercase tracking-wider mb-2 print:text-black">Crop Details</p>
-                <div className="grid grid-cols-3 gap-2">
-                  <div>
-                    <span className="block text-[10px] text-slate-400 print:text-black">Crop</span>
-                    <span className="block text-xs font-medium text-slate-700 print:text-black">{receipt.crop}</span>
-                  </div>
-                  <div className="text-center">
-                    <span className="block text-[10px] text-slate-400 print:text-black">Variety</span>
-                    <span className="block text-xs font-medium text-slate-700 print:text-black">{receipt.variety || "-"}</span>
-                  </div>
-                  <div className="text-right">
-                    <span className="block text-[10px] text-slate-400 print:text-black">Bags</span>
-                    <span className="block text-xs font-medium text-slate-700 print:text-black">{receipt.bags || 0}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="h-px bg-slate-100 print:bg-black" />
-
-              {/* Math Section */}
-              <div className="pt-2 space-y-1.5">
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-500 print:text-black">Gross Quantity</span>
-                  <span className="font-semibold text-slate-800 print:text-black">
-                    {receipt.grossQuantity} Qtl
-                  </span>
-                </div>
-                <div className="flex justify-between items-center text-xs text-red-600 print:text-black">
-                  <span className="opacity-80">Less: Deduction</span>
-                  <span className="font-medium">
-                    - {receipt.deduction} Qtl
-                  </span>
-                </div>
-                <div className="flex justify-between items-center text-xs pt-1 border-t border-slate-50 print:border-black">
-                  <span className="text-slate-500 font-medium print:text-black">Net Quantity</span>
-                  <span className="font-bold text-slate-800 print:text-black">
-                    {receipt.netQuantity} Qtl
-                  </span>
-                </div>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-500 print:text-black">Rate</span>
-                  <span className="font-medium text-slate-700 print:text-black">
-                    ₹{receipt.rate.toLocaleString("en-IN")} / Qtl
-                  </span>
-                </div>
-              </div>
-
-              <div className="h-[2px] border-b-2 border-dashed border-slate-200 mt-3 mb-2 print:border-black" />
-
-              {/* Total */}
-              <div className="flex justify-between items-center pt-2">
-                <span className="text-base font-semibold text-slate-700 print:text-black">
-                  Total Payout
-                </span>
-                <span className="text-2xl font-bold text-forest-700 print:text-black">
-                  ₹{receipt.total.toLocaleString("en-IN")}
-                </span>
+              {/* Data Table */}
+              <div className="pt-2 text-slate-800 print:text-black">
+                <table className="w-full text-xs sm:text-sm border-collapse border border-slate-400 print:border-black table-fixed">
+                  <tbody>
+                    <tr>
+                      <td className="border border-slate-400 print:border-black p-2 w-1/2">
+                        Crop: <span className="font-semibold ml-1">{receipt.crop}</span>
+                      </td>
+                      <td className="border border-slate-400 print:border-black p-2 w-1/2">
+                        Variety: <span className="font-semibold ml-1">{receipt.variety || "-"}</span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="border border-slate-400 print:border-black p-2">
+                        No. of Bags: <span className="font-semibold ml-1">{receipt.bags}</span>
+                      </td>
+                      <td className="border border-slate-400 print:border-black p-2">
+                        Packing Size: <span className="font-semibold ml-1">{receipt.packingSize}</span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="border border-slate-400 print:border-black p-2">
+                        Weight Qtl.: <span className="font-semibold ml-1">{receipt.grossQuantity}</span>
+                      </td>
+                      <td className="border border-slate-400 print:border-black p-2">
+                        Deduction Qtl./Bag: <span className="font-semibold ml-1">{receipt.deduction}</span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="border border-slate-400 print:border-black p-2">
+                        RATE PER QUINTAL: <span className="font-semibold ml-1">{receipt.rate}</span>
+                      </td>
+                      <td className="border border-slate-400 print:border-black p-2">
+                        Bones: <span className="font-semibold ml-1">{receipt.bones}</span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="border border-slate-400 print:border-black p-2">
+                        Adtiya Name: <span className="font-semibold ml-1">{receipt.adtiyaName || "-"}</span>
+                      </td>
+                      <td className="border border-slate-400 print:border-black p-2">
+                        Lot no.: <span className="font-semibold ml-1">{receipt.lotNo || "-"}</span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td colSpan={2} className="border border-slate-400 print:border-black p-2">
+                        <span className="font-semibold">Total Payout: </span>
+                        <span className="font-bold text-base ml-2">₹{receipt.total.toLocaleString("en-IN")}</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
 
               {/* Timestamp of Generation */}

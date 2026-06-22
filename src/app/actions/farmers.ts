@@ -44,7 +44,7 @@ async function getSessionUser() {
   };
 }
 
-export async function searchFarmers(query: string) {
+export async function searchFarmers(query: string, categoryFilter?: string) {
   if (!query || query.length < 2) return [];
 
   const user = await getSessionUser();
@@ -65,6 +65,10 @@ export async function searchFarmers(query: string) {
     where.registeredBy = user.userId;
   }
 
+  if (categoryFilter) {
+    where.category = categoryFilter;
+  }
+
   const results = await prisma.farmer.findMany({
     where,
     take: 20,
@@ -83,12 +87,18 @@ export async function searchFarmers(query: string) {
     farmerCode: f.farmerCode,
     village: f.village,
     registeredByName: f.registeredByName,
+    category: f.category,
+    gender: f.gender,
+    pinCode: f.pinCode,
+    projectName: f.projectName,
   }));
 }
 
 export async function getFarmers(filters?: {
   district?: string;
   block?: string;
+  village?: string;
+  category?: string;
   page?: number;
 }) {
   const user = await getSessionUser();
@@ -106,6 +116,12 @@ export async function getFarmers(filters?: {
   }
   if (filters?.block) {
     where.block = { contains: filters.block, mode: "insensitive" };
+  }
+  if (filters?.village) {
+    where.village = { contains: filters.village, mode: "insensitive" };
+  }
+  if (filters?.category) {
+    where.category = filters.category;
   }
 
   const page = filters?.page || 0;
@@ -130,6 +146,10 @@ export async function getFarmers(filters?: {
     farmerCode: f.farmerCode,
     village: f.village,
     registeredByName: f.registeredByName,
+    category: f.category,
+    gender: f.gender,
+    pinCode: f.pinCode,
+    projectName: f.projectName,
   }));
 }
 
@@ -159,6 +179,10 @@ export async function getFarmerById(id: number) {
     registeredBy: f.registeredBy,
     registeredByName: f.registeredByName,
     createdByAdmin: f.createdByAdmin,
+    category: f.category,
+    gender: f.gender,
+    pinCode: f.pinCode,
+    projectName: f.projectName,
     createdAt: f.createdAt.toISOString(),
   };
 }
@@ -172,6 +196,10 @@ export async function registerFarmer(data: {
   block: string;
   fatherName: string;
   village: string;
+  gender?: string;
+  pinCode?: string;
+  projectName?: string;
+  category?: string;
   farmerCode?: string; // Optional: If not provided, we generate it
   agentId?: string; // Admin can assign to a specific agent
 }) {
@@ -204,6 +232,10 @@ export async function registerFarmer(data: {
       fatherName: data.fatherName,
       farmerCode: code,
       village: data.village,
+      gender: data.gender || "",
+      pinCode: data.pinCode || "",
+      projectName: data.projectName || "",
+      category: data.category || "FARMER",
       registeredBy: registeredById,
       registeredByName: registeredByName,
       createdByAdmin,
@@ -225,6 +257,10 @@ export async function registerFarmer(data: {
       farmerCode: farmer.farmerCode,
       village: farmer.village,
       registeredByName: farmer.registeredByName,
+      category: farmer.category,
+      gender: farmer.gender,
+      pinCode: farmer.pinCode,
+      projectName: farmer.projectName,
     },
   };
 }
