@@ -40,7 +40,7 @@ async function getSessionUser() {
   return {
     userId: session.user.id,
     userName: session.user.name || "Unknown",
-    role: (session.user as { role?: string }).role || "AGENT",
+    role: (session.user as { role?: string }).role || "L1_AGENT",
   };
 }
 
@@ -48,9 +48,9 @@ export async function searchFarmers(query: string, categoryFilter?: string) {
   if (!query || query.length < 2) return [];
 
   const user = await getSessionUser();
-  const isAdmin = user.role === "ADMIN";
+  const isAdmin = user.role === "L4_ADMIN";
 
-  // Build where clause — agents only see their own farmers
+  // Build where clause
   const where: Record<string, unknown> = {
     active: true,
     OR: [
@@ -61,7 +61,7 @@ export async function searchFarmers(query: string, categoryFilter?: string) {
     ],
   };
 
-  if (!isAdmin) {
+  if (user.role === "L1_AGENT") {
     where.registeredBy = user.userId;
   }
 
@@ -91,6 +91,7 @@ export async function searchFarmers(query: string, categoryFilter?: string) {
     gender: f.gender,
     pinCode: f.pinCode,
     projectName: f.projectName,
+    assignedL3Id: (f as any).assignedL3Id,
   }));
 }
 
@@ -102,12 +103,11 @@ export async function getFarmers(filters?: {
   page?: number;
 }) {
   const user = await getSessionUser();
-  const isAdmin = user.role === "ADMIN";
+  const isAdmin = user.role === "L4_ADMIN";
 
   const where: Record<string, unknown> = { active: true };
 
-  // Agents can only see their own farmers
-  if (!isAdmin) {
+  if (user.role === "L1_AGENT") {
     where.registeredBy = user.userId;
   }
 
@@ -150,18 +150,19 @@ export async function getFarmers(filters?: {
     gender: f.gender,
     pinCode: f.pinCode,
     projectName: f.projectName,
+    assignedL3Id: (f as any).assignedL3Id,
   }));
 }
 
 export async function getFarmerById(id: number) {
   const user = await getSessionUser();
-  const isAdmin = user.role === "ADMIN";
+  const isAdmin = user.role === "L4_ADMIN";
 
   const f = await prisma.farmer.findUniqueOrThrow({
     where: { id },
   });
 
-  if (!isAdmin && f.registeredBy !== user.userId) {
+  if (user.role === "L1_AGENT" && f.registeredBy !== user.userId) {
     throw new Error("You are not authorized to view this farmer's profile");
   }
 
@@ -184,6 +185,7 @@ export async function getFarmerById(id: number) {
     pinCode: f.pinCode,
     projectName: f.projectName,
     createdAt: f.createdAt.toISOString(),
+    assignedL3Id: f.assignedL3Id,
   };
 }
 
@@ -202,9 +204,10 @@ export async function registerFarmer(data: {
   category?: string;
   farmerCode?: string; // Optional: If not provided, we generate it
   agentId?: string; // Admin can assign to a specific agent
+  assignedL3Id?: string; // Admin can assign to L3
 }) {
   const user = await getSessionUser();
-  const isAdmin = user.role === "ADMIN";
+  const isAdmin = user.role === "L4_ADMIN";
   const code = data.farmerCode || (await generateFarmerCode());
 
   let registeredById = user.userId;
@@ -238,6 +241,7 @@ export async function registerFarmer(data: {
       category: data.category || "FARMER",
       registeredBy: registeredById,
       registeredByName: registeredByName,
+      assignedL3Id: data.assignedL3Id || "",
       createdByAdmin,
     },
   });
@@ -261,6 +265,7 @@ export async function registerFarmer(data: {
       gender: farmer.gender,
       pinCode: farmer.pinCode,
       projectName: farmer.projectName,
+      assignedL3Id: farmer.assignedL3Id,
     },
   };
 }

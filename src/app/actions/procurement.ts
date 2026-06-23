@@ -23,7 +23,7 @@ async function getSessionUser() {
   return {
     userId: session.user.id,
     userName: session.user.name || "Unknown",
-    role: (session.user as { role?: string }).role || "AGENT",
+    role: (session.user as { role?: string }).role || "L1_AGENT",
   };
 }
 
@@ -79,7 +79,11 @@ export async function createProcurement(
   let procurementAgentName = user.userName;
   let createdByAdmin = false;
 
-  if (user.role === "ADMIN" && data.agentId && data.agentId !== user.userId) {
+  if (user.role === "L3_PO_MAKER" || user.role === "L4_ADMIN") {
+    throw new Error("PO Makers and Admins cannot create procurements");
+  }
+
+  if (user.role === "L4_ADMIN" && data.agentId && data.agentId !== user.userId) {
     const agent = await prisma.user.findUnique({ where: { id: data.agentId } });
     if (agent) {
       procurementAgentId = agent.id;
@@ -89,7 +93,7 @@ export async function createProcurement(
   }
 
   // Verify the farmer belongs to this agent (if not admin)
-  if (user.role !== "ADMIN") {
+  if (user.role !== "L4_ADMIN" && user.role !== "L2_APPROVAL") {
     const farmer = await prisma.farmer.findUnique({
       where: { id: data.farmerId },
       select: { registeredBy: true },
@@ -130,6 +134,7 @@ export async function createProcurement(
       total,
       agentId: procurementAgentId,
       agentName: procurementAgentName,
+      status: "PENDING_L2",
       createdByAdmin,
       validated: true,
     },
@@ -170,18 +175,49 @@ export async function getProcurementHistory(filters?: {
   year?: number;
   month?: number;
   agentId?: string;
+  status?: string;
 }) {
   const user = await getSessionUser();
-  const isAdmin = user.role === "ADMIN";
 
   const where: Record<string, unknown> = {};
 
-  // Agents can only see their own procurements
-  if (!isAdmin) {
-    where.agentId = user.userId;
-  } else if (filters?.agentId) {
-    // Admin can filter by specific agent
-    where.agentId = filters.agentId;
+  if (user.role === "L3_PO_MAKER") {
+    if (filters?.status) {
+      if (filters.status === "PENDING") {
+        where.status = "PENDING_L3";
+      } else if (filters.status === "REJECTED") {
+        where.status = "REJECTED_L3";
+      } else {
+        where.status = filters.status;
+      }
+    } else {
+      where.status = { in: ["PENDING_L3", "APPROVED", "REJECTED_L3"] };
+    }
+  } else {
+    if (filters?.status) {
+      if (filters.status === "PENDING") {
+        where.status = { in: ["PENDING_L2", "PENDING_L3"] };
+      } else if (filters.status === "REJECTED") {
+        where.status = { in: ["REJECTED_L2", "REJECTED_L3"] };
+      } else {
+        where.status = filters.status;
+      }
+    }
+
+    if (user.role === "L1_AGENT") {
+      where.agentId = user.userId;
+    } else if (user.role === "L2_APPROVAL") {
+      // Level 2 can see their own, pending L2, or records they approved
+      where.OR = [
+        { agentId: user.userId },
+        { status: "PENDING_L2" },
+        { l2ApprovedBy: user.userId }
+      ];
+    } else if (user.role === "L4_ADMIN") {
+      if (filters?.agentId) {
+        where.agentId = filters.agentId;
+      }
+    }
   }
 
   // Monthly filter
@@ -205,6 +241,21 @@ export async function getProcurementHistory(filters?: {
     },
   });
 
+  const userIds = new Set<string>();
+  procurements.forEach((p) => {
+    if (p.l2ApprovedBy) userIds.add(p.l2ApprovedBy);
+    if (p.l3ApprovedBy) userIds.add(p.l3ApprovedBy);
+  });
+
+  const userMap = new Map<string, string>();
+  if (userIds.size > 0) {
+    const users = await prisma.user.findMany({
+      where: { id: { in: Array.from(userIds) } },
+      select: { id: true, name: true },
+    });
+    users.forEach((u) => userMap.set(u.id, u.name));
+  }
+
   return procurements.map((p) => ({
     id: p.id,
     slipId: p.slipId,
@@ -227,6 +278,9 @@ export async function getProcurementHistory(filters?: {
     total: p.total,
     agentId: p.agentId,
     agentName: p.agentName,
+    status: p.status,
+    l2ApproverName: p.l2ApprovedBy ? userMap.get(p.l2ApprovedBy) : null,
+    l3ApproverName: p.l3ApprovedBy ? userMap.get(p.l3ApprovedBy) : null,
     createdByAdmin: p.createdByAdmin,
     validated: p.validated,
     createdAt: p.createdAt.toISOString(),
@@ -238,7 +292,7 @@ export async function getProcurementHistory(filters?: {
  */
 export async function getProcurementBySlipId(slipId: string) {
   const user = await getSessionUser();
-  const isAdmin = user.role === "ADMIN";
+  const isAdmin = user.role === "L4_ADMIN";
 
   const procurement = await prisma.procurement.findUniqueOrThrow({
     where: { slipId },
@@ -247,8 +301,16 @@ export async function getProcurementBySlipId(slipId: string) {
     },
   });
 
-  if (!isAdmin && procurement.agentId !== user.userId) {
+  if (user.role === "L1_AGENT" && procurement.agentId !== user.userId) {
     throw new Error("You are not authorized to view this record.");
+  } else if (user.role === "L2_APPROVAL") {
+    if (procurement.agentId !== user.userId && procurement.status !== "PENDING_L2" && procurement.l2ApprovedBy !== user.userId) {
+      throw new Error("You are not authorized to view this record.");
+    }
+  } else if (user.role === "L3_PO_MAKER") {
+    if (!["PENDING_L3", "APPROVED", "REJECTED_L3"].includes(procurement.status)) {
+      throw new Error("You are not authorized to view this record.");
+    }
   }
 
   const agent = await prisma.user.findUnique({
@@ -256,12 +318,32 @@ export async function getProcurementBySlipId(slipId: string) {
     select: { email: true, name: true },
   });
 
+  let l2ApproverName = null;
+  if (procurement.l2ApprovedBy) {
+    const l2User = await prisma.user.findUnique({
+      where: { id: procurement.l2ApprovedBy },
+      select: { name: true },
+    });
+    if (l2User) l2ApproverName = l2User.name;
+  }
+
+  let l3ApproverName = null;
+  if (procurement.l3ApprovedBy) {
+    const l3User = await prisma.user.findUnique({
+      where: { id: procurement.l3ApprovedBy },
+      select: { name: true },
+    });
+    if (l3User) l3ApproverName = l3User.name;
+  }
+
   return {
     ...procurement,
     farmer: {
       ...procurement.farmer,
     },
     agentDetails: agent,
+    l2ApproverName,
+    l3ApproverName,
   };
 }
 
@@ -271,14 +353,23 @@ export async function getProcurementBySlipId(slipId: string) {
  */
 export async function getMonthlySummary(filters?: { agentId?: string }) {
   const user = await getSessionUser();
-  const isAdmin = user.role === "ADMIN";
 
   const where: Record<string, unknown> = {};
 
-  if (!isAdmin) {
+  if (user.role === "L1_AGENT") {
     where.agentId = user.userId;
-  } else if (filters?.agentId) {
-    where.agentId = filters.agentId;
+  } else if (user.role === "L2_APPROVAL") {
+    where.OR = [
+      { agentId: user.userId },
+      { status: "PENDING_L2" },
+      { l2ApprovedBy: user.userId }
+    ];
+  } else if (user.role === "L3_PO_MAKER") {
+    where.status = { in: ["PENDING_L3", "APPROVED", "REJECTED_L3"] };
+  } else if (user.role === "L4_ADMIN") {
+    if (filters?.agentId) {
+      where.agentId = filters.agentId;
+    }
   }
 
   const procurements = await prisma.procurement.findMany({
@@ -345,7 +436,7 @@ export async function getMonthlySummary(filters?: { agentId?: string }) {
  */
 export async function getAgentsList() {
   const user = await getSessionUser();
-  if (user.role !== "ADMIN") return [];
+  if (user.role !== "L4_ADMIN") return [];
 
   const agents = await prisma.user.findMany({
     where: { active: true },
@@ -358,4 +449,52 @@ export async function getAgentsList() {
     name: a.name,
     role: a.role,
   }));
+}
+
+export async function updateProcurementStatus(
+  slipId: string,
+  action: "L2_APPROVE" | "L2_REJECT" | "L3_APPROVE" | "L3_REJECT",
+  updates?: { rate?: number; deduction?: number }
+) {
+  const user = await getSessionUser();
+  const procurement = await prisma.procurement.findUniqueOrThrow({ where: { slipId } });
+
+  const dataToUpdate: any = {};
+
+  if (action === "L2_APPROVE") {
+    if (user.role !== "L2_APPROVAL" && user.role !== "L4_ADMIN") throw new Error("Unauthorized");
+    if (procurement.status !== "PENDING_L2") throw new Error("Invalid status");
+    dataToUpdate.status = "PENDING_L3";
+    dataToUpdate.l2ApprovedBy = user.userId;
+  } else if (action === "L2_REJECT") {
+    if (user.role !== "L2_APPROVAL" && user.role !== "L4_ADMIN") throw new Error("Unauthorized");
+    if (procurement.status !== "PENDING_L2") throw new Error("Invalid status");
+    dataToUpdate.status = "REJECTED_L2";
+  } else if (action === "L3_APPROVE") {
+    if (user.role !== "L3_PO_MAKER" && user.role !== "L4_ADMIN") throw new Error("Unauthorized");
+    if (procurement.status !== "PENDING_L3") throw new Error("Invalid status");
+    dataToUpdate.status = "APPROVED";
+    dataToUpdate.l3ApprovedBy = user.userId;
+  } else if (action === "L3_REJECT") {
+    if (user.role !== "L3_PO_MAKER" && user.role !== "L4_ADMIN") throw new Error("Unauthorized");
+    if (procurement.status !== "PENDING_L3") throw new Error("Invalid status");
+    dataToUpdate.status = "REJECTED_L3";
+  }
+
+  if (updates) {
+    if (updates.rate !== undefined) dataToUpdate.rate = updates.rate;
+    if (updates.deduction !== undefined) dataToUpdate.deduction = updates.deduction;
+    // Recalculate total if needed
+    const newRate = updates.rate !== undefined ? updates.rate : procurement.rate;
+    const newDeduction = updates.deduction !== undefined ? updates.deduction : procurement.deduction;
+    const totalDeduction = newDeduction * procurement.bags;
+    const netQuantity = procurement.grossQuantity - totalDeduction;
+    dataToUpdate.netQuantity = Math.round(netQuantity * 100) / 100;
+    dataToUpdate.total = Math.round((dataToUpdate.netQuantity * newRate) * 100) / 100;
+  }
+
+  return await prisma.procurement.update({
+    where: { slipId },
+    data: dataToUpdate,
+  });
 }

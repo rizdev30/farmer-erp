@@ -42,6 +42,9 @@ interface ProcurementRecord {
   total: number;
   agentId: string;
   agentName: string;
+  status: string;
+  l2ApproverName?: string | null;
+  l3ApproverName?: string | null;
   createdByAdmin: boolean;
   validated: boolean;
   createdAt: string;
@@ -64,13 +67,17 @@ interface AgentOption {
 
 export default function HistoryPage() {
   const { data: session } = useSession();
-  const isAdmin = session?.user?.role === "ADMIN";
+  const role = (session?.user as any)?.role;
+  const isAdmin = role === "L4_ADMIN";
+  const isL2 = role === "L2_APPROVAL";
+  const isL3 = role === "L3_PO_MAKER";
 
   // Filters
   const [selectedMonth, setSelectedMonth] = useState("");
   const [selectedAgent, setSelectedAgent] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [activeTab, setActiveTab] = useState<"records" | "summary">("records");
+  const [selectedStatus, setSelectedStatus] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
   // Data
@@ -106,7 +113,7 @@ export default function HistoryPage() {
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedMonth, selectedAgent]);
+  }, [selectedMonth, selectedAgent, selectedStatus]);
 
   async function loadData() {
     setLoading(true);
@@ -119,6 +126,9 @@ export default function HistoryPage() {
       }
       if (selectedAgent) {
         filters.agentId = selectedAgent;
+      }
+      if (selectedStatus) {
+        (filters as any).status = selectedStatus;
       }
 
       const [recordData, summaryData] = await Promise.all([
@@ -269,14 +279,37 @@ export default function HistoryPage() {
                 </select>
               </div>
             )}
+
+            {/* Status Filter */}
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-slate-500 mb-1.5">
+                <Filter size={12} className="inline mr-1" />
+                Filter by Status
+              </label>
+              <select
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                  text-base text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 
+                  focus:border-indigo-500 transition-all appearance-none"
+              >
+                <option value="">All Statuses</option>
+                <option value="PENDING_L2">Pending Level 2</option>
+                <option value="PENDING_L3">Pending Level 3</option>
+                <option value="APPROVED">Approved</option>
+                <option value="REJECTED_L2">Rejected Level 2</option>
+                <option value="REJECTED_L3">Rejected Level 3</option>
+              </select>
+            </div>
           </div>
 
           {/* Clear Filters */}
-          {(selectedMonth || selectedAgent) && (
+          {(selectedMonth || selectedAgent || selectedStatus) && (
             <button
               onClick={() => {
                 setSelectedMonth("");
                 setSelectedAgent("");
+                setSelectedStatus("");
               }}
               className="text-xs text-indigo-600 hover:text-indigo-800 underline transition-colors"
             >
@@ -372,6 +405,52 @@ export default function HistoryPage() {
         )}
       </div>
 
+      {/* Quick Status Filters */}
+      {activeTab === "records" && (
+        <div className="grid grid-cols-4 gap-1.5 mb-2 mt-1">
+          <button
+            onClick={() => setSelectedStatus("")}
+            className={`py-2 rounded-full text-[10px] sm:text-xs font-bold transition-all shadow-sm ${
+              !selectedStatus
+                ? "bg-slate-800 text-white shadow-slate-800/20"
+                : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+            }`}
+          >
+            All
+          </button>
+          <button
+            onClick={() => setSelectedStatus("PENDING")}
+            className={`py-2 rounded-full text-[10px] sm:text-xs font-bold transition-all shadow-sm ${
+              selectedStatus === "PENDING"
+                ? "bg-amber-500 text-white shadow-amber-500/20"
+                : "bg-white text-amber-700 border border-amber-200 hover:bg-amber-50"
+            }`}
+          >
+            Pending
+          </button>
+          <button
+            onClick={() => setSelectedStatus("APPROVED")}
+            className={`py-2 rounded-full text-[10px] sm:text-xs font-bold transition-all shadow-sm ${
+              selectedStatus === "APPROVED"
+                ? "bg-green-600 text-white shadow-green-600/20"
+                : "bg-white text-green-700 border border-green-200 hover:bg-green-50"
+            }`}
+          >
+            Approved
+          </button>
+          <button
+            onClick={() => setSelectedStatus("REJECTED")}
+            className={`py-2 rounded-full text-[10px] sm:text-xs font-bold transition-all shadow-sm ${
+              selectedStatus === "REJECTED"
+                ? "bg-red-500 text-white shadow-red-500/20"
+                : "bg-white text-red-700 border border-red-200 hover:bg-red-50"
+            }`}
+          >
+            Rejected
+          </button>
+        </div>
+      )}
+
       {/* Content */}
       {loading ? (
         <div className="space-y-3">
@@ -401,7 +480,7 @@ export default function HistoryPage() {
             <p className="text-sm text-slate-500">
               {searchQuery
                 ? "No records matched your search query"
-                : selectedMonth || selectedAgent
+                : selectedMonth || selectedAgent || selectedStatus
                 ? "Try adjusting your filters"
                 : "Procurement records will appear here after transactions"}
             </p>
@@ -474,6 +553,19 @@ export default function HistoryPage() {
                     <p className="text-[10px] text-slate-400 mt-0.5 font-mono">
                       {record.slipId}
                     </p>
+                    <p className="text-[10px] mt-0.5 font-semibold text-slate-600">
+                      Status: {record.status}
+                    </p>
+                    {record.l2ApproverName && (
+                      <p className="text-[10px] text-indigo-600 mt-0.5 font-semibold">
+                        L2: {record.l2ApproverName}
+                      </p>
+                    )}
+                    {record.l3ApproverName && (
+                      <p className="text-[10px] text-emerald-600 mt-0.5 font-semibold">
+                        L3: {record.l3ApproverName}
+                      </p>
+                    )}
                     <p className="text-xs text-slate-400 mt-0.5">
                       {formatDate(record.createdAt)} • {formatTime(record.createdAt)}
                     </p>

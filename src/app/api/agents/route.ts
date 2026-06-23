@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 
 export async function GET() {
   const session = await auth();
-  if (!session || (session.user as { role?: string })?.role !== "ADMIN") {
+  if (!session || (session.user as { role?: string })?.role !== "L4_ADMIN") {
     return Response.json({ error: "Unauthorized" }, { status: 403 });
   }
 
@@ -25,12 +25,12 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const session = await auth();
-  if (!session || (session.user as { role?: string })?.role !== "ADMIN") {
+  if (!session || (session.user as { role?: string })?.role !== "L4_ADMIN") {
     return Response.json({ error: "Unauthorized" }, { status: 403 });
   }
 
   const body = await req.json();
-  const { name, email, password } = body;
+  const { name, email, password, role } = body;
 
   if (!name || !email || !password) {
     return Response.json(
@@ -52,7 +52,7 @@ export async function POST(req: Request) {
       name,
       email,
       password: hashedPassword,
-      role: "AGENT",
+      role: role || "L1_AGENT",
       active: true,
     },
     select: {

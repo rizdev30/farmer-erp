@@ -36,7 +36,7 @@ export default function DashboardLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
   const { data: session } = useSession();
-  const isAdmin = session?.user?.role === "ADMIN";
+  const isAdmin = session?.user?.role === "L4_ADMIN";
 
   const allNavItems = isAdmin ? [...navItems, ...adminItems] : navItems;
 

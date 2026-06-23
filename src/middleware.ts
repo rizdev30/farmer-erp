@@ -25,7 +25,7 @@ export default auth((req) => {
   // Admin-only routes
   if (pathname.startsWith("/dashboard/agents")) {
     const role = (session.user as { role?: string })?.role;
-    if (role !== "ADMIN") {
+    if (role !== "L4_ADMIN") {
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
   }

@@ -13,7 +13,7 @@ model User {
   name      String
   email     String   @unique
   password  String
-  role      String   @default("AGENT") // "ADMIN" or "AGENT"
+  role      String   @default("L1_AGENT") // "L1_AGENT", "L2_APPROVAL", "L3_PO_MAKER", "L4_ADMIN"
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -43,6 +43,7 @@ model Farmer {
   farmerCode       String   @unique
   registeredBy     String   @default("")  // Agent user ID who registered this farmer
   registeredByName String   @default("")  // Agent name for display
+  assignedL3Id     String   @default("")  // PO Maker (Level 3) who is assigned to this farmer
   createdByAdmin   Boolean  @default(false)
   active           Boolean  @default(true)
   createdAt        DateTime @default(now())
@@ -76,6 +77,9 @@ model Procurement {
   lotNo         String   @default("")
   agentId       String   @default("")  // Agent user ID who did this procurement
   agentName     String   @default("")
+  status        String   @default("PENDING_L2") // PENDING_L2, REJECTED_L2, PENDING_L3, REJECTED_L3, APPROVED
+  l2ApprovedBy  String   @default("")
+  l3ApprovedBy  String   @default("")
   createdByAdmin Boolean @default(false)
   validated     Boolean  @default(true)
   createdAt     DateTime @default(now())

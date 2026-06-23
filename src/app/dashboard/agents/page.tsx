@@ -28,6 +28,7 @@ export default function AgentsPage() {
   const [formName, setFormName] = useState("");
   const [formEmail, setFormEmail] = useState("");
   const [formPassword, setFormPassword] = useState("");
+  const [formRole, setFormRole] = useState("L1_AGENT");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
   
@@ -68,6 +69,7 @@ export default function AgentsPage() {
           name: formName,
           email: formEmail,
           password: formPassword,
+          role: formRole,
         }),
       });
 
@@ -76,6 +78,7 @@ export default function AgentsPage() {
         setFormName("");
         setFormEmail("");
         setFormPassword("");
+        setFormRole("L1_AGENT");
         fetchAgents();
       } else {
         const data = await res.json();
@@ -213,14 +216,18 @@ export default function AgentsPage() {
                 <div className="flex items-center gap-3">
                   <span
                     className={`text-xs font-medium px-2.5 py-1 rounded-lg
-                      ${agent.role === "ADMIN"
+                      ${agent.role === "L4_ADMIN"
                         ? "bg-purple-100 text-purple-700"
+                        : agent.role === "L3_PO_MAKER"
+                        ? "bg-blue-100 text-blue-700"
+                        : agent.role === "L2_APPROVAL"
+                        ? "bg-amber-100 text-amber-700"
                         : "bg-forest-100 text-forest-700"
                       }`}
                   >
-                    {agent.role}
+                    {agent.role.replace("_", " ")}
                   </span>
-                  {agent.role !== "ADMIN" && (
+                  {agent.role !== "L4_ADMIN" && (
                     <button
                       onClick={() => toggleAgent(agent.id, agent.active)}
                       className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
@@ -332,6 +339,24 @@ export default function AgentsPage() {
                   />
                 </div>
 
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Role
+                  </label>
+                  <select
+                    value={formRole}
+                    onChange={(e) => setFormRole(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                      text-base text-slate-800 outline-none focus:ring-2 focus:ring-forest-500/30
+                      transition-all appearance-none"
+                  >
+                    <option value="L1_AGENT">Level 1 - Agent</option>
+                    <option value="L2_APPROVAL">Level 2 - Approval</option>
+                    <option value="L3_PO_MAKER">Level 3 - PO Maker</option>
+                    <option value="L4_ADMIN">Level 4 - Admin</option>
+                  </select>
+                </div>
+
                 <button
                   type="submit"
                   disabled={creating}
@@ -430,8 +455,10 @@ export default function AgentsPage() {
                       text-base text-slate-800 outline-none focus:ring-2 focus:ring-forest-500/30
                       transition-all appearance-none"
                   >
-                    <option value="AGENT">AGENT</option>
-                    <option value="ADMIN">ADMIN</option>
+                    <option value="L1_AGENT">Level 1 - Agent</option>
+                    <option value="L2_APPROVAL">Level 2 - Approval</option>
+                    <option value="L3_PO_MAKER">Level 3 - PO Maker</option>
+                    <option value="L4_ADMIN">Level 4 - Admin</option>
                   </select>
                 </div>
 

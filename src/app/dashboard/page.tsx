@@ -18,11 +18,12 @@ export default async function DashboardPage() {
 
   const bentoStats = [
     {
-      title: "Total Farmers",
-      value: stats.totalFarmers,
-      subtitle: "Registered suppliers",
-      icon: <Users size={20} className="text-forest-700" />,
+      title: "Total Purchase",
+      value: stats.totalPurchase,
+      subtitle: "All time",
+      icon: <ShoppingCart size={20} className="text-forest-700" />,
       gradient: "bg-gradient-to-br from-forest-100 to-forest-200",
+      span: "sm:col-span-1 lg:col-span-2",
     },
     {
       title: "Today's Procurements",
@@ -30,20 +31,47 @@ export default async function DashboardPage() {
       subtitle: "Transactions today",
       icon: <ShoppingCart size={20} className="text-blue-700" />,
       gradient: "bg-gradient-to-br from-blue-100 to-blue-200",
+      span: "sm:col-span-1 lg:col-span-2",
     },
     {
-      title: "Total Procurement",
-      value: `${stats.totalQuantity} Qtl`,
-      subtitle: "In Quintals",
-      icon: <Scale size={20} className="text-amber-700" />,
+      title: "Pending Approval",
+      value: stats.pendingApproval,
+      subtitle: "Pending review",
+      icon: <ClipboardList size={20} className="text-amber-700" />,
       gradient: "bg-gradient-to-br from-amber-100 to-amber-200",
+      span: "sm:col-span-1 lg:col-span-2",
     },
     {
-      title: "Total Payout",
-      value: stats.totalPayout,
+      title: "Approved",
+      value: stats.approved,
+      subtitle: "Successfully approved",
+      icon: <ClipboardList size={20} className="text-green-700" />,
+      gradient: "bg-gradient-to-br from-green-100 to-green-200",
+      span: "sm:col-span-1 lg:col-span-2",
+    },
+    {
+      title: "Total Purchase in Qtl.",
+      value: stats.totalPurchaseQtl,
       subtitle: "All time",
-      icon: <IndianRupee size={20} className="text-purple-700" />,
+      icon: <Scale size={20} className="text-purple-700" />,
       gradient: "bg-gradient-to-br from-purple-100 to-purple-200",
+      span: "sm:col-span-1 lg:col-span-2",
+    },
+    {
+      title: "Today's Purchase in Qtl.",
+      value: stats.todaysPurchaseQtl,
+      subtitle: "Today",
+      icon: <Scale size={20} className="text-indigo-700" />,
+      gradient: "bg-gradient-to-br from-indigo-100 to-indigo-200",
+      span: "sm:col-span-1 lg:col-span-2",
+    },
+    {
+      title: "Today's Average Price",
+      value: `₹${stats.todaysAveragePrice}`,
+      subtitle: "Average Rate",
+      icon: <IndianRupee size={20} className="text-rose-700" />,
+      gradient: "bg-gradient-to-br from-rose-100 to-rose-200",
+      span: "sm:col-span-2 lg:col-span-4", // Making the 7th item span full width or more
     },
   ];
 

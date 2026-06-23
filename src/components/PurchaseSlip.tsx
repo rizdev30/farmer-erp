@@ -121,12 +121,7 @@ export default function PurchaseSlip({ receipt, onClose }: Props) {
 
           {/* Slip Content */}
           <div className="px-6 py-6 relative bg-white" id="purchase-slip">
-            {/* Watermark for anti-copy */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden opacity-30 print:opacity-[0.15]">
-              <div className="transform -rotate-45 text-4xl sm:text-6xl font-black text-slate-300 tracking-widest whitespace-nowrap">
-                OFFICIAL RECEIPT
-              </div>
-            </div>
+            {/* No watermark for initial slip */}
 
             {/* Official Header */}
             <div className="text-center mb-5 pb-4 border-b-2 border-slate-800 print:border-black relative z-10">
@@ -244,8 +239,11 @@ export default function PurchaseSlip({ receipt, onClose }: Props) {
                 </table>
               </div>
 
-              {/* Timestamp of Generation */}
+              {/* Caption and Timestamp of Generation */}
               <div className="mt-6 pt-3 border-t border-slate-100 print:border-black/10 text-center">
+                <p className="text-[10px] text-amber-600 print:text-black font-semibold mb-2 max-w-sm mx-auto leading-tight">
+                  * This slip is going for approval. This is not an official receipt. Official receipt will be downloaded after final approval.
+                </p>
                 <p id="timestamp-text" className="text-[10px] text-slate-400 print:text-black/60 font-mono">
                   Downloaded / Printed on: {currentTime}
                 </p>

@@ -58,6 +58,7 @@ interface BentoGridProps {
     subtitle?: string;
     icon: ReactNode;
     gradient: string;
+    span?: string;
   }[];
 }
 
@@ -68,7 +69,7 @@ export default function BentoGrid({ stats }: BentoGridProps) {
         <BentoCard
           key={i}
           {...stat}
-          span={i === 0 ? "sm:col-span-2 lg:col-span-1" : ""}
+          span={stat.span || (i === 0 ? "sm:col-span-2 lg:col-span-1" : "")}
         />
       ))}
     </div>

@@ -197,7 +197,8 @@ export default function ProcurementPage() {
       const offlineId = `OFF-${Date.now().toString().slice(-5)}`;
       
       const offlineReceipt: ProcurementReceipt = {
-        id: Date.now(),
+        success: true,
+        invoiceId: Date.now(),
         slipId: offlineId,
         farmerName: payload.farmerName,
         farmerCode: payload.farmerCode || "",

@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { getProcurementBySlipId } from "@/app/actions/procurement";
+import { getProcurementBySlipId, updateProcurementStatus } from "@/app/actions/procurement";
+import { useSession } from "next-auth/react";
 import {
   ArrowLeft,
   Loader2,
@@ -22,12 +23,20 @@ export default function ReceiptPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isSharing, setIsSharing] = useState(false);
+  const { data: session } = useSession();
+  const role = (session?.user as any)?.role;
+
+  const [editRate, setEditRate] = useState<number | "">("");
+  const [editDeduction, setEditDeduction] = useState<number | "">("");
+  const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
     async function loadRecord() {
       try {
         const data = await getProcurementBySlipId(slipId);
         setRecord(data);
+        setEditRate(data.rate);
+        setEditDeduction(data.deduction);
       } catch (err: any) {
         setError(err.message || "Failed to load record.");
       }
@@ -120,6 +129,26 @@ export default function ReceiptPage() {
     }
   }
 
+  async function handleAction(action: "L2_APPROVE" | "L2_REJECT" | "L3_APPROVE" | "L3_REJECT") {
+    if (!window.confirm("Are you sure you want to " + action.split("_")[1].toLowerCase() + " this record?")) return;
+    setIsUpdating(true);
+    try {
+      const updates = action === "L2_APPROVE" ? { 
+        rate: Number(editRate), 
+        deduction: Number(editDeduction) 
+      } : undefined;
+      await updateProcurementStatus(slipId, action, updates);
+      alert("Status updated successfully.");
+      router.push("/dashboard/history");
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    }
+    setIsUpdating(false);
+  }
+
+  const isL2Pending = record.status === "PENDING_L2" && (role === "L2_APPROVAL" || role === "L4_ADMIN");
+  const isL3Pending = record.status === "PENDING_L3" && (role === "L3_PO_MAKER" || role === "L4_ADMIN");
+
   return (
     <div className="max-w-md mx-auto py-8">
       {/* Back button (hidden on print) */}
@@ -149,12 +178,14 @@ export default function ReceiptPage() {
 
         {/* Slip Content */}
         <div className="px-6 py-6 relative bg-white" id="purchase-slip">
-          {/* Watermark for anti-copy */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden opacity-30 print:opacity-[0.15]">
-            <div className="transform -rotate-45 text-4xl sm:text-6xl font-black text-slate-300 tracking-widest whitespace-nowrap">
-              OFFICIAL RECEIPT
+          {/* Watermark for anti-copy (only if approved) */}
+          {record.status === "APPROVED" && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden opacity-30 print:opacity-[0.15]">
+              <div className="transform -rotate-45 text-4xl sm:text-6xl font-black text-slate-300 tracking-widest whitespace-nowrap">
+                OFFICIAL RECEIPT
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Official Header */}
           <div className="text-center mb-5 pb-4 border-b-2 border-slate-800 print:border-black relative z-10">
@@ -162,19 +193,55 @@ export default function ReceiptPage() {
             <p className="text-sm font-semibold text-slate-500 print:text-black mt-1">Official Purchase Slip</p>
           </div>
 
-          {/* Slip ID & Agent */}
-          <div className="flex items-center justify-between mb-5 pb-4 border-b border-dashed border-slate-200 print:border-black relative z-10">
-            <div className="relative z-10 text-left">
-              <span className="text-xs text-slate-400 print:text-black">Authorized Agent</span>
-              <span className="block text-sm font-semibold text-slate-800 print:text-black">
-                {record.agentName || "Unknown"}
-              </span>
+          {/* Slip ID & Approvals */}
+          <div className="flex items-start justify-between mb-5 pb-4 border-b border-dashed border-slate-200 print:border-black relative z-10">
+            <div className="relative z-10 text-left space-y-2">
+              <div>
+                <span className="text-[10px] text-slate-400 print:text-black uppercase tracking-wider">Agent (L1)</span>
+                <span className="block text-xs font-semibold text-slate-800 print:text-black">
+                  {record.agentName || "Unknown"}
+                </span>
+              </div>
+              {record.l2ApproverName && (
+                <div>
+                  <span className="text-[10px] text-slate-400 print:text-black uppercase tracking-wider">Approved By (L2)</span>
+                  <span className="block text-xs font-semibold text-slate-800 print:text-black">
+                    {record.l2ApproverName}
+                  </span>
+                </div>
+              )}
+              {record.l3ApproverName && (
+                <div>
+                  <span className="text-[10px] text-slate-400 print:text-black uppercase tracking-wider">Final PO Maker (L3)</span>
+                  <span className="block text-xs font-semibold text-slate-800 print:text-black">
+                    {record.l3ApproverName}
+                  </span>
+                </div>
+              )}
             </div>
             <div className="text-right">
               <p className="text-xs text-slate-400 print:text-black">Slip ID</p>
               <p className="text-sm font-mono font-bold text-slate-800 print:text-black">
                 {record.slipId}
               </p>
+              <div className="mt-2 text-right">
+                {record.status === "APPROVED" ? (
+                  <>
+                    <p className="text-[12px] font-black text-emerald-600 print:text-black">
+                      STATUS: APPROVED
+                    </p>
+                    {record.l3ApproverName && (
+                      <p className="text-[10px] font-bold text-slate-700 print:text-black uppercase mt-0.5">
+                        BY: {record.l3ApproverName}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-[10px] font-bold text-indigo-600 print:text-black mt-1 uppercase">
+                    STATUS: {record.status}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
 
@@ -248,22 +315,42 @@ export default function ReceiptPage() {
                 </span>
               </div>
               <div className="flex justify-between items-center text-xs text-red-600 print:text-black">
-                <span className="opacity-80">Less: Deduction</span>
-                <span className="font-medium">
-                  - {record.deduction} Qtl
-                </span>
+                <span className="opacity-80">Less: Deduction (per Bag)</span>
+                {isL2Pending ? (
+                  <input 
+                    type="number"
+                    value={editDeduction}
+                    onChange={(e) => setEditDeduction(e.target.value === "" ? "" : Number(e.target.value))}
+                    className="w-16 border rounded text-right p-1"
+                  />
+                ) : (
+                  <span className="font-medium">
+                    - {record.deduction} Qtl
+                  </span>
+                )}
               </div>
               <div className="flex justify-between items-center text-xs pt-1 border-t border-slate-50 print:border-black">
                 <span className="text-slate-500 font-medium print:text-black">Net Quantity</span>
                 <span className="font-bold text-slate-800 print:text-black">
-                  {record.netQuantity} Qtl
+                  {isL2Pending && editDeduction !== "" ? 
+                    Math.round((record.grossQuantity - Number(editDeduction) * record.bags) * 100) / 100 
+                    : record.netQuantity} Qtl
                 </span>
               </div>
               <div className="flex justify-between items-center text-xs">
                 <span className="text-slate-500 print:text-black">Rate</span>
-                <span className="font-medium text-slate-700 print:text-black">
-                  ₹{record.rate.toLocaleString("en-IN")} / Qtl
-                </span>
+                {isL2Pending ? (
+                  <input 
+                    type="number"
+                    value={editRate}
+                    onChange={(e) => setEditRate(e.target.value === "" ? "" : Number(e.target.value))}
+                    className="w-20 border rounded text-right p-1 text-slate-700"
+                  />
+                ) : (
+                  <span className="font-medium text-slate-700 print:text-black">
+                    ₹{record.rate.toLocaleString("en-IN")} / Qtl
+                  </span>
+                )}
               </div>
             </div>
 
@@ -275,14 +362,65 @@ export default function ReceiptPage() {
                 Total Payout
               </span>
               <span className="text-2xl font-bold text-forest-700 print:text-black">
-                ₹{record.total.toLocaleString("en-IN")}
+                {isL2Pending && editRate !== "" && editDeduction !== "" ? 
+                  "₹" + (Math.round((record.grossQuantity - Number(editDeduction) * record.bags) * Number(editRate) * 100) / 100).toLocaleString("en-IN")
+                  : "₹" + record.total.toLocaleString("en-IN")}
               </span>
             </div>
+
+            {/* Caption */}
+            {record.status !== "APPROVED" && (
+              <div className="mt-4 text-center">
+                <p className="text-[10px] text-amber-600 print:text-black font-semibold mb-2 max-w-sm mx-auto leading-tight">
+                  * This slip is going for approval. This is not an official receipt. Official receipt will be downloaded after final approval.
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
+        {/* Approvals */}
+        {isL2Pending && (
+          <div className="px-6 pb-6 flex gap-3 print:hidden">
+            <button
+              onClick={() => handleAction("L2_REJECT")}
+              disabled={isUpdating}
+              className="flex-1 bg-red-100 text-red-700 py-3 rounded-xl font-semibold hover:bg-red-200"
+            >
+              Reject
+            </button>
+            <button
+              onClick={() => handleAction("L2_APPROVE")}
+              disabled={isUpdating}
+              className="flex-1 bg-amber-500 text-white py-3 rounded-xl font-semibold hover:bg-amber-600"
+            >
+              Approve (L2)
+            </button>
+          </div>
+        )}
+
+        {isL3Pending && (
+          <div className="px-6 pb-6 flex gap-3 print:hidden">
+            <button
+              onClick={() => handleAction("L3_REJECT")}
+              disabled={isUpdating}
+              className="flex-1 bg-red-100 text-red-700 py-3 rounded-xl font-semibold hover:bg-red-200"
+            >
+              Reject
+            </button>
+            <button
+              onClick={() => handleAction("L3_APPROVE")}
+              disabled={isUpdating}
+              className="flex-1 bg-green-600 text-white py-3 rounded-xl font-semibold hover:bg-green-700"
+            >
+              Final Approve (L3)
+            </button>
+          </div>
+        )}
+
         {/* Actions */}
-        <div className="px-6 pb-6 flex gap-3 print:hidden">
+        {(record.status === "APPROVED" || role === "L4_ADMIN") && (
+          <div className="px-6 pb-6 flex gap-3 print:hidden">
           <button
             onClick={handleWhatsApp}
             disabled={isSharing}
@@ -308,6 +446,7 @@ export default function ReceiptPage() {
             Print / PDF
           </button>
         </div>
+        )}
       </div>
 
       {/* Global Print Styles to make background white and remove shadows */}

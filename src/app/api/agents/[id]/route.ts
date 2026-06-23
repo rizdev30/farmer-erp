@@ -8,7 +8,7 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   const session = await auth();
-  if (!session || (session.user as { role?: string })?.role !== "ADMIN") {
+  if (!session || (session.user as { role?: string })?.role !== "L4_ADMIN") {
     return Response.json({ error: "Unauthorized" }, { status: 403 });
   }
 
