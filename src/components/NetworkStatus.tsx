@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { usePathname } from "next/navigation";
 import { Wifi, WifiOff, CloudOff, Loader2, Cloud } from "lucide-react";
 import {
   detectNetworkQuality,
@@ -29,6 +30,7 @@ export default function NetworkStatusMonitor() {
   const syncTimerRef = useRef<NodeJS.Timeout | null>(null);
   const { addToast } = useToast();
   const initializedRef = useRef(false);
+  const pathname = usePathname();
 
   // Sync function that maps queue items to server actions
   const performSync = useCallback(async (type: string, payload: any) => {
@@ -188,6 +190,12 @@ export default function NetworkStatusMonitor() {
 
   // Don't render anything if everything is fine
   if (!showBanner && networkStatus === "online" && queueCount === 0) {
+    return null;
+  }
+
+  // Hide the banner on specific pages so it doesn't block forms or receipts
+  const hideBanner = pathname.includes("/procurement") || pathname.includes("/history/");
+  if (hideBanner) {
     return null;
   }
 
