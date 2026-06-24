@@ -90,7 +90,7 @@ function getCachedData<T>(key: string): CacheEntry<T> | null {
 /**
  * Set cache data in both memory and sessionStorage
  */
-function setCacheData<T>(key: string, data: T): void {
+export function setCacheData<T>(key: string, data: T): void {
   const entry: CacheEntry<T> = {
     data,
     timestamp: Date.now(),

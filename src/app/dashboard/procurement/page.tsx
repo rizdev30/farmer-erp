@@ -20,8 +20,10 @@ import { getAgentsList } from "@/app/actions/procurement";
 import { useDebounce } from "@/lib/use-debounce";
 import { useFormAutoSave } from "@/lib/form-autosave";
 import { addToSyncQueue, detectNetworkQuality, getQueueCount } from "@/lib/offline-sync";
-import { invalidateCache } from "@/lib/swr-cache";
+import { invalidateCache, setCacheData, prefetchCache } from "@/lib/swr-cache";
 import { useToast } from "@/components/Toast";
+import { getDashboardStats } from "@/app/actions/dashboard";
+import { getProcurementHistory } from "@/app/actions/procurement";
 
 interface Farmer {
   id: number;
@@ -239,6 +241,10 @@ export default function ProcurementPage() {
             : "No internet. Data saved locally and will auto-sync when you're back online. Please don't close the app.",
           duration: 8000,
         });
+
+        // Seed individual receipt cache
+        setCacheData(`receipt-${offlineReceipt.slipId}`, offlineReceipt);
+        
       } catch (err) {
         setError("Failed to save offline. Please try again.");
       }
@@ -251,9 +257,17 @@ export default function ProcurementPage() {
       const result = await createProcurement(payload);
       setReceipt(result);
       resetForm();
-      // Invalidate caches so dashboard/history show fresh data
+      
+      // Seed the exact receipt cache so opening it is instant
+      setCacheData(`receipt-${result.slipId}`, result);
+      
+      // Invalidate caches
       invalidateCache("dashboard-*");
       invalidateCache("history-*");
+
+      // Proactively prefetch the updated dashboard and history in the background
+      prefetchCache("dashboard-stats", () => getDashboardStats());
+      prefetchCache("history-records---", () => getProcurementHistory({}));
     } catch (err) {
       // If online submit fails, auto-save offline as fallback
       try {
@@ -272,6 +286,10 @@ export default function ProcurementPage() {
         await addToSyncQueue("procurement", payload, offlineReceipt);
         setReceipt(offlineReceipt);
         resetForm();
+        
+        // Seed individual receipt cache
+        setCacheData(`receipt-${offlineReceipt.slipId}`, offlineReceipt);
+
         addToast({
           type: "warning",
           title: "Connection lost during save",
