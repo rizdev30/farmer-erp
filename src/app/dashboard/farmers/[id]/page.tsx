@@ -16,6 +16,7 @@ import {
   Map
 } from "lucide-react";
 import Link from "next/link";
+import { useSWRCache } from "@/lib/swr-cache";
 
 interface FarmerProfile {
   id: number;
@@ -42,29 +43,20 @@ export default function FarmerProfilePage() {
   const router = useRouter();
   const id = parseInt(params.id as string, 10);
 
-  const [farmer, setFarmer] = useState<FarmerProfile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const {
+    data: farmer,
+    isLoading: loading,
+    error: swrError,
+  } = useSWRCache<FarmerProfile>(
+    isNaN(id) ? null : `farmer-${id}`,
+    async () => {
+      const data = await getFarmerById(id);
+      return data as FarmerProfile;
+    },
+    { ttl: 60000 }
+  );
 
-  useEffect(() => {
-    if (isNaN(id)) {
-      setError("Invalid farmer ID");
-      setLoading(false);
-      return;
-    }
-
-    async function loadProfile() {
-      try {
-        const data = await getFarmerById(id);
-        setFarmer(data as FarmerProfile);
-      } catch (err: any) {
-        setError(err.message || "Failed to load farmer profile");
-      }
-      setLoading(false);
-    }
-
-    loadProfile();
-  }, [id]);
+  const error = isNaN(id) ? "Invalid farmer ID" : swrError?.message || "";
 
   if (loading) {
     return (

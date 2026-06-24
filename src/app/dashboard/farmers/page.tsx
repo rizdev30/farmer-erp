@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useEffect, useOptimistic } from "react";
+import { useState, useEffect, useOptimistic, useCallback } from "react";
 import { getFarmers } from "@/app/actions/farmers";
 import CommandBar from "@/components/CommandBar";
 import FarmerRegistrationModal from "@/components/FarmerRegistrationModal";
-import { Plus, Phone, MapPin, User, ArrowRight } from "lucide-react";
+import { Plus, Phone, MapPin, User, ArrowRight, RefreshCw } from "lucide-react";
 import { ListSkeleton } from "@/components/LoadingSkeleton";
 import Link from "next/link";
+import { useDebounce } from "@/lib/use-debounce";
+import { useSWRCache, invalidateCache } from "@/lib/swr-cache";
 
 interface Farmer {
   id: number;
@@ -23,45 +25,53 @@ interface Farmer {
 }
 
 export default function FarmersPage() {
-  const [farmers, setFarmers] = useState<Farmer[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [districtFilter, setDistrictFilter] = useState("");
   const [blockFilter, setBlockFilter] = useState("");
   const [villageFilter, setVillageFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
 
+  // Debounce filter inputs — wait 400ms after user stops typing
+  const debouncedDistrict = useDebounce(districtFilter, 400, 2);
+  const debouncedBlock = useDebounce(blockFilter, 400, 2);
+  const debouncedVillage = useDebounce(villageFilter, 400, 2);
+
+  // Build a cache key from the current filters
+  const cacheKey = `farmers-list-${categoryFilter}-${debouncedDistrict}-${debouncedBlock}-${debouncedVillage}`;
+
+  // SWR cached farmers list — instant on repeat navigation
+  const {
+    data: farmers,
+    isLoading: loading,
+    isValidating,
+    mutate,
+  } = useSWRCache<Farmer[]>(
+    cacheKey,
+    () =>
+      getFarmers({
+        district: debouncedDistrict || undefined,
+        block: debouncedBlock || undefined,
+        village: debouncedVillage || undefined,
+        category: categoryFilter || undefined,
+      }).then((data) => data as Farmer[]),
+    { ttl: 60000 } // 60 second cache TTL
+  );
+
+  const farmersList = farmers || [];
+
   // Optimistic updates
   const [optimisticFarmers, addOptimisticFarmer] = useOptimistic(
-    farmers,
+    farmersList,
     (state: Farmer[], newFarmer: Farmer) => [newFarmer, ...state]
   );
 
-  useEffect(() => {
-    loadFarmers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [districtFilter, blockFilter, villageFilter, categoryFilter]);
-
-  async function loadFarmers() {
-    setLoading(true);
-    try {
-      const data = await getFarmers({
-        district: districtFilter,
-        block: blockFilter,
-        village: villageFilter,
-        category: categoryFilter || undefined,
-      });
-      setFarmers(data as Farmer[]);
-    } catch {
-      setFarmers([]);
-    }
-    setLoading(false);
-  }
-
   function handleFarmerAdded(farmer: Farmer) {
     addOptimisticFarmer(farmer);
-    // Refresh list from server
-    setTimeout(loadFarmers, 500);
+    // Invalidate all farmer caches so any page shows fresh data
+    invalidateCache("farmers-*");
+    invalidateCache("dashboard-*");
+    // Refetch current view
+    setTimeout(() => mutate(), 500);
   }
 
   return (
@@ -72,8 +82,11 @@ export default function FarmersPage() {
           <h1 className="text-2xl md:text-3xl font-bold text-slate-800 tracking-tight">
             Farmer/Traders Directory
           </h1>
-          <p className="text-slate-500 mt-1">
+          <p className="text-slate-500 mt-1 flex items-center gap-2">
             {optimisticFarmers.length} registered entries
+            {isValidating && (
+              <RefreshCw size={12} className="animate-spin text-forest-500" />
+            )}
           </p>
         </div>
         <button
@@ -151,7 +164,7 @@ export default function FarmersPage() {
       </div>
 
       {/* Farmer List */}
-      {loading ? (
+      {loading && !farmers ? (
         <ListSkeleton rows={6} />
       ) : optimisticFarmers.length === 0 ? (
         <div className="glass-card rounded-2xl p-12 text-center">

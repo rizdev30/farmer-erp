@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   createProcurement,
   ProcurementReceipt,
@@ -17,6 +17,11 @@ import {
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { getAgentsList } from "@/app/actions/procurement";
+import { useDebounce } from "@/lib/use-debounce";
+import { useFormAutoSave } from "@/lib/form-autosave";
+import { addToSyncQueue, detectNetworkQuality, getQueueCount } from "@/lib/offline-sync";
+import { invalidateCache } from "@/lib/swr-cache";
+import { useToast } from "@/components/Toast";
 
 interface Farmer {
   id: number;
@@ -86,59 +91,56 @@ export default function ProcurementPage() {
     ? "from-blue-700 to-blue-600 hover:from-blue-600 hover:to-blue-500 shadow-blue-900/20"
     : "from-forest-800 to-forest-700 hover:from-forest-700 hover:to-forest-600 shadow-forest-900/20";
 
-  // Farmer search
+  // Debounce farmer search query — 400ms after user stops typing, min 2 chars
+  const debouncedFarmerQuery = useDebounce(farmerQuery, 400, 2);
+
+  // Toast notifications
+  const { addToast } = useToast();
+
+  // Form autosave — saves draft to localStorage with debounce
+  const formData = useMemo(() => ({
+    farmerId: selectedFarmer?.id,
+    farmerName: selectedFarmer?.name,
+    crop, variety, bags, packingSize, grossQuantity, deduction, rate, bones, adtiyaName, lotNo,
+  }), [selectedFarmer, crop, variety, bags, packingSize, grossQuantity, deduction, rate, bones, adtiyaName, lotNo]);
+
+  const { clearDraft, loadDraft, hasDraft } = useFormAutoSave({
+    key: "procurement-form",
+    data: formData,
+    saveDelay: 1500,
+    enabled: !!selectedFarmer,
+  });
+
+  // Farmer search — only fires after debounce
   useEffect(() => {
-    if (!farmerQuery || farmerQuery.length < 2) {
+    if (!debouncedFarmerQuery || debouncedFarmerQuery.length < 2) {
       setFarmerResults([]);
+      setSearchingFarmer(false);
       return;
     }
 
     setSearchingFarmer(true);
-    const timeout = setTimeout(async () => {
-      try {
-        const data = await searchFarmers(farmerQuery, categoryFilter);
-        setFarmerResults(data as Farmer[]);
-      } catch {
-        setFarmerResults([]);
-      }
-      setSearchingFarmer(false);
-    }, 300);
+    let cancelled = false;
+    searchFarmers(debouncedFarmerQuery, categoryFilter)
+      .then((data) => {
+        if (!cancelled) setFarmerResults(data as Farmer[]);
+      })
+      .catch(() => {
+        if (!cancelled) setFarmerResults([]);
+      })
+      .finally(() => {
+        if (!cancelled) setSearchingFarmer(false);
+      });
 
-    return () => clearTimeout(timeout);
-  }, [farmerQuery, categoryFilter]);
+    return () => { cancelled = true; };
+  }, [debouncedFarmerQuery, categoryFilter]);
 
-  // Offline Sync State
-  const [syncing, setSyncing] = useState(false);
+  // Offline queue count (from IndexedDB via NetworkStatusMonitor)
   const [offlineCount, setOfflineCount] = useState(0);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
-    const queue = JSON.parse(localStorage.getItem("offlineProcurements") || "[]");
-    setOfflineCount(queue.length);
-
-    const handleOnline = async () => {
-      const pending = JSON.parse(localStorage.getItem("offlineProcurements") || "[]");
-      if (pending.length === 0) return;
-
-      setSyncing(true);
-      try {
-        for (const item of pending) {
-          await createProcurement(item.payload);
-        }
-        localStorage.removeItem("offlineProcurements");
-        setOfflineCount(0);
-        alert("Success! All offline procurements have been synced to the database.");
-      } catch (err) {
-        console.error("Sync failed", err);
-      }
-      setSyncing(false);
-    };
-
-    window.addEventListener("online", handleOnline);
-    if (navigator.onLine && queue.length > 0) {
-      handleOnline();
-    }
-
-    return () => window.removeEventListener("online", handleOnline);
+    getQueueCount().then(setOfflineCount).catch(() => {});
   }, []);
 
   function resetForm() {
@@ -153,6 +155,7 @@ export default function ProcurementPage() {
     setBones("");
     setAdtiyaName("");
     setLotNo("");
+    clearDraft();
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -192,10 +195,12 @@ export default function ProcurementPage() {
       agentId: selectedAgentId || undefined,
     };
 
-    if (!navigator.onLine) {
-      const offlineQueue = JSON.parse(localStorage.getItem("offlineProcurements") || "[]");
+    // Smart network detection — checks actual connectivity, not just navigator.onLine
+    const networkStatus = await detectNetworkQuality();
+
+    if (networkStatus === "offline" || networkStatus === "slow") {
+      // Save to IndexedDB (much more reliable than localStorage)
       const offlineId = `OFF-${Date.now().toString().slice(-5)}`;
-      
       const offlineReceipt: ProcurementReceipt = {
         success: true,
         invoiceId: Date.now(),
@@ -220,23 +225,62 @@ export default function ProcurementPage() {
         agentName: session?.user?.name || "Agent",
       };
 
-      offlineQueue.push({ payload, receipt: offlineReceipt });
-      localStorage.setItem("offlineProcurements", JSON.stringify(offlineQueue));
-      setOfflineCount(offlineQueue.length);
-      
-      setReceipt(offlineReceipt);
-      resetForm();
+      try {
+        await addToSyncQueue("procurement", payload, offlineReceipt);
+        const count = await getQueueCount();
+        setOfflineCount(count);
+        setReceipt(offlineReceipt);
+        resetForm();
+        addToast({
+          type: "offline",
+          title: "Saved offline!",
+          message: networkStatus === "slow"
+            ? "Network is slow. Data saved locally and will auto-sync when network improves. Please don't close the app."
+            : "No internet. Data saved locally and will auto-sync when you're back online. Please don't close the app.",
+          duration: 8000,
+        });
+      } catch (err) {
+        setError("Failed to save offline. Please try again.");
+      }
       setSubmitting(false);
-      alert("⚠️ No internet connection! Procurement saved locally on your phone. Do not close the app; it will automatically sync to the database when internet is restored.");
       return;
     }
 
+    // Online — normal submission
     try {
       const result = await createProcurement(payload);
       setReceipt(result);
       resetForm();
+      // Invalidate caches so dashboard/history show fresh data
+      invalidateCache("dashboard-*");
+      invalidateCache("history-*");
     } catch (err) {
-      setError("Failed to process procurement. If your internet dropped, turn off WiFi and try again to save offline.");
+      // If online submit fails, auto-save offline as fallback
+      try {
+        const offlineId = `OFF-${Date.now().toString().slice(-5)}`;
+        const offlineReceipt: ProcurementReceipt = {
+          success: true, invoiceId: Date.now(), slipId: offlineId,
+          farmerName: payload.farmerName, farmerCode: payload.farmerCode || "",
+          fatherName: payload.fatherName || "", village: payload.village || "",
+          crop: payload.crop, variety: payload.variety, bags: payload.bags,
+          packingSize: payload.packingSize, grossQuantity: payload.grossQuantity,
+          deduction: payload.deduction, netQuantity, rate: payload.rate,
+          bones: payload.bones, adtiyaName: payload.adtiyaName, lotNo: payload.lotNo,
+          total, timestamp: new Date().toISOString(),
+          agentName: session?.user?.name || "Agent",
+        };
+        await addToSyncQueue("procurement", payload, offlineReceipt);
+        setReceipt(offlineReceipt);
+        resetForm();
+        addToast({
+          type: "warning",
+          title: "Connection lost during save",
+          message: "Data saved locally. Will auto-sync when network is stable.",
+          duration: 6000,
+        });
+      } catch {
+        setError("Failed to process procurement. Please check your connection and try again.");
+      }
     }
 
     setSubmitting(false);

@@ -21,8 +21,11 @@ import {
   BarChart3,
   ChevronRight,
   Search,
+  RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
+import { useDebounce } from "@/lib/use-debounce";
+import { useSWRCache } from "@/lib/swr-cache";
 
 interface ProcurementRecord {
   id: number;
@@ -80,11 +83,48 @@ export default function HistoryPage() {
   const [selectedStatus, setSelectedStatus] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Data
-  const [records, setRecords] = useState<ProcurementRecord[]>([]);
-  const [summary, setSummary] = useState<MonthlySummary[]>([]);
+  // Debounce search query — 400ms wait after user stops typing
+  const debouncedSearch = useDebounce(searchQuery, 400, 2);
+
+  // Data via agents list (admin only)
   const [agents, setAgents] = useState<AgentOption[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  // SWR cache key based on current filters
+  const recordsCacheKey = `history-records-${selectedMonth}-${selectedAgent}-${selectedStatus}`;
+  const summaryCacheKey = `history-summary-${selectedAgent}`;
+
+  // SWR cached records — instant on repeat navigation
+  const {
+    data: records = [],
+    isLoading: recordsLoading,
+    isValidating: recordsValidating,
+  } = useSWRCache<ProcurementRecord[]>(
+    recordsCacheKey,
+    async () => {
+      const filters: { year?: number; month?: number; agentId?: string; status?: string } = {};
+      if (selectedMonth) {
+        const [year, month] = selectedMonth.split("-").map(Number);
+        filters.year = year;
+        filters.month = month;
+      }
+      if (selectedAgent) filters.agentId = selectedAgent;
+      if (selectedStatus) filters.status = selectedStatus;
+      return await getProcurementHistory(filters);
+    },
+    { ttl: 45000 }
+  );
+
+  // SWR cached summary
+  const {
+    data: summary = [],
+    isLoading: summaryLoading,
+  } = useSWRCache<MonthlySummary[]>(
+    summaryCacheKey,
+    () => getMonthlySummary(selectedAgent ? { agentId: selectedAgent } : undefined),
+    { ttl: 60000 }
+  );
+
+  const loading = recordsLoading || summaryLoading;
 
   // Generate month options (last 12 months)
   const monthOptions = useMemo(() => {
@@ -109,52 +149,15 @@ export default function HistoryPage() {
     }
   }, [isAdmin]);
 
-  // Load data
-  useEffect(() => {
-    loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedMonth, selectedAgent, selectedStatus]);
-
-  async function loadData() {
-    setLoading(true);
-    try {
-      const filters: { year?: number; month?: number; agentId?: string } = {};
-      if (selectedMonth) {
-        const [year, month] = selectedMonth.split("-").map(Number);
-        filters.year = year;
-        filters.month = month;
-      }
-      if (selectedAgent) {
-        filters.agentId = selectedAgent;
-      }
-      if (selectedStatus) {
-        (filters as any).status = selectedStatus;
-      }
-
-      const [recordData, summaryData] = await Promise.all([
-        getProcurementHistory(filters),
-        getMonthlySummary(selectedAgent ? { agentId: selectedAgent } : undefined),
-      ]);
-
-      setRecords(recordData);
-      setSummary(summaryData);
-    } catch (err) {
-      console.error("Failed to load history:", err);
-      setRecords([]);
-      setSummary([]);
-    }
-    setLoading(false);
-  }
-
   const filteredRecords = useMemo(() => {
-    if (!searchQuery) return records;
-    const lowerQuery = searchQuery.toLowerCase();
+    if (!debouncedSearch) return records;
+    const lowerQuery = debouncedSearch.toLowerCase();
     return records.filter((r) => 
       r.slipId.toLowerCase().includes(lowerQuery) ||
       r.farmerName.toLowerCase().includes(lowerQuery) ||
       (r.farmerCode && r.farmerCode.toLowerCase().includes(lowerQuery))
     );
-  }, [records, searchQuery]);
+  }, [records, debouncedSearch]);
 
   // Totals for current view
   const viewTotals = useMemo(() => {

@@ -13,15 +13,31 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import Link from "next/link";
+import { useSWRCache, invalidateCache } from "@/lib/swr-cache";
 
 export default function ReceiptPage() {
   const params = useParams();
   const router = useRouter();
   const slipId = params.slipId as string;
 
-  const [record, setRecord] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const {
+    data: record,
+    isLoading: loading,
+    error: swrError,
+  } = useSWRCache<any>(
+    slipId ? `receipt-${slipId}` : null,
+    async () => {
+      const data = await getProcurementBySlipId(slipId);
+      // Pre-fill edit forms
+      setEditRate(data.rate);
+      setEditDeduction(data.deduction);
+      return data;
+    },
+    { ttl: 60000 }
+  );
+
+  const error = swrError?.message || "";
+
   const [isSharing, setIsSharing] = useState(false);
   const { data: session } = useSession();
   const role = (session?.user as any)?.role;
@@ -29,21 +45,6 @@ export default function ReceiptPage() {
   const [editRate, setEditRate] = useState<number | "">("");
   const [editDeduction, setEditDeduction] = useState<number | "">("");
   const [isUpdating, setIsUpdating] = useState(false);
-
-  useEffect(() => {
-    async function loadRecord() {
-      try {
-        const data = await getProcurementBySlipId(slipId);
-        setRecord(data);
-        setEditRate(data.rate);
-        setEditDeduction(data.deduction);
-      } catch (err: any) {
-        setError(err.message || "Failed to load record.");
-      }
-      setLoading(false);
-    }
-    loadRecord();
-  }, [slipId]);
 
   if (loading) {
     return (
@@ -138,6 +139,12 @@ export default function ReceiptPage() {
         deduction: Number(editDeduction) 
       } : undefined;
       await updateProcurementStatus(slipId, action, updates);
+      
+      // Invalidate caches so lists update instantly
+      invalidateCache(`receipt-${slipId}`);
+      invalidateCache("history-*");
+      invalidateCache("dashboard-*");
+      
       alert("Status updated successfully.");
       router.push("/dashboard/history");
     } catch (err: any) {

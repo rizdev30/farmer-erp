@@ -10,7 +10,9 @@ import {
   ToggleLeft,
   ToggleRight,
   Edit,
+  RefreshCw,
 } from "lucide-react";
+import { useSWRCache, invalidateCache } from "@/lib/swr-cache";
 
 interface Agent {
   id: string;
@@ -22,8 +24,21 @@ interface Agent {
 }
 
 export default function AgentsPage() {
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [loading, setLoading] = useState(true);
+  const {
+    data: agents = [],
+    isLoading: loading,
+    isValidating,
+    refetch: fetchAgents,
+  } = useSWRCache<Agent[]>(
+    "agents-list",
+    async () => {
+      const res = await fetch("/api/agents");
+      if (!res.ok) throw new Error("Failed to fetch agents");
+      return await res.json();
+    },
+    { ttl: 60000 }
+  );
+
   const [showModal, setShowModal] = useState(false);
   const [formName, setFormName] = useState("");
   const [formEmail, setFormEmail] = useState("");
@@ -38,23 +53,6 @@ export default function AgentsPage() {
   const [editRole, setEditRole] = useState("");
   const [editPassword, setEditPassword] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
-
-  useEffect(() => {
-    fetchAgents();
-  }, []);
-
-  async function fetchAgents() {
-    try {
-      const res = await fetch("/api/agents");
-      if (res.ok) {
-        const data = await res.json();
-        setAgents(data);
-      }
-    } catch {
-      console.error("Failed to fetch agents");
-    }
-    setLoading(false);
-  }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -79,6 +77,7 @@ export default function AgentsPage() {
         setFormEmail("");
         setFormPassword("");
         setFormRole("L1_AGENT");
+        invalidateCache("agents-list");
         fetchAgents();
       } else {
         const data = await res.json();
@@ -123,6 +122,7 @@ export default function AgentsPage() {
 
       if (res.ok) {
         setEditingAgent(null);
+        invalidateCache("agents-list");
         fetchAgents();
       } else {
         const data = await res.json();
@@ -141,6 +141,7 @@ export default function AgentsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ active: !active }),
       });
+      invalidateCache("agents-list");
       fetchAgents();
     } catch {
       console.error("Failed to toggle agent");
@@ -159,8 +160,11 @@ export default function AgentsPage() {
             <h1 className="text-2xl md:text-3xl font-bold text-slate-800 tracking-tight">
               Agent Management
             </h1>
-            <p className="text-slate-500 mt-0.5">
+            <p className="text-slate-500 mt-0.5 flex items-center gap-2">
               {agents.length} agents registered
+              {isValidating && (
+                <RefreshCw size={12} className="animate-spin text-purple-500" />
+              )}
             </p>
           </div>
         </div>

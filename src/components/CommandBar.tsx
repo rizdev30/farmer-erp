@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Search, X, User, ArrowRight } from "lucide-react";
 import { searchFarmers } from "@/app/actions/farmers";
 import { useRouter } from "next/navigation";
+import { useDebounce } from "@/lib/use-debounce";
 
 interface SearchResult {
   id: number;
@@ -49,30 +50,32 @@ export default function CommandBar() {
     }
   }, [open]);
 
-  // Debounced search
-  const searchTimeout = useRef<NodeJS.Timeout>();
-  const handleSearch = useCallback((value: string) => {
-    setQuery(value);
-    setSelectedIndex(0);
+  // Debounced search — 400ms wait after user stops typing, min 2 chars
+  const debouncedQuery = useDebounce(query, 400, 2);
 
-    if (searchTimeout.current) clearTimeout(searchTimeout.current);
-
-    if (value.length < 2) {
+  useEffect(() => {
+    if (!debouncedQuery || debouncedQuery.length < 2) {
       setResults([]);
+      setLoading(false);
       return;
     }
 
     setLoading(true);
-    searchTimeout.current = setTimeout(async () => {
-      try {
-        const data = await searchFarmers(value);
-        setResults(data as SearchResult[]);
-      } catch {
-        setResults([]);
-      }
-      setLoading(false);
-    }, 300);
-  }, []);
+    let cancelled = false;
+
+    searchFarmers(debouncedQuery)
+      .then((data) => {
+        if (!cancelled) setResults(data as SearchResult[]);
+      })
+      .catch(() => {
+        if (!cancelled) setResults([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [debouncedQuery]);
 
   // Keyboard navigation
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -122,7 +125,10 @@ export default function CommandBar() {
             <input
               ref={inputRef}
               value={query}
-              onChange={(e) => handleSearch(e.target.value)}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setSelectedIndex(0);
+              }}
               onKeyDown={handleKeyDown}
               placeholder="Search farmers by name, unique id, or phone..."
               className="flex-1 bg-transparent text-slate-800 placeholder:text-slate-400 
@@ -130,7 +136,11 @@ export default function CommandBar() {
             />
             {query && (
               <button
-                onClick={() => handleSearch("")}
+                onClick={() => {
+                  setQuery("");
+                  setResults([]);
+                  setSelectedIndex(0);
+                }}
                 className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 transition-colors"
               >
                 <X size={16} />
