@@ -21,7 +21,7 @@ function BentoCard({
 }: BentoCardProps) {
   return (
     <div
-      className={`glass-card rounded-2xl p-6 relative overflow-hidden group ${span}`}
+      className={`glass-card rounded-xl md:rounded-2xl p-3 md:p-5 relative overflow-hidden group ${span}`}
     >
       {/* Background gradient blob */}
       <div
@@ -30,20 +30,20 @@ function BentoCard({
       />
 
       <div className="relative">
-        <div className="flex items-start justify-between mb-4">
+        <div className="flex items-center justify-between mb-1.5 md:mb-2 gap-2">
           <div
-            className={`shrink-0 w-11 h-11 rounded-xl ${gradient} flex items-center justify-center shadow-sm`}
+            className={`shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl ${gradient} flex items-center justify-center shadow-sm`}
           >
             {icon}
           </div>
+          <p className="text-lg md:text-2xl font-bold text-slate-800 tracking-tight truncate text-right">
+            {value}
+          </p>
         </div>
 
-        <p className="text-sm font-medium text-slate-500 mb-1">{title}</p>
-        <p className="text-3xl font-bold text-slate-800 tracking-tight">
-          {value}
-        </p>
+        <p className="text-sm sm:text-base md:text-lg font-semibold text-slate-600 line-clamp-1">{title}</p>
         {subtitle && (
-          <p className="text-xs text-slate-400 mt-1">{subtitle}</p>
+          <p className="text-xs sm:text-sm md:text-base text-slate-400 mt-0.5 truncate">{subtitle}</p>
         )}
       </div>
     </div>
@@ -64,12 +64,12 @@ interface BentoGridProps {
 
 export default function BentoGrid({ stats }: BentoGridProps) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5">
       {stats.map((stat, i) => (
         <BentoCard
           key={i}
           {...stat}
-          span={stat.span || (i === 0 ? "sm:col-span-2 lg:col-span-1" : "")}
+          span={stat.span || ""}
         />
       ))}
     </div>

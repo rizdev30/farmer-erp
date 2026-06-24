@@ -8,6 +8,7 @@ export interface DashboardStats {
   todayProcurements: number;
   pendingApproval: number;
   approved: number;
+  rejected: number;
   totalPurchaseQtl: string;
   todaysPurchaseQtl: string;
   todaysAveragePrice: string;
@@ -68,6 +69,13 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       }
     });
 
+    const rejected = await prisma.procurement.count({
+      where: {
+        ...procurementWhere,
+        status: { in: ["REJECTED_L2", "REJECTED_L3"] }
+      }
+    });
+
     const allAgg = await prisma.procurement.aggregate({
       where: procurementWhere,
       _sum: { netQuantity: true }
@@ -87,6 +95,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       todayProcurements,
       pendingApproval,
       approved,
+      rejected,
       totalPurchaseQtl: (Math.round((allAgg._sum.netQuantity || 0) * 100) / 100).toFixed(2),
       todaysPurchaseQtl: (Math.round((todayAgg._sum.netQuantity || 0) * 100) / 100).toFixed(2),
       todaysAveragePrice: (Math.round((todayAgg._avg.rate || 0) * 100) / 100).toFixed(2),
@@ -98,6 +107,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       todayProcurements: 0,
       pendingApproval: 0,
       approved: 0,
+      rejected: 0,
       totalPurchaseQtl: "0.00",
       todaysPurchaseQtl: "0.00",
       todaysAveragePrice: "0.00",

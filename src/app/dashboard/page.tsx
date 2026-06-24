@@ -17,21 +17,48 @@ export default async function DashboardPage() {
   const stats = await getDashboardStats();
 
   const bentoStats = [
+    // Line 1
     {
       title: "Total Purchase",
       value: stats.totalPurchase,
       subtitle: "All time",
       icon: <ShoppingCart size={20} className="text-forest-700" />,
       gradient: "bg-gradient-to-br from-forest-100 to-forest-200",
-      span: "sm:col-span-1 lg:col-span-2",
+      span: "col-span-1 lg:col-span-2",
     },
     {
-      title: "Today's Procurements",
+      title: "Today's Purchase",
       value: stats.todayProcurements,
       subtitle: "Transactions today",
       icon: <ShoppingCart size={20} className="text-blue-700" />,
       gradient: "bg-gradient-to-br from-blue-100 to-blue-200",
-      span: "sm:col-span-1 lg:col-span-2",
+      span: "col-span-1 lg:col-span-2",
+    },
+    // Line 2
+    {
+      title: "Total Purchase (Qtl)",
+      value: stats.totalPurchaseQtl,
+      subtitle: "All time quantity",
+      icon: <Scale size={20} className="text-purple-700" />,
+      gradient: "bg-gradient-to-br from-purple-100 to-purple-200",
+      span: "col-span-1 lg:col-span-2",
+    },
+    {
+      title: "Today's Purchase (Qtl)",
+      value: stats.todaysPurchaseQtl,
+      subtitle: "Today's quantity",
+      icon: <Scale size={20} className="text-indigo-700" />,
+      gradient: "bg-gradient-to-br from-indigo-100 to-indigo-200",
+      span: "col-span-1 lg:col-span-2",
+    },
+    // Line 3
+    {
+      title: "Approved",
+      value: stats.approved,
+      subtitle: "Successfully approved",
+      icon: <ClipboardList size={20} className="text-green-700" />,
+      gradient: "bg-gradient-to-br from-green-100 to-green-200",
+      span: "col-span-1 lg:col-span-2",
     },
     {
       title: "Pending Approval",
@@ -39,39 +66,25 @@ export default async function DashboardPage() {
       subtitle: "Pending review",
       icon: <ClipboardList size={20} className="text-amber-700" />,
       gradient: "bg-gradient-to-br from-amber-100 to-amber-200",
-      span: "sm:col-span-1 lg:col-span-2",
+      span: "col-span-1 lg:col-span-2",
     },
+    // Line 4
     {
-      title: "Approved",
-      value: stats.approved,
-      subtitle: "Successfully approved",
-      icon: <ClipboardList size={20} className="text-green-700" />,
-      gradient: "bg-gradient-to-br from-green-100 to-green-200",
-      span: "sm:col-span-1 lg:col-span-2",
+      title: "Approval Cancelled",
+      value: stats.rejected,
+      subtitle: "Rejected records",
+      icon: <ClipboardList size={20} className="text-red-700" />,
+      gradient: "bg-gradient-to-br from-red-100 to-red-200",
+      span: "col-span-2 lg:col-span-4",
     },
-    {
-      title: "Total Purchase in Qtl.",
-      value: stats.totalPurchaseQtl,
-      subtitle: "All time",
-      icon: <Scale size={20} className="text-purple-700" />,
-      gradient: "bg-gradient-to-br from-purple-100 to-purple-200",
-      span: "sm:col-span-1 lg:col-span-2",
-    },
-    {
-      title: "Today's Purchase in Qtl.",
-      value: stats.todaysPurchaseQtl,
-      subtitle: "Today",
-      icon: <Scale size={20} className="text-indigo-700" />,
-      gradient: "bg-gradient-to-br from-indigo-100 to-indigo-200",
-      span: "sm:col-span-1 lg:col-span-2",
-    },
+    // Line 5
     {
       title: "Today's Average Price",
       value: `₹${stats.todaysAveragePrice}`,
       subtitle: "Average Rate",
       icon: <IndianRupee size={20} className="text-rose-700" />,
       gradient: "bg-gradient-to-br from-rose-100 to-rose-200",
-      span: "sm:col-span-2 lg:col-span-4", // Making the 7th item span full width or more
+      span: "col-span-2 lg:col-span-4",
     },
   ];
 
