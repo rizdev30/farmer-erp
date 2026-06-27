@@ -2,7 +2,7 @@
 
 import prisma from "@/lib/prisma";
 import { auth } from "@/auth";
-import { CROP_VARIETIES, VarietyStat, DashboardStats } from "@/lib/crop-varieties";
+import { CROP_VARIETIES, VarietyStat, DashboardStats, VarietyRecord } from "@/lib/crop-varieties";
 export async function getDashboardStats(): Promise<DashboardStats> {
   try {
     const session = await auth();
@@ -166,5 +166,108 @@ export async function getVarietyStats(): Promise<VarietyStat[]> {
       value: "0.00",
       avgCost: "0.00",
     }));
+  }
+}
+
+/** Drill-down: stats + records for a single variety, scoped by role */
+export async function getVarietyDetail(variety: string): Promise<{
+  stats: DashboardStats;
+  records: VarietyRecord[];
+}> {
+  try {
+    const session = await auth();
+    const role = (session?.user as { role?: string })?.role || "L1_AGENT";
+    const userId = session?.user?.id || "";
+
+    // Build base scope — variety always added on top
+    let baseWhere: Record<string, unknown> = { variety };
+    if (role === "L1_AGENT") {
+      baseWhere.agentId = userId;
+    } else if (role === "L2_APPROVAL") {
+      // For L2 the variety filter is pushed inside each OR branch
+      baseWhere = {
+        variety,
+        OR: [
+          { agentId: userId },
+          { status: "PENDING_L2" },
+          { l2ApprovedBy: userId },
+        ],
+      };
+    } else if (role === "L3_PO_MAKER") {
+      baseWhere.status = { in: ["PENDING_L3", "APPROVED", "REJECTED_L3"] };
+    }
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    const [totalPurchase, todayProcurements, pendingApproval, approved, rejected, allAgg, todayAgg, rows] =
+      await Promise.all([
+        prisma.procurement.count({ where: baseWhere }),
+        prisma.procurement.count({ where: { ...baseWhere, createdAt: { gte: todayStart, lte: todayEnd } } }),
+        prisma.procurement.count({ where: { ...baseWhere, status: { in: ["PENDING_L2", "PENDING_L3"] } } }),
+        prisma.procurement.count({ where: { ...baseWhere, status: "APPROVED" } }),
+        prisma.procurement.count({ where: { ...baseWhere, status: { in: ["REJECTED_L2", "REJECTED_L3"] } } }),
+        prisma.procurement.aggregate({
+          where: baseWhere,
+          _sum: { netQuantity: true, bags: true },
+          _avg: { rate: true },
+        }),
+        prisma.procurement.aggregate({
+          where: { ...baseWhere, createdAt: { gte: todayStart, lte: todayEnd } },
+          _sum: { netQuantity: true, bags: true },
+          _avg: { rate: true },
+        }),
+        prisma.procurement.findMany({
+          where: baseWhere,
+          orderBy: { createdAt: "desc" },
+          take: 100,
+          select: {
+            id: true, slipId: true, farmerName: true, farmerCode: true,
+            village: true, bags: true, netQuantity: true, rate: true,
+            total: true, status: true, agentName: true, createdAt: true,
+          },
+        }),
+      ]);
+
+    const stats: DashboardStats = {
+      totalPurchase,
+      todayProcurements,
+      pendingApproval,
+      approved,
+      rejected,
+      totalPurchaseQtl: (Math.round((allAgg._sum.netQuantity || 0) * 100) / 100).toFixed(2),
+      todaysPurchaseQtl: (Math.round((todayAgg._sum.netQuantity || 0) * 100) / 100).toFixed(2),
+      todaysAveragePrice: (Math.round((todayAgg._avg.rate || 0) * 100) / 100).toFixed(2),
+      totalBags: allAgg._sum.bags || 0,
+      todaysBags: todayAgg._sum.bags || 0,
+      totalAveragePrice: (Math.round((allAgg._avg.rate || 0) * 100) / 100).toFixed(2),
+    };
+
+    const records: VarietyRecord[] = rows.map((r) => ({
+      id: r.id,
+      slipId: r.slipId,
+      farmerName: r.farmerName,
+      farmerCode: r.farmerCode,
+      village: r.village,
+      bags: r.bags,
+      weightQtl: r.netQuantity,
+      rate: r.rate,
+      total: r.total,
+      status: r.status,
+      agentName: r.agentName,
+      createdAt: r.createdAt.toISOString(),
+    }));
+
+    return { stats, records };
+  } catch (error) {
+    console.error("Variety detail error:", error);
+    const empty: DashboardStats = {
+      totalPurchase: 0, todayProcurements: 0, pendingApproval: 0, approved: 0,
+      rejected: 0, totalPurchaseQtl: "0.00", todaysPurchaseQtl: "0.00",
+      todaysAveragePrice: "0.00", totalBags: 0, todaysBags: 0, totalAveragePrice: "0.00",
+    };
+    return { stats: empty, records: [] };
   }
 }

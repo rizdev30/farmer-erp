@@ -31,3 +31,18 @@ export interface DashboardStats {
   todaysBags: number;
   totalAveragePrice: string;
 }
+
+export interface VarietyRecord {
+  id: number;
+  slipId: string;
+  farmerName: string;
+  farmerCode: string;
+  village: string;
+  bags: number;
+  weightQtl: number;
+  rate: number;
+  total: number;
+  status: string;
+  agentName: string;
+  createdAt: string;
+}
