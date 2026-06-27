@@ -143,6 +143,33 @@ export default function FarmerRegistrationModal({
   };
 
   useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.combobox-state')) setShowStateDropdown(false);
+      if (!target.closest('.combobox-district')) setShowDistrictDropdown(false);
+      if (!target.closest('.combobox-mandi')) setShowMandiDropdown(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside, { passive: true });
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!showStateDropdown) setStateSearch(state);
+  }, [showStateDropdown, state]);
+
+  useEffect(() => {
+    if (!showDistrictDropdown) setDistrictSearch(district);
+  }, [showDistrictDropdown, district]);
+
+  useEffect(() => {
+    if (!showMandiDropdown) setMandiSearch(town);
+  }, [showMandiDropdown, town]);
+
+  useEffect(() => {
     const queue = JSON.parse(localStorage.getItem("offlineFarmers") || "[]");
     setOfflineCount(queue.length);
 
@@ -665,7 +692,7 @@ export default function FarmerRegistrationModal({
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="relative">
+                  <div className="relative combobox-state">
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">
                       State Search *
                     </label>
@@ -682,10 +709,6 @@ export default function FarmerRegistrationModal({
                           setShowStateDropdown(true);
                           setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' }), 200);
                         }}
-                        onBlur={() => setTimeout(() => {
-                          setShowStateDropdown(false);
-                          setStateSearch(state);
-                        }, 200)}
                         placeholder="Search State..."
                         className={`w-full pl-9 pr-8 py-3 rounded-xl border border-slate-200 bg-white/60 
                           text-slate-800 placeholder:text-slate-400 
@@ -725,7 +748,7 @@ export default function FarmerRegistrationModal({
                     )}
                   </div>
 
-                  <div className="relative">
+                  <div className="relative combobox-district">
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">
                       District Search *
                     </label>
@@ -742,10 +765,6 @@ export default function FarmerRegistrationModal({
                           setShowDistrictDropdown(true);
                           setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' }), 200);
                         }}
-                        onBlur={() => setTimeout(() => {
-                          setShowDistrictDropdown(false);
-                          setDistrictSearch(district);
-                        }, 200)}
                         disabled={!state}
                         placeholder={state ? "Search District..." : "Select State"}
                         className={`w-full pl-9 pr-8 py-3 rounded-xl border border-slate-200 bg-white/60 
@@ -785,7 +804,7 @@ export default function FarmerRegistrationModal({
                   </div>
                 </div>
 
-                <div className="relative">
+                <div className="relative combobox-mandi">
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">
                       Mandi Search *
                     </label>
@@ -802,10 +821,6 @@ export default function FarmerRegistrationModal({
                         setShowMandiDropdown(true);
                         setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' }), 200);
                       }}
-                      onBlur={() => setTimeout(() => {
-                        setShowMandiDropdown(false);
-                        setMandiSearch(town); // Revert search text to actual selected town if not clicked
-                      }, 200)}
                         disabled={!district}
                         placeholder={district ? "Type to search..." : "Select District"}
                         className={`w-full pl-9 pr-8 py-3 rounded-xl border border-slate-200 bg-white/60 
