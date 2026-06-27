@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback, useTransition } from "react";
-import { getDashboardStats, getVarietyStats, getVarietyDetail } from "@/app/actions/dashboard";
-import type { VarietyStat, DashboardStats, VarietyRecord } from "@/lib/crop-varieties";
+import { getDashboardStats, getVarietyStats, getVarietyDetail, getTodayDetail, getAllSlipsDetail } from "@/app/actions/dashboard";
+import type { VarietyStat, DashboardStats, VarietyRecord, SlipRecord, SlipStats } from "@/lib/crop-varieties";
 import { useSession } from "next-auth/react";
 import {
   Users,
@@ -18,9 +18,12 @@ import {
   Clock,
   XCircle,
   ChevronRight,
+  Calendar,
+  FileText
 } from "lucide-react";
 import CommandBar from "@/components/CommandBar";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useSWRCache, prefetchCache } from "@/lib/swr-cache";
 import { getFarmers } from "@/app/actions/farmers";
 import { getProcurementHistory, getMonthlySummary } from "@/app/actions/procurement";
@@ -76,14 +79,18 @@ function VDiv() {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Info card
+// Info card wrapper (clickable)
 // ─────────────────────────────────────────────────────────────
-function InfoCard({ icon, title, iconBg, children, loading }: {
+function InfoCard({ icon, title, iconBg, children, loading, onClick, className = "" }: {
   icon: React.ReactNode; title: string; iconBg: string;
-  children: React.ReactNode; loading?: boolean;
+  children: React.ReactNode; loading?: boolean; onClick?: () => void; className?: string;
 }) {
+  const Component = onClick ? "button" : "div";
   return (
-    <div className="glass-card rounded-2xl p-4 flex flex-col gap-3">
+    <Component 
+      onClick={onClick} 
+      className={`glass-card rounded-2xl p-4 flex flex-col gap-3 text-left w-full ${onClick ? "cursor-pointer hover:bg-slate-50/50 transition-colors active:bg-slate-100/50" : ""} ${className}`}
+    >
       <div className="flex items-center gap-2.5">
         <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${iconBg}`}>{icon}</div>
         <span className="text-sm font-bold text-slate-700">{title}</span>
@@ -98,19 +105,31 @@ function InfoCard({ icon, title, iconBg, children, loading }: {
           ))}
         </div>
       ) : (
-        <div className="flex items-start justify-around gap-1">{children}</div>
+        <div className="flex items-start justify-around gap-1 w-full">{children}</div>
       )}
-    </div>
+    </Component>
   );
 }
 
 // ─────────────────────────────────────────────────────────────
-// Three info cards — accepts any DashboardStats object
+// Three info cards (Main Dashboard / Variety Drill / Today Drill)
 // ─────────────────────────────────────────────────────────────
-function ThreeCards({ s, loading }: { s: DashboardStats; loading: boolean }) {
+function ThreeCards({ s, loading, onTodayClick, onSlipClick, onTotalClick }: { 
+  s: DashboardStats; 
+  loading: boolean;
+  onTodayClick?: () => void;
+  onSlipClick?: () => void;
+  onTotalClick?: () => void;
+}) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-      <InfoCard icon={<ShoppingCart size={16} className="text-blue-600" />} title="Today Purchase" iconBg="bg-blue-100" loading={loading}>
+      <InfoCard 
+        icon={<ShoppingCart size={16} className="text-blue-600" />} 
+        title="Today Purchase" 
+        iconBg="bg-blue-100" 
+        loading={loading}
+        onClick={onTodayClick}
+      >
         <StatRow label="Bags"        value={fmt(s.todaysBags)} />
         <VDiv />
         <StatRow label="Weight Qtl." value={fmtCurrency(s.todaysPurchaseQtl)} />
@@ -118,7 +137,13 @@ function ThreeCards({ s, loading }: { s: DashboardStats; loading: boolean }) {
         <StatRow label="Avg. Price"  value={`₹${fmtCurrency(s.todaysAveragePrice)}`} highlight />
       </InfoCard>
 
-      <InfoCard icon={<ClipboardList size={16} className="text-amber-600" />} title="Purchase Slip" iconBg="bg-amber-100" loading={loading}>
+      <InfoCard 
+        icon={<ClipboardList size={16} className="text-amber-600" />} 
+        title="Purchase Slip" 
+        iconBg="bg-amber-100" 
+        loading={loading}
+        onClick={onSlipClick}
+      >
         <StatRow label="Total Slip" value={fmt(s.totalPurchase)} />
         <VDiv />
         <StatRow label="Approved"   value={fmt(s.approved)} />
@@ -126,13 +151,81 @@ function ThreeCards({ s, loading }: { s: DashboardStats; loading: boolean }) {
         <StatRow label="Awaiting"   value={fmt(s.pendingApproval)} />
       </InfoCard>
 
-      <InfoCard icon={<TrendingUp size={16} className="text-forest-600" />} title="Total Purchase" iconBg="bg-forest-100" loading={loading}>
+      <InfoCard 
+        icon={<TrendingUp size={16} className="text-forest-600" />} 
+        title="Total Purchase" 
+        iconBg="bg-forest-100" 
+        loading={loading}
+        onClick={onTotalClick}
+      >
         <StatRow label="Bags"        value={fmt(s.totalBags)} />
         <VDiv />
         <StatRow label="Weight Qtl." value={fmtCurrency(s.totalPurchaseQtl)} />
         <VDiv />
         <StatRow label="Avg. Price"  value={`₹${fmtCurrency(s.totalAveragePrice)}`} highlight />
       </InfoCard>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Slip Stats Cards (Slips Drill-down)
+// ─────────────────────────────────────────────────────────────
+function SlipStatsCards({ s, loading }: { s: SlipStats; loading: boolean }) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      <div className="glass-card rounded-2xl p-4 flex flex-col gap-3 col-span-1 sm:col-span-2">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-indigo-100"><FileText size={16} className="text-indigo-600" /></div>
+          <span className="text-sm font-bold text-slate-700">All Slips Overview</span>
+        </div>
+        {loading ? (
+          <div className="flex gap-3 animate-pulse">
+            <div className="flex-1 space-y-1.5"><div className="h-3 bg-slate-200 rounded w-10" /><div className="h-5 bg-slate-200 rounded w-14" /></div>
+            <div className="flex-1 space-y-1.5"><div className="h-3 bg-slate-200 rounded w-10" /><div className="h-5 bg-slate-200 rounded w-14" /></div>
+          </div>
+        ) : (
+          <div className="flex items-start justify-around gap-1 w-full">
+            <StatRow label="Total Slips" value={fmt(s.total)} highlight />
+            <VDiv />
+            <StatRow label="Total Bags" value={fmt(s.totalBags)} />
+            <VDiv />
+            <StatRow label="Total Qtl" value={fmtCurrency(s.totalWeightQtl)} />
+          </div>
+        )}
+      </div>
+
+      <div className="glass-card rounded-2xl p-4 flex flex-col gap-3">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-green-100"><CheckCircle2 size={16} className="text-green-600" /></div>
+          <span className="text-sm font-bold text-slate-700">Approved</span>
+        </div>
+        {loading ? (
+          <div className="animate-pulse space-y-1.5"><div className="h-3 bg-slate-200 rounded w-10" /><div className="h-5 bg-slate-200 rounded w-14" /></div>
+        ) : (
+          <div className="flex flex-col"><span className="text-2xl font-bold text-green-700">{fmt(s.approved)}</span></div>
+        )}
+      </div>
+
+      <div className="glass-card rounded-2xl p-4 flex flex-col gap-3">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-amber-100"><Clock size={16} className="text-amber-600" /></div>
+          <span className="text-sm font-bold text-slate-700">Awaiting</span>
+        </div>
+        {loading ? (
+          <div className="animate-pulse space-y-1.5"><div className="h-3 bg-slate-200 rounded w-10" /><div className="h-5 bg-slate-200 rounded w-14" /></div>
+        ) : (
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col"><span className="text-2xl font-bold text-amber-700">{fmt(s.awaiting)}</span></div>
+            {s.cancelled > 0 && (
+              <div className="text-right">
+                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Cancelled</span>
+                <span className="text-sm font-bold text-red-600">{fmt(s.cancelled)}</span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -146,11 +239,22 @@ const EMPTY_STATS: DashboardStats = {
   todaysAveragePrice: "0.00", totalBags: 0, todaysBags: 0, totalAveragePrice: "0.00",
 };
 
+const EMPTY_SLIP_STATS: SlipStats = {
+  total: 0, approved: 0, awaiting: 0, cancelled: 0, totalBags: 0, totalWeightQtl: "0.00", totalValue: "0.00"
+};
+
+type ViewMode = 
+  | { type: "main" }
+  | { type: "variety", value: string }
+  | { type: "today" }
+  | { type: "slips" };
+
 // ─────────────────────────────────────────────────────────────
 // Main page
 // ─────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const { data: session } = useSession();
+  const router = useRouter();
 
   // Global dashboard stats
   const { data: stats, isLoading, isValidating } = useSWRCache(
@@ -166,11 +270,12 @@ export default function DashboardPage() {
     { ttl: 5 * 60 * 1000, revalidateOnFocus: true }
   );
 
-  // Drill-down state
-  const [selectedVariety, setSelectedVariety] = useState<string | null>(null);
-  const [drillStats, setDrillStats]   = useState<DashboardStats>(EMPTY_STATS);
-  const [drillRecords, setDrillRecords] = useState<VarietyRecord[]>([]);
-  const [isPending, startTransition]  = useTransition();
+  // Drill-down states
+  const [viewMode, setViewMode] = useState<ViewMode>({ type: "main" });
+  const [drillStats, setDrillStats] = useState<DashboardStats>(EMPTY_STATS);
+  const [drillSlipStats, setDrillSlipStats] = useState<SlipStats>(EMPTY_SLIP_STATS);
+  const [drillRecords, setDrillRecords] = useState<VarietyRecord[] | SlipRecord[]>([]);
+  const [isPending, startTransition] = useTransition();
 
   // Prefetch background pages after stats load
   useEffect(() => {
@@ -180,9 +285,9 @@ export default function DashboardPage() {
     prefetchCache("history-summary-", () => getMonthlySummary());
   }, [stats]);
 
-  // Click a variety row → fetch drill-down data
+  // Click handlers
   const handleVarietyClick = useCallback((variety: string) => {
-    setSelectedVariety(variety);
+    setViewMode({ type: "variety", value: variety });
     setDrillRecords([]);
     startTransition(async () => {
       const detail = await getVarietyDetail(variety);
@@ -191,46 +296,98 @@ export default function DashboardPage() {
     });
   }, []);
 
+  const handleTodayClick = useCallback(() => {
+    setViewMode({ type: "today" });
+    setDrillRecords([]);
+    startTransition(async () => {
+      const detail = await getTodayDetail();
+      setDrillStats(detail.stats);
+      setDrillRecords(detail.records);
+    });
+  }, []);
+
+  const handleSlipsClick = useCallback(() => {
+    setViewMode({ type: "slips" });
+    setDrillRecords([]);
+    startTransition(async () => {
+      const detail = await getAllSlipsDetail();
+      setDrillSlipStats(detail.slipStats);
+      setDrillRecords(detail.records);
+    });
+  }, []);
+
+  const handleTotalClick = useCallback(() => {
+    router.push("/dashboard/history");
+  }, [router]);
+
   const s = stats || EMPTY_STATS;
   const defaultVariety: VarietyStat[] = ["PB-1", "Pusa-1121", "Non Basmati", "Sarbati", "T.Basmati", "Type-3"]
     .map((v) => ({ variety: v, bags: 0, weightQtl: "0.00", value: "0.00", avgCost: "0.00" }));
   const varieties = varietyStats || defaultVariety;
 
-  // ── DRILL-DOWN VIEW ──────────────────────────────────────────
-  if (selectedVariety) {
+  // ── DRILL-DOWN VIEWS ──────────────────────────────────────────
+  if (viewMode.type !== "main") {
+    let headerTitle = "";
+    let headerSubtitle = "";
+    let headerIcon = null;
+
+    if (viewMode.type === "variety") {
+      headerTitle = viewMode.value;
+      headerSubtitle = "Variety drill-down";
+      headerIcon = <Wheat size={16} className="text-forest-700" />;
+    } else if (viewMode.type === "today") {
+      headerTitle = "Today's Purchase";
+      headerSubtitle = "Procurement records for today";
+      headerIcon = <Calendar size={16} className="text-blue-700" />;
+    } else if (viewMode.type === "slips") {
+      headerTitle = "Purchase Slips";
+      headerSubtitle = "All slips across statuses";
+      headerIcon = <ClipboardList size={16} className="text-amber-700" />;
+    }
+
     return (
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center gap-3">
           <button
-            onClick={() => setSelectedVariety(null)}
+            onClick={() => setViewMode({ type: "main" })}
             className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center shadow-sm hover:bg-slate-50 transition-colors"
           >
             <ArrowLeft size={16} className="text-slate-600" />
           </button>
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 bg-gradient-to-br from-forest-100 to-forest-200 rounded-xl flex items-center justify-center shrink-0">
-              <Wheat size={16} className="text-forest-700" />
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+              viewMode.type === "variety" ? "bg-gradient-to-br from-forest-100 to-forest-200" :
+              viewMode.type === "today" ? "bg-gradient-to-br from-blue-100 to-blue-200" :
+              "bg-gradient-to-br from-amber-100 to-amber-200"
+            }`}>
+              {headerIcon}
             </div>
             <div className="min-w-0">
               <h1 className="text-xl font-bold text-slate-800 tracking-tight leading-tight truncate">
-                {selectedVariety}
+                {headerTitle}
               </h1>
-              <p className="text-xs text-slate-400">Variety drill-down</p>
+              <p className="text-xs text-slate-400">{headerSubtitle}</p>
             </div>
           </div>
           {isPending && <Loader2 size={16} className="animate-spin text-forest-500 ml-auto shrink-0" />}
         </div>
 
         {/* Filtered stats cards */}
-        <ThreeCards s={drillStats} loading={isPending && drillRecords.length === 0} />
+        {viewMode.type === "slips" ? (
+          <SlipStatsCards s={drillSlipStats} loading={isPending && drillRecords.length === 0} />
+        ) : (
+          <ThreeCards s={drillStats} loading={isPending && drillRecords.length === 0} />
+        )}
 
         {/* Records list */}
         <div className="glass-card rounded-2xl overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
             <div>
               <h2 className="text-base font-bold text-slate-800">Purchase Records</h2>
-              <p className="text-xs text-slate-400">{selectedVariety} · {drillRecords.length} records</p>
+              <p className="text-xs text-slate-400">
+                {drillRecords.length} record{drillRecords.length !== 1 && 's'}
+              </p>
             </div>
           </div>
 
@@ -253,9 +410,9 @@ export default function DashboardPage() {
             </div>
           ) : drillRecords.length === 0 ? (
             <div className="px-5 py-12 text-center">
-              <Wheat size={32} className="text-slate-200 mx-auto mb-3" />
+              <ClipboardList size={32} className="text-slate-200 mx-auto mb-3" />
               <p className="text-slate-400 text-sm font-medium">No records found</p>
-              <p className="text-slate-300 text-xs mt-1">No procurement has been recorded for {selectedVariety}</p>
+              <p className="text-slate-300 text-xs mt-1">No procurement has been recorded for this view</p>
             </div>
           ) : (
             <div className="divide-y divide-slate-100">
@@ -272,6 +429,7 @@ export default function DashboardPage() {
                     <p className="text-xs text-slate-400 truncate">
                       {rec.farmerCode && <span className="font-mono">{rec.farmerCode} · </span>}
                       {rec.village || rec.agentName}
+                      {'crop' in rec && rec.variety ? ` · ${rec.variety}` : ''}
                     </p>
                   </div>
 
@@ -314,8 +472,14 @@ export default function DashboardPage() {
         <CommandBar />
       </div>
 
-      {/* 3 Info Cards */}
-      <ThreeCards s={s} loading={isLoading && !stats} />
+      {/* 3 Info Cards (now clickable) */}
+      <ThreeCards 
+        s={s} 
+        loading={isLoading && !stats} 
+        onTodayClick={handleTodayClick}
+        onSlipClick={handleSlipsClick}
+        onTotalClick={handleTotalClick}
+      />
 
       {/* Crop Variety Summary — rows are clickable filters */}
       <div className="glass-card rounded-2xl overflow-hidden">

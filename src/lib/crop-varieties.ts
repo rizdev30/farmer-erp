@@ -46,3 +46,30 @@ export interface VarietyRecord {
   agentName: string;
   createdAt: string;
 }
+
+export interface SlipRecord {
+  id: number;
+  slipId: string;
+  farmerName: string;
+  farmerCode: string;
+  village: string;
+  crop: string;
+  variety: string;
+  bags: number;
+  weightQtl: number;
+  rate: number;
+  total: number;
+  status: string;
+  agentName: string;
+  createdAt: string;
+}
+
+export interface SlipStats {
+  total: number;
+  approved: number;
+  awaiting: number;
+  cancelled: number;
+  totalBags: number;
+  totalWeightQtl: string;
+  totalValue: string;
+}
