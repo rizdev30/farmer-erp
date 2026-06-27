@@ -13,7 +13,11 @@ import {
   Loader2,
   Home,
   Building2,
-  Map
+  Map,
+  Landmark,
+  CreditCard,
+  Hash,
+  Briefcase
 } from "lucide-react";
 import Link from "next/link";
 import { useSWRCache } from "@/lib/swr-cache";
@@ -36,6 +40,13 @@ interface FarmerProfile {
   gender: string;
   pinCode: string;
   projectName: string;
+  state?: string;
+  panGst?: string;
+  company?: string;
+  promoterName?: string;
+  bankName?: string;
+  ifscCode?: string;
+  accountNumber?: string;
 }
 
 export default function FarmerProfilePage() {
@@ -242,6 +253,96 @@ export default function FarmerProfilePage() {
                     <p className="text-[10px] text-slate-500 font-medium">Pin Code</p>
                     <p className="text-sm font-semibold text-slate-800">{farmer.pinCode}</p>
                   </div>
+                </div>
+              )}
+            </div>
+
+            {/* Business & Bank Details (Row 2) */}
+            <div className="col-span-1 sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2 pt-6 border-t border-slate-100">
+              
+              {/* Business / Trader Details */}
+              {(farmer.company || farmer.panGst || farmer.promoterName) && (
+                <div className="space-y-4">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Business Details</h3>
+                  
+                  {farmer.company && (
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+                        <Briefcase size={14} className="text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-slate-500 font-medium">Company Name</p>
+                        <p className="text-sm font-semibold text-slate-800">{farmer.company}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {farmer.promoterName && (
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0">
+                        <User size={14} className="text-indigo-600" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-slate-500 font-medium">Promoter Name</p>
+                        <p className="text-sm font-semibold text-slate-800">{farmer.promoterName}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {farmer.panGst && (
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
+                        <ShieldCheck size={14} className="text-slate-600" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-slate-500 font-medium">PAN / GST Number</p>
+                        <p className="text-sm font-semibold text-slate-800">{farmer.panGst}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Bank Details */}
+              {(farmer.bankName || farmer.accountNumber || farmer.ifscCode) && (
+                <div className="space-y-4">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Bank Details</h3>
+                  
+                  {farmer.bankName && (
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0">
+                        <Landmark size={14} className="text-emerald-600" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-slate-500 font-medium">Bank Name</p>
+                        <p className="text-sm font-semibold text-slate-800">{farmer.bankName}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {farmer.accountNumber && (
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-teal-50 flex items-center justify-center shrink-0">
+                        <CreditCard size={14} className="text-teal-600" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-slate-500 font-medium">Account Number</p>
+                        <p className="text-sm font-semibold text-slate-800">{farmer.accountNumber}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {farmer.ifscCode && (
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center shrink-0">
+                        <Hash size={14} className="text-purple-600" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-slate-500 font-medium">IFSC Code</p>
+                        <p className="text-sm font-semibold text-slate-800">{farmer.ifscCode}</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

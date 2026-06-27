@@ -3,7 +3,7 @@
 import prisma from "@/lib/prisma";
 import { auth } from "@/auth";
 
-async function generateFarmerCode(category: string = "FARMER"): Promise<string> {
+export async function generateFarmerCode(category: string = "FARMER"): Promise<string> {
   const now = new Date();
   
   // YY: Year
@@ -35,7 +35,7 @@ async function generateFarmerCode(category: string = "FARMER"): Promise<string> 
  * Get current session user info for agent-scoping.
  * Returns { userId, userName, role }
  */
-async function getSessionUser() {
+export async function getSessionUser() {
   const session = await auth();
   if (!session?.user) throw new Error("Not authenticated");
   return {
@@ -96,6 +96,9 @@ export async function searchFarmers(query: string, categoryFilter?: string) {
     panGst: f.panGst,
     company: f.company,
     promoterName: f.promoterName,
+    bankName: f.bankName,
+    ifscCode: f.ifscCode,
+    accountNumber: f.accountNumber,
     assignedL3Id: (f as any).assignedL3Id,
   }));
 }
@@ -159,6 +162,9 @@ export async function getFarmers(filters?: {
     panGst: f.panGst,
     company: f.company,
     promoterName: f.promoterName,
+    bankName: f.bankName,
+    ifscCode: f.ifscCode,
+    accountNumber: f.accountNumber,
     assignedL3Id: (f as any).assignedL3Id,
   }));
 }
@@ -197,6 +203,9 @@ export async function getFarmerById(id: number) {
     panGst: f.panGst,
     company: f.company,
     promoterName: f.promoterName,
+    bankName: f.bankName,
+    ifscCode: f.ifscCode,
+    accountNumber: f.accountNumber,
     createdAt: f.createdAt.toISOString(),
     assignedL3Id: f.assignedL3Id,
   };
@@ -219,6 +228,9 @@ export async function registerFarmer(data: {
   panGst?: string;
   company?: string;
   promoterName?: string;
+  bankName?: string;
+  ifscCode?: string;
+  accountNumber?: string;
   farmerCode?: string; // Optional: If not provided, we generate it
   agentId?: string; // Admin can assign to a specific agent
   assignedL3Id?: string; // Admin can assign to L3
@@ -260,6 +272,9 @@ export async function registerFarmer(data: {
       panGst: data.panGst || "",
       company: data.company || "",
       promoterName: data.promoterName || "",
+      bankName: data.bankName || "",
+      ifscCode: data.ifscCode || "",
+      accountNumber: data.accountNumber || "",
       registeredBy: registeredById,
       registeredByName: registeredByName,
       assignedL3Id: data.assignedL3Id || "",
@@ -290,6 +305,9 @@ export async function registerFarmer(data: {
       panGst: farmer.panGst,
       company: farmer.company,
       promoterName: farmer.promoterName,
+      bankName: farmer.bankName,
+      ifscCode: farmer.ifscCode,
+      accountNumber: farmer.accountNumber,
       assignedL3Id: farmer.assignedL3Id,
     },
   };

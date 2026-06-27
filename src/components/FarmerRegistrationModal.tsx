@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { X, Loader2, ChevronRight, ChevronLeft, User, MapPin, Shield } from "lucide-react";
 import { registerFarmer } from "@/app/actions/farmers";
+import { registerTrader } from "@/app/actions/traders";
 import { getAgentsList } from "@/app/actions/procurement";
 import { useSession } from "next-auth/react";
 
@@ -67,6 +68,9 @@ export default function FarmerRegistrationModal({
   const [panGst, setPanGst] = useState("");
   const [company, setCompany] = useState("");
   const [promoterName, setPromoterName] = useState("");
+  const [bankName, setBankName] = useState("");
+  const [ifscCode, setIfscCode] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
 
   const isTrader = category === "TRADER";
   const t = isTrader ? {
@@ -103,7 +107,11 @@ export default function FarmerRegistrationModal({
       setSyncing(true);
       try {
         for (const farmerData of pending) {
-          await registerFarmer(farmerData);
+          if (farmerData.category === "TRADER") {
+            await registerTrader(farmerData);
+          } else {
+            await registerFarmer(farmerData);
+          }
         }
         localStorage.removeItem("offlineFarmers");
         setOfflineCount(0);
@@ -140,6 +148,9 @@ export default function FarmerRegistrationModal({
     setPanGst("");
     setCompany("");
     setPromoterName("");
+    setBankName("");
+    setIfscCode("");
+    setAccountNumber("");
     setSelectedAgentId("");
     setSelectedL3Id("");
     setError("");
@@ -167,6 +178,9 @@ export default function FarmerRegistrationModal({
       panGst,
       company,
       promoterName,
+      bankName,
+      ifscCode,
+      accountNumber,
       agentId: selectedAgentId || undefined,
       assignedL3Id: selectedL3Id || undefined,
     };
@@ -199,10 +213,12 @@ export default function FarmerRegistrationModal({
     }
 
     try {
-      const result = await registerFarmer(payload);
+      const result = isTrader 
+        ? await registerTrader(payload)
+        : await registerFarmer(payload);
 
       if (result.success) {
-        onSuccess(result.farmer as {
+        onSuccess(((result as any).trader || (result as any).farmer) as {
           id: number;
           name: string;
           phone: string;
@@ -250,8 +266,8 @@ export default function FarmerRegistrationModal({
                 Register New {isTrader ? "Trader" : "Farmer"}
               </h2>
               <p className="text-sm text-slate-500">
-                Step {step} of 2 —{" "}
-                {step === 1 ? "Identity" : "Location"}
+                Step {step} of 3 —{" "}
+                {step === 1 ? "Identity" : step === 2 ? "Location" : "Bank Details"}
               </p>
             </div>
             <button
@@ -285,6 +301,11 @@ export default function FarmerRegistrationModal({
               <div
                 className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${
                   step >= 2 ? t.progress : "bg-slate-200"
+                }`}
+              />
+              <div
+                className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${
+                  step >= 3 ? t.progress : "bg-slate-200"
                 }`}
               />
             </div>
@@ -529,53 +550,19 @@ export default function FarmerRegistrationModal({
                   </p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                      Address
-                    </label>
-                    <input
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
-                      placeholder="Village / Street"
-                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-                        text-slate-800 placeholder:text-slate-400 
-                        focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
-                        transition-all duration-200 text-base`}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                      Pin Code
-                    </label>
-                    <input
-                      value={pinCode}
-                      onChange={(e) => setPinCode(e.target.value)}
-                      placeholder="Pin code"
-                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-                        text-slate-800 placeholder:text-slate-400 
-                        focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
-                        transition-all duration-200 text-base`}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                      State
-                    </label>
-                    <input
-                      value={state}
-                      onChange={(e) => setState(e.target.value)}
-                      placeholder="State"
-                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-                        text-slate-800 placeholder:text-slate-400 
-                        focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
-                        transition-all duration-200 text-base`}
-                    />
-                  </div>
-                  <div className="hidden"></div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Address
+                  </label>
+                  <input
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    placeholder="Street Address / House No."
+                    className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                      text-slate-800 placeholder:text-slate-400 
+                      focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
+                      transition-all duration-200 text-base`}
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -595,6 +582,23 @@ export default function FarmerRegistrationModal({
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      {isTrader ? "Block / Taluka *" : "Block *"}
+                    </label>
+                    <input
+                      value={block}
+                      onChange={(e) => setBlock(e.target.value)}
+                      placeholder="Block / Taluka"
+                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                        text-slate-800 placeholder:text-slate-400 
+                        focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
+                        transition-all duration-200 text-base`}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
                       District *
                     </label>
                     <input
@@ -607,21 +611,94 @@ export default function FarmerRegistrationModal({
                         transition-all duration-200 text-base`}
                     />
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      State
+                    </label>
+                    <input
+                      value={state}
+                      onChange={(e) => setState(e.target.value)}
+                      placeholder="State"
+                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                        text-slate-800 placeholder:text-slate-400 
+                        focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
+                        transition-all duration-200 text-base`}
+                    />
+                  </div>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                    {isTrader ? "Block / Taluka *" : "Block *"}
+                    Pin Code
                   </label>
                   <input
-                    value={block}
-                    onChange={(e) => setBlock(e.target.value)}
-                    placeholder="Block / Taluka"
+                    value={pinCode}
+                    onChange={(e) => setPinCode(e.target.value)}
+                    placeholder="Pin code"
                     className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
                       text-slate-800 placeholder:text-slate-400 
                       focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
                       transition-all duration-200 text-base`}
                   />
+                </div>
+              </div>
+            )}
+
+            {step === 3 && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-9 h-9 rounded-xl bg-purple-100 flex items-center justify-center">
+                    <Shield size={18} className="text-purple-600" />
+                  </div>
+                  <p className="text-sm font-medium text-slate-600">
+                    Bank Details
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Bank Name
+                  </label>
+                  <input
+                    value={bankName}
+                    onChange={(e) => setBankName(e.target.value)}
+                    placeholder="e.g. State Bank of India"
+                    className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                      text-slate-800 placeholder:text-slate-400 
+                      focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
+                      transition-all duration-200 text-base`}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      IFSC Code
+                    </label>
+                    <input
+                      value={ifscCode}
+                      onChange={(e) => setIfscCode(e.target.value.toUpperCase())}
+                      placeholder="IFSC Code"
+                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                        text-slate-800 placeholder:text-slate-400 
+                        focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
+                        transition-all duration-200 text-base`}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      Account Number
+                    </label>
+                    <input
+                      value={accountNumber}
+                      onChange={(e) => setAccountNumber(e.target.value)}
+                      placeholder="Account Number"
+                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                        text-slate-800 placeholder:text-slate-400 
+                        focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
+                        transition-all duration-200 text-base`}
+                    />
+                  </div>
                 </div>
               </div>
             )}
@@ -640,15 +717,23 @@ export default function FarmerRegistrationModal({
               </button>
             ) : <div />}
 
-            {step < 2 ? (
+            {step < 3 ? (
               <button
                 onClick={() => {
-                  if (!name.trim() || !fatherName.trim() || !phone.trim()) {
-                    setError("Name, Father's Name, and Phone are required");
-                    return;
+                  if (step === 1) {
+                    if (!name.trim() || !fatherName.trim() || !phone.trim()) {
+                      setError("Name, Father's Name, and Phone are required");
+                      return;
+                    }
+                  }
+                  if (step === 2) {
+                    if (!village.trim() || !district.trim() || !block.trim()) {
+                      setError("Village, District, and Block are required");
+                      return;
+                    }
                   }
                   setError("");
-                  setStep(2);
+                  setStep(step + 1);
                 }}
                 className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold 
                   ${t.bgDark} text-white ${t.textHover} 
@@ -660,7 +745,7 @@ export default function FarmerRegistrationModal({
             ) : (
               <button
                 onClick={handleSubmit}
-                disabled={loading || !village.trim() || !district.trim() || !block.trim()}
+                disabled={loading}
                 className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold 
                   bg-gradient-to-r ${t.gradient} text-white 
                   disabled:opacity-50 disabled:cursor-not-allowed

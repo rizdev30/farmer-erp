@@ -29,21 +29,24 @@ model FarmerSequence {
 model Farmer {
   id               Int      @id @default(autoincrement())
   name             String
+  fatherName       String   @default("")
   phone            String   @default("")
   address          String   @default("")
   town             String   @default("")
   village          String   @default("")
   district         String   @default("")
   block            String   @default("")
-  fatherName       String   @default("")
+  state            String   @default("")
   gender           String   @default("")
   pinCode          String   @default("")
   projectName      String   @default("")
   category         String   @default("FARMER") // "FARMER" or "TRADER"
-  state            String   @default("")
   panGst           String   @default("")
   company          String   @default("")
   promoterName     String   @default("")
+  bankName         String   @default("")
+  ifscCode         String   @default("")
+  accountNumber    String   @default("")
   farmerCode       String   @unique
   registeredBy     String   @default("")  // Agent user ID who registered this farmer
   registeredByName String   @default("")  // Agent name for display
@@ -57,6 +60,37 @@ model Farmer {
 
   @@map("farmers")
 }
+
+model Trader {
+  id               Int      @id @default(autoincrement())
+  name             String   // Maps to Full Name
+  fatherName       String   @default("")
+  phone            String   @default("") // Maps to Mobile Number
+  address          String   @default("")
+  town             String   @default("") // Maps to Mandi
+  village          String   @default("")
+  district         String   @default("")
+  block            String   @default("") 
+  state            String   @default("")
+  gender           String   @default("")
+  pinCode          String   @default("")
+  projectName      String   @default("")
+  panGst           String   @default("") // Trader specific
+  company          String   @default("") // Trader specific
+  promoterName     String   @default("") // Trader specific
+  bankName         String   @default("")
+  ifscCode         String   @default("")
+  accountNumber    String   @default("")
+  traderCode       String   @unique
+  registeredBy     String   @default("")
+  registeredByName String   @default("")
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("traders") // This tells Supabase to name the table "traders"
+}
+
 
 model Procurement {
   id            Int      @id @default(autoincrement())
@@ -91,3 +125,4 @@ model Procurement {
 
   @@map("procurements")
 }
+

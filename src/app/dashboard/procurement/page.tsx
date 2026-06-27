@@ -34,6 +34,13 @@ interface Farmer {
   fatherName: string;
   farmerCode: string;
   village: string;
+  category?: string;
+  company?: string;
+  promoterName?: string;
+  panGst?: string;
+  bankName?: string;
+  ifscCode?: string;
+  accountNumber?: string;
 }
 
 export default function ProcurementPage() {
@@ -374,36 +381,69 @@ export default function ProcurementPage() {
           </div>
 
           {selectedFarmer ? (
-            <div className="flex items-center justify-between p-3 rounded-xl bg-forest-50 border border-forest-200">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-forest-100 flex items-center justify-center">
-                  <User size={16} className="text-forest-600" />
+            <div className={`p-4 rounded-xl border transition-all ${categoryFilter === "TRADER" ? "bg-blue-50/50 border-blue-200" : "bg-forest-50/50 border-forest-200"}`}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${categoryFilter === "TRADER" ? "bg-blue-100" : "bg-forest-100"}`}>
+                    <User size={16} className={categoryFilter === "TRADER" ? "text-blue-600" : "text-forest-600"} />
+                  </div>
+                  <div>
+                    <p className={`text-sm font-semibold ${categoryFilter === "TRADER" ? "text-blue-800" : "text-forest-800"}`}>
+                      {selectedFarmer.name}
+                    </p>
+                    <p className={`text-xs font-mono mt-0.5 ${categoryFilter === "TRADER" ? "text-blue-600" : "text-forest-600"}`}>
+                      {selectedFarmer.farmerCode || "No Code"}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-semibold text-forest-800">
-                    {selectedFarmer.name}
-                  </p>
-                  <p className="text-xs text-forest-600 font-mono mt-0.5">
-                    {selectedFarmer.farmerCode || "No Code"}
-                  </p>
+                <div className="text-right flex items-center gap-4">
+                  <div className="hidden sm:block">
+                    <p className="text-xs text-slate-500">
+                      {selectedFarmer.village ? selectedFarmer.village + ", " : ""}{selectedFarmer.district}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-0.5">{selectedFarmer.phone}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedFarmer(null);
+                      setFarmerQuery("");
+                    }}
+                    className={`text-xs font-medium underline ${categoryFilter === "TRADER" ? "text-blue-600 hover:text-blue-800" : "text-forest-600 hover:text-forest-800"}`}
+                  >
+                    Change
+                  </button>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="text-xs text-slate-500">
-                  {selectedFarmer.village ? selectedFarmer.village + ", " : ""}{selectedFarmer.district}
-                </p>
-                <p className="text-xs text-slate-500 mt-0.5">{selectedFarmer.phone}</p>
+
+              {/* Extended Details */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-slate-200/60 mt-1">
+                {/* Business Details (if trader) */}
+                {(selectedFarmer.company || selectedFarmer.panGst) && (
+                  <div className="text-xs bg-white/60 p-2 rounded-lg border border-slate-100">
+                    <p className="font-semibold text-slate-700 mb-1.5 flex items-center gap-1.5">
+                      <span className="w-1 h-3 rounded-full bg-blue-400 block"></span>
+                      Business Info
+                    </p>
+                    {selectedFarmer.company && <p className="text-slate-600 truncate"><span className="text-slate-400">Company:</span> {selectedFarmer.company}</p>}
+                    {selectedFarmer.panGst && <p className="text-slate-600 truncate"><span className="text-slate-400">PAN/GST:</span> {selectedFarmer.panGst}</p>}
+                  </div>
+                )}
+                
+                {/* Bank Details */}
+                {(selectedFarmer.bankName || selectedFarmer.accountNumber) && (
+                  <div className="text-xs bg-white/60 p-2 rounded-lg border border-slate-100">
+                    <p className="font-semibold text-slate-700 mb-1.5 flex items-center gap-1.5">
+                      <span className="w-1 h-3 rounded-full bg-emerald-400 block"></span>
+                      Bank Info
+                    </p>
+                    {selectedFarmer.bankName && <p className="text-slate-600 truncate"><span className="text-slate-400">Bank:</span> {selectedFarmer.bankName}</p>}
+                    {selectedFarmer.accountNumber && (
+                      <p className="text-slate-600 truncate"><span className="text-slate-400">A/C:</span> {selectedFarmer.accountNumber} {selectedFarmer.ifscCode ? `(${selectedFarmer.ifscCode})` : ""}</p>
+                    )}
+                  </div>
+                )}
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedFarmer(null);
-                  setFarmerQuery("");
-                }}
-                className="text-xs text-forest-600 hover:text-forest-800 underline"
-              >
-                Change
-              </button>
             </div>
           ) : (
             <div className="relative">
