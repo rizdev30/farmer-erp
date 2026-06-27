@@ -2,18 +2,7 @@
 
 import prisma from "@/lib/prisma";
 import { auth } from "@/auth";
-
-export interface DashboardStats {
-  totalPurchase: number;
-  todayProcurements: number;
-  pendingApproval: number;
-  approved: number;
-  rejected: number;
-  totalPurchaseQtl: string;
-  todaysPurchaseQtl: string;
-  todaysAveragePrice: string;
-}
-
+import { CROP_VARIETIES, VarietyStat, DashboardStats } from "@/lib/crop-varieties";
 export async function getDashboardStats(): Promise<DashboardStats> {
   try {
     const session = await auth();
@@ -78,7 +67,8 @@ export async function getDashboardStats(): Promise<DashboardStats> {
 
     const allAgg = await prisma.procurement.aggregate({
       where: procurementWhere,
-      _sum: { netQuantity: true }
+      _sum: { netQuantity: true, bags: true },
+      _avg: { rate: true },
     });
     
     const todayAgg = await prisma.procurement.aggregate({
@@ -86,7 +76,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
         ...procurementWhere,
         createdAt: { gte: todayStart, lte: todayEnd }
       },
-      _sum: { netQuantity: true },
+      _sum: { netQuantity: true, bags: true },
       _avg: { rate: true }
     });
 
@@ -99,6 +89,9 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       totalPurchaseQtl: (Math.round((allAgg._sum.netQuantity || 0) * 100) / 100).toFixed(2),
       todaysPurchaseQtl: (Math.round((todayAgg._sum.netQuantity || 0) * 100) / 100).toFixed(2),
       todaysAveragePrice: (Math.round((todayAgg._avg.rate || 0) * 100) / 100).toFixed(2),
+      totalBags: allAgg._sum.bags || 0,
+      todaysBags: todayAgg._sum.bags || 0,
+      totalAveragePrice: (Math.round((allAgg._avg.rate || 0) * 100) / 100).toFixed(2),
     };
   } catch (error) {
     console.error("Dashboard stats error:", error);
@@ -111,6 +104,67 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       totalPurchaseQtl: "0.00",
       todaysPurchaseQtl: "0.00",
       todaysAveragePrice: "0.00",
+      totalBags: 0,
+      todaysBags: 0,
+      totalAveragePrice: "0.00",
     };
+  }
+}
+
+export async function getVarietyStats(): Promise<VarietyStat[]> {
+  try {
+    const session = await auth();
+    const role = (session?.user as { role?: string })?.role || "L1_AGENT";
+    const userId = session?.user?.id || "";
+
+    const where: Record<string, unknown> = {};
+    if (role === "L1_AGENT") {
+      where.agentId = userId;
+    } else if (role === "L2_APPROVAL") {
+      where.OR = [
+        { agentId: userId },
+        { status: "PENDING_L2" },
+        { l2ApprovedBy: userId },
+      ];
+    } else if (role === "L3_PO_MAKER") {
+      where.status = { in: ["PENDING_L3", "APPROVED", "REJECTED_L3"] };
+    }
+
+    const results = await prisma.procurement.groupBy({
+      by: ["variety"],
+      where,
+      _sum: { bags: true, netQuantity: true, total: true },
+      _avg: { rate: true },
+    });
+
+    // Build a map for quick lookup
+    const resultMap = new Map(
+      results.map((r) => [r.variety, r])
+    );
+
+    // Return rows for all 6 standard varieties, even if zero
+    return CROP_VARIETIES.map((v) => {
+      const r = resultMap.get(v);
+      const bags = r?._sum.bags ?? 0;
+      const weight = r?._sum.netQuantity ?? 0;
+      const value = r?._sum.total ?? 0;
+      const avg = r?._avg.rate ?? 0;
+      return {
+        variety: v,
+        bags,
+        weightQtl: (Math.round(weight * 100) / 100).toFixed(2),
+        value: value.toFixed(2),
+        avgCost: (Math.round(avg * 100) / 100).toFixed(2),
+      };
+    });
+  } catch (error) {
+    console.error("Variety stats error:", error);
+    return CROP_VARIETIES.map((v) => ({
+      variety: v,
+      bags: 0,
+      weightQtl: "0.00",
+      value: "0.00",
+      avgCost: "0.00",
+    }));
   }
 }

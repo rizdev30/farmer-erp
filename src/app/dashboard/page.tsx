@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
-import { getDashboardStats } from "@/app/actions/dashboard";
+import { getDashboardStats, getVarietyStats } from "@/app/actions/dashboard";
+import type { VarietyStat } from "@/lib/crop-varieties";
 import { useSession } from "next-auth/react";
 import {
   Users,
@@ -11,50 +12,144 @@ import {
   ClipboardList,
   Settings as SettingsIcon,
   RefreshCw,
+  Wheat,
+  TrendingUp,
+  CheckCircle2,
+  Clock,
 } from "lucide-react";
-import BentoGrid from "@/components/BentoGrid";
 import CommandBar from "@/components/CommandBar";
 import Link from "next/link";
 import { useSWRCache, prefetchCache } from "@/lib/swr-cache";
 import { getFarmers } from "@/app/actions/farmers";
 import { getProcurementHistory, getMonthlySummary } from "@/app/actions/procurement";
 
+// ─────────────────────────────────────────────────────────────
+// Small helpers
+// ─────────────────────────────────────────────────────────────
+function fmt(n: number | null | undefined) {
+  return (n ?? 0).toLocaleString("en-IN");
+}
+function fmtCurrency(v: string | number | null | undefined) {
+  const n = typeof v === "string" ? (parseFloat(v) || 0) : (v ?? 0);
+  return n.toLocaleString("en-IN", { minimumFractionDigits: 2 });
+}
+
+// ─────────────────────────────────────────────────────────────
+// Stat row  ─ label + value side by side
+// ─────────────────────────────────────────────────────────────
+function StatRow({
+  label,
+  value,
+  highlight,
+}: {
+  label: string;
+  value: string | number;
+  highlight?: boolean;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-0.5 min-w-0">
+      <span
+        className={`text-xs font-medium truncate ${
+          highlight ? "text-forest-500" : "text-slate-400"
+        }`}
+      >
+        {label}
+      </span>
+      <span
+        className={`font-bold tabular-nums leading-tight ${
+          highlight
+            ? "text-forest-800 text-base"
+            : "text-slate-700 text-sm md:text-base"
+        }`}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Divider between stat rows
+// ─────────────────────────────────────────────────────────────
+function VDiv() {
+  return <div className="w-px self-stretch bg-slate-200/70 mx-1" />;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Grouped info card  ─ icon + title + row of stats
+// ─────────────────────────────────────────────────────────────
+function InfoCard({
+  icon,
+  title,
+  iconBg,
+  children,
+  loading,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  iconBg: string;
+  children: React.ReactNode;
+  loading?: boolean;
+}) {
+  return (
+    <div className="glass-card rounded-2xl p-4 flex flex-col gap-3">
+      {/* card header */}
+      <div className="flex items-center gap-2.5">
+        <div
+          className={`w-8 h-8 rounded-xl flex items-center justify-center ${iconBg}`}
+        >
+          {icon}
+        </div>
+        <span className="text-sm font-bold text-slate-700">{title}</span>
+      </div>
+
+      {/* stat values row */}
+      {loading ? (
+        <div className="flex gap-3 animate-pulse">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex-1 space-y-1.5">
+              <div className="h-3 bg-slate-200 rounded w-10 mx-auto" />
+              <div className="h-5 bg-slate-200 rounded w-14 mx-auto" />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="flex items-start justify-around gap-1">{children}</div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Main page
+// ─────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const { data: session } = useSession();
 
-  // SWR cached dashboard stats — shows cached data instantly, revalidates in background
   const {
     data: stats,
     isLoading,
     isValidating,
-    refetch,
-  } = useSWRCache(
-    "dashboard-stats",
-    () => getDashboardStats(),
+  } = useSWRCache("dashboard-stats", () => getDashboardStats(), {
+    ttl: 5 * 60 * 1000,
+    revalidateOnFocus: true,
+  });
+
+  const { data: varietyStats, isLoading: varietyLoading } = useSWRCache(
+    "dashboard-variety-stats",
+    () => getVarietyStats(),
     { ttl: 5 * 60 * 1000, revalidateOnFocus: true }
   );
 
-  // After dashboard loads, prefetch other pages in background so they open instantly
   useEffect(() => {
-    if (!stats) return; // Wait for dashboard to load first
-
-    // Prefetch farmers list (default filters)
+    if (!stats) return;
     prefetchCache("farmers-list---", () =>
       getFarmers({}).then((data) => data as any[])
     );
-
-    // Prefetch procurement history (no filters)
-    prefetchCache("history-records---", () =>
-      getProcurementHistory({})
-    );
-
-    // Prefetch monthly summary
-    prefetchCache("history-summary-", () =>
-      getMonthlySummary()
-    );
+    prefetchCache("history-records---", () => getProcurementHistory({}));
+    prefetchCache("history-summary-", () => getMonthlySummary());
   }, [stats]);
 
-  // Default stats for initial render
   const s = stats || {
     totalPurchase: 0,
     todayProcurements: 0,
@@ -64,83 +159,31 @@ export default function DashboardPage() {
     totalPurchaseQtl: "0.00",
     todaysPurchaseQtl: "0.00",
     todaysAveragePrice: "0.00",
+    totalBags: 0,
+    todaysBags: 0,
+    totalAveragePrice: "0.00",
   };
 
-  const bentoStats = [
-    // Line 1
-    {
-      title: "Total Purchase",
-      value: s.totalPurchase,
-      subtitle: "All time",
-      icon: <ShoppingCart size={20} className="text-forest-700" />,
-      gradient: "bg-gradient-to-br from-forest-100 to-forest-200",
-      span: "col-span-1 lg:col-span-2",
-    },
-    {
-      title: "Today's Purchase",
-      value: s.todayProcurements,
-      subtitle: "Transactions today",
-      icon: <ShoppingCart size={20} className="text-blue-700" />,
-      gradient: "bg-gradient-to-br from-blue-100 to-blue-200",
-      span: "col-span-1 lg:col-span-2",
-    },
-    // Line 2
-    {
-      title: "Total Purchase (Qtl)",
-      value: s.totalPurchaseQtl,
-      subtitle: "All time quantity",
-      icon: <Scale size={20} className="text-purple-700" />,
-      gradient: "bg-gradient-to-br from-purple-100 to-purple-200",
-      span: "col-span-1 lg:col-span-2",
-    },
-    {
-      title: "Today's Purchase (Qtl)",
-      value: s.todaysPurchaseQtl,
-      subtitle: "Today's quantity",
-      icon: <Scale size={20} className="text-indigo-700" />,
-      gradient: "bg-gradient-to-br from-indigo-100 to-indigo-200",
-      span: "col-span-1 lg:col-span-2",
-    },
-    // Line 3
-    {
-      title: "Approved",
-      value: s.approved,
-      subtitle: "Successfully approved",
-      icon: <ClipboardList size={20} className="text-green-700" />,
-      gradient: "bg-gradient-to-br from-green-100 to-green-200",
-      span: "col-span-1 lg:col-span-2",
-    },
-    {
-      title: "Pending Approval",
-      value: s.pendingApproval,
-      subtitle: "Pending review",
-      icon: <ClipboardList size={20} className="text-amber-700" />,
-      gradient: "bg-gradient-to-br from-amber-100 to-amber-200",
-      span: "col-span-1 lg:col-span-2",
-    },
-    // Line 4
-    {
-      title: "Approval Cancelled",
-      value: s.rejected,
-      subtitle: "Rejected records",
-      icon: <ClipboardList size={20} className="text-red-700" />,
-      gradient: "bg-gradient-to-br from-red-100 to-red-200",
-      span: "col-span-2 lg:col-span-4",
-    },
-    // Line 5
-    {
-      title: "Today's Average Price",
-      value: `₹${s.todaysAveragePrice}`,
-      subtitle: "Average Rate",
-      icon: <IndianRupee size={20} className="text-rose-700" />,
-      gradient: "bg-gradient-to-br from-rose-100 to-rose-200",
-      span: "col-span-2 lg:col-span-4",
-    },
-  ];
+  const defaultVariety: VarietyStat[] = [
+    "PB-1",
+    "Pusa-1121",
+    "Non Basmati",
+    "Sarbati",
+    "T.Basmati",
+    "Type-3",
+  ].map((v) => ({
+    variety: v,
+    bags: 0,
+    weightQtl: "0.00",
+    value: "0.00",
+    avgCost: "0.00",
+  }));
+
+  const varieties = varietyStats || defaultVariety;
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
+    <div className="space-y-6">
+      {/* ── Header ── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-800 tracking-tight">
@@ -156,25 +199,169 @@ export default function DashboardPage() {
         <CommandBar />
       </div>
 
-      {/* Stats Grid */}
-      {isLoading && !stats ? (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[...Array(8)].map((_, i) => (
-            <div
-              key={i}
-              className="glass-card rounded-2xl p-5 animate-pulse"
-            >
-              <div className="h-4 bg-slate-200 rounded w-24 mb-3" />
-              <div className="h-8 bg-slate-200 rounded w-16 mb-2" />
-              <div className="h-3 bg-slate-100 rounded w-20" />
-            </div>
-          ))}
-        </div>
-      ) : (
-        <BentoGrid stats={bentoStats} />
-      )}
+      {/* ── 3 Info Cards (prototype layout) ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
 
-      {/* Quick Actions */}
+        {/* 1 — Today Purchase */}
+        <InfoCard
+          icon={<ShoppingCart size={16} className="text-blue-600" />}
+          title="Today Purchase"
+          iconBg="bg-blue-100"
+          loading={isLoading && !stats}
+        >
+          <StatRow label="Bags" value={fmt(s.todaysBags)} />
+          <VDiv />
+          <StatRow
+            label="Weight Qtl."
+            value={fmtCurrency(s.todaysPurchaseQtl)}
+          />
+          <VDiv />
+          <StatRow
+            label="Avg. Price"
+            value={`₹${fmtCurrency(s.todaysAveragePrice)}`}
+            highlight
+          />
+        </InfoCard>
+
+        {/* 2 — Purchase Slip */}
+        <InfoCard
+          icon={<ClipboardList size={16} className="text-amber-600" />}
+          title="Purchase Slip"
+          iconBg="bg-amber-100"
+          loading={isLoading && !stats}
+        >
+          <StatRow label="Total Slip" value={fmt(s.totalPurchase)} />
+          <VDiv />
+          <StatRow label="Approved" value={fmt(s.approved)} />
+          <VDiv />
+          <StatRow label="Awaiting" value={fmt(s.pendingApproval)} />
+        </InfoCard>
+
+        {/* 3 — Total Purchase */}
+        <InfoCard
+          icon={<TrendingUp size={16} className="text-forest-600" />}
+          title="Total Purchase"
+          iconBg="bg-forest-100"
+          loading={isLoading && !stats}
+        >
+          <StatRow label="Bags" value={fmt(s.totalBags)} />
+          <VDiv />
+          <StatRow
+            label="Weight Qtl."
+            value={fmtCurrency(s.totalPurchaseQtl)}
+          />
+          <VDiv />
+          <StatRow
+            label="Avg. Price"
+            value={`₹${fmtCurrency(s.totalAveragePrice)}`}
+            highlight
+          />
+        </InfoCard>
+      </div>
+
+      {/* ── Crop Variety Summary ── */}
+      <div className="glass-card rounded-2xl overflow-hidden">
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-100">
+          <div className="w-9 h-9 bg-gradient-to-br from-forest-100 to-forest-200 rounded-xl flex items-center justify-center">
+            <Wheat size={18} className="text-forest-700" />
+          </div>
+          <div>
+            <h2 className="text-base font-bold text-slate-800">
+              Crop Variety Summary
+            </h2>
+            <p className="text-xs text-slate-400">
+              Total procurement by rice variety
+            </p>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-gradient-to-r from-forest-700 to-forest-600 text-white">
+                <th className="text-left px-4 py-3 font-semibold text-xs uppercase tracking-wide">
+                  Variety
+                </th>
+                <th className="text-right px-3 py-3 font-semibold text-xs uppercase tracking-wide">
+                  Bags
+                </th>
+                <th className="text-right px-3 py-3 font-semibold text-xs uppercase tracking-wide">
+                  Weight
+                  <br />
+                  (Qtls)
+                </th>
+                <th className="text-right px-3 py-3 font-semibold text-xs uppercase tracking-wide">
+                  Value
+                </th>
+                <th className="text-right px-4 py-3 font-semibold text-xs uppercase tracking-wide">
+                  Avg. Cost
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {varietyLoading && !varietyStats
+                ? [...Array(6)].map((_, i) => (
+                    <tr
+                      key={i}
+                      className="border-b border-slate-100 animate-pulse"
+                    >
+                      <td className="px-4 py-3">
+                        <div className="h-4 bg-slate-200 rounded w-24" />
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="h-4 bg-slate-100 rounded w-12 ml-auto" />
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="h-4 bg-slate-100 rounded w-12 ml-auto" />
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="h-4 bg-slate-100 rounded w-20 ml-auto" />
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="h-4 bg-slate-100 rounded w-16 ml-auto" />
+                      </td>
+                    </tr>
+                  ))
+                : varieties.map((row, i) => (
+                    <tr
+                      key={row.variety}
+                      className={`border-b border-slate-100 transition-colors hover:bg-forest-50/40 ${
+                        i % 2 === 0 ? "bg-white" : "bg-slate-50/50"
+                      }`}
+                    >
+                      <td className="px-4 py-3 font-semibold text-slate-700">
+                        {row.variety}
+                      </td>
+                      <td className="px-3 py-3 text-right text-slate-600 tabular-nums">
+                        {row.bags.toLocaleString("en-IN")}
+                      </td>
+                      <td className="px-3 py-3 text-right text-slate-600 tabular-nums">
+                        {parseFloat(row.weightQtl).toLocaleString("en-IN", {
+                          minimumFractionDigits: 2,
+                        })}
+                      </td>
+                      <td className="px-3 py-3 text-right text-slate-600 tabular-nums">
+                        ₹
+                        {parseFloat(row.value).toLocaleString("en-IN", {
+                          minimumFractionDigits: 2,
+                        })}
+                      </td>
+                      <td className="px-4 py-3 text-right font-medium text-forest-700 tabular-nums">
+                        {parseFloat(row.avgCost) > 0
+                          ? `₹${parseFloat(row.avgCost).toLocaleString(
+                              "en-IN",
+                              { minimumFractionDigits: 2 }
+                            )}`
+                          : "—"}
+                      </td>
+                    </tr>
+                  ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ── Quick Actions ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Link
           href="/dashboard/procurement"
@@ -227,7 +414,7 @@ export default function DashboardPage() {
                 Procurement Records
               </h3>
               <p className="text-sm text-slate-500">
-                View history, monthly reports & records
+                View history, monthly reports &amp; records
               </p>
             </div>
           </div>

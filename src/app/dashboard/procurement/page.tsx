@@ -5,6 +5,7 @@ import {
   createProcurement,
   ProcurementReceipt,
 } from "@/app/actions/procurement";
+import { CROP_VARIETIES } from "@/lib/crop-varieties";
 import { searchFarmers } from "@/app/actions/farmers";
 import PurchaseSlip from "@/components/PurchaseSlip";
 import {
@@ -533,15 +534,18 @@ export default function ProcurementPage() {
                 <label className="block text-xs font-medium text-slate-500 mb-1.5">
                   Variety
                 </label>
-                <input
-                  type="text"
+                <select
                   value={variety}
                   onChange={(e) => setVariety(e.target.value)}
-                  placeholder="e.g. Basmati"
                   className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-                    text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
-                    transition-all text-base ${ringClass}`}
-                />
+                    text-slate-800 focus:outline-none focus:ring-2 
+                    transition-all text-base font-medium ${ringClass}`}
+                >
+                  <option value="">Select variety...</option>
+                  {CROP_VARIETIES.map((v) => (
+                    <option key={v} value={v}>{v}</option>
+                  ))}
+                </select>
               </div>
             </div>
 
