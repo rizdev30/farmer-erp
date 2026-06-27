@@ -944,6 +944,11 @@ export default function FarmerRegistrationModal({
                     </div>
                   </div>
                 )}
+
+                {/* Dynamic spacer to prevent scroll jumping when mobile keyboard hides while dropdown is open */}
+                {(showStateDropdown || showDistrictDropdown || showMandiDropdown) && (
+                  <div className="h-[40vh] w-full transition-all duration-300" />
+                )}
               </div>
             )}
           </div>
