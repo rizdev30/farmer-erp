@@ -114,15 +114,16 @@ function InfoCard({ icon, title, iconBg, children, loading, onClick, className =
 // ─────────────────────────────────────────────────────────────
 // Three info cards (Main Dashboard / Variety Drill / Today Drill)
 // ─────────────────────────────────────────────────────────────
-function ThreeCards({ s, loading, onTodayClick, onSlipClick, onTotalClick }: { 
+function ThreeCards({ s, loading, onTodayClick, onSlipClick, onTotalClick, hideTotalPurchase }: { 
   s: DashboardStats; 
   loading: boolean;
   onTodayClick?: () => void;
   onSlipClick?: () => void;
   onTotalClick?: () => void;
+  hideTotalPurchase?: boolean;
 }) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div className={`grid grid-cols-1 ${hideTotalPurchase ? "sm:grid-cols-2" : "sm:grid-cols-3"} gap-4`}>
       <InfoCard 
         icon={<ShoppingCart size={16} className="text-blue-600" />} 
         title="Today Purchase" 
@@ -151,19 +152,21 @@ function ThreeCards({ s, loading, onTodayClick, onSlipClick, onTotalClick }: {
         <StatRow label="Awaiting"   value={fmt(s.pendingApproval)} />
       </InfoCard>
 
-      <InfoCard 
-        icon={<TrendingUp size={16} className="text-forest-600" />} 
-        title="Total Purchase" 
-        iconBg="bg-forest-100" 
-        loading={loading}
-        onClick={onTotalClick}
-      >
-        <StatRow label="Bags"        value={fmt(s.totalBags)} />
-        <VDiv />
-        <StatRow label="Weight Qtl." value={fmtCurrency(s.totalPurchaseQtl)} />
-        <VDiv />
-        <StatRow label="Avg. Price"  value={`₹${fmtCurrency(s.totalAveragePrice)}`} highlight />
-      </InfoCard>
+      {!hideTotalPurchase && (
+        <InfoCard 
+          icon={<TrendingUp size={16} className="text-forest-600" />} 
+          title="Total Purchase" 
+          iconBg="bg-forest-100" 
+          loading={loading}
+          onClick={onTotalClick}
+        >
+          <StatRow label="Bags"        value={fmt(s.totalBags)} />
+          <VDiv />
+          <StatRow label="Weight Qtl." value={fmtCurrency(s.totalPurchaseQtl)} />
+          <VDiv />
+          <StatRow label="Avg. Price"  value={`₹${fmtCurrency(s.totalAveragePrice)}`} highlight />
+        </InfoCard>
+      )}
     </div>
   );
 }
@@ -377,7 +380,7 @@ export default function DashboardPage() {
         {viewMode.type === "slips" ? (
           <SlipStatsCards s={drillSlipStats} loading={isPending && drillRecords.length === 0} />
         ) : (
-          <ThreeCards s={drillStats} loading={isPending && drillRecords.length === 0} />
+          <ThreeCards s={drillStats} loading={isPending && drillRecords.length === 0} hideTotalPurchase={viewMode.type === "today"} />
         )}
 
         {/* Records list */}
