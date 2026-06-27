@@ -15,6 +15,8 @@ import {
   User,
   ShoppingCart,
   Shield,
+  Check,
+  ChevronDown,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { getAgentsList } from "@/app/actions/procurement";
@@ -55,7 +57,12 @@ export default function ProcurementPage() {
   const [categoryFilter, setCategoryFilter] = useState("FARMER");
 
   const [crop, setCrop] = useState("Rice");
+  const [cropSearch, setCropSearch] = useState("Rice");
+  const [showCropDropdown, setShowCropDropdown] = useState(false);
+
   const [variety, setVariety] = useState("");
+  const [varietySearch, setVarietySearch] = useState("");
+  const [showVarietyDropdown, setShowVarietyDropdown] = useState(false);
   const [bags, setBags] = useState("");
   const [packingSize, setPackingSize] = useState("");
   const [grossQuantity, setGrossQuantity] = useState("");
@@ -153,10 +160,35 @@ export default function ProcurementPage() {
     getQueueCount().then(setOfflineCount).catch(() => {});
   }, []);
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.combobox-crop')) setShowCropDropdown(false);
+      if (!target.closest('.combobox-variety')) setShowVarietyDropdown(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside, { passive: true });
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!showCropDropdown) setCropSearch(crop);
+  }, [showCropDropdown, crop]);
+
+  useEffect(() => {
+    if (!showVarietyDropdown) setVarietySearch(variety);
+  }, [showVarietyDropdown, variety]);
+
   function resetForm() {
     setSelectedFarmer(null);
     setFarmerQuery("");
+    setCrop("Rice");
+    setCropSearch("Rice");
     setVariety("");
+    setVarietySearch("");
     setBags("");
     setPackingSize("");
     setGrossQuantity("");
@@ -513,39 +545,104 @@ export default function ProcurementPage() {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               {/* Crop */}
-              <div>
+              {/* Crop */}
+              <div className="relative combobox-crop">
                 <label className="block text-xs font-medium text-slate-500 mb-1.5">
-                  Crop
+                  Crop Type
                 </label>
-                <select
-                  value={crop}
-                  onChange={(e) => setCrop(e.target.value)}
-                  className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-                    text-slate-800 focus:outline-none focus:ring-2 
-                    transition-all text-base font-medium ${ringClass}`}
-                >
-                  <option value="Rice">Rice</option>
-                  <option value="Paddy">Paddy</option>
-                </select>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                  <input
+                    value={cropSearch}
+                    onChange={(e) => {
+                      setCropSearch(e.target.value);
+                      setShowCropDropdown(true);
+                    }}
+                    onFocus={() => {
+                      setCropSearch(crop);
+                      setShowCropDropdown(true);
+                    }}
+                    placeholder="Search Crop..."
+                    className={`w-full pl-9 pr-8 py-3 rounded-xl border border-slate-200 bg-white/60 
+                      text-slate-800 placeholder:text-slate-400 
+                      focus:outline-none focus:ring-2 ${ringClass} 
+                      transition-all text-sm font-medium`}
+                  />
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                </div>
+                {showCropDropdown && (
+                  <div className="absolute z-[60] w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="max-h-48 overflow-y-auto p-1" onTouchMove={() => (document.activeElement as HTMLElement)?.blur()}>
+                      {["Rice", "Paddy"].filter(c => c.toLowerCase().includes(cropSearch.toLowerCase())).map((c) => (
+                        <div
+                          key={c}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setCrop(c);
+                            setCropSearch(c);
+                            setShowCropDropdown(false);
+                          }}
+                          className={`flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer transition-colors ${crop === c ? (categoryFilter === 'TRADER' ? 'bg-blue-50 text-blue-700' : 'bg-forest-50 text-forest-700') + ' font-medium' : 'text-slate-700 hover:bg-slate-100'}`}
+                        >
+                          <span className="text-sm truncate pr-2">{c}</span>
+                          {crop === c && <Check size={14} className="flex-shrink-0" />}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Variety */}
-              <div>
+              <div className="relative combobox-variety">
                 <label className="block text-xs font-medium text-slate-500 mb-1.5">
                   Variety
                 </label>
-                <select
-                  value={variety}
-                  onChange={(e) => setVariety(e.target.value)}
-                  className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-                    text-slate-800 focus:outline-none focus:ring-2 
-                    transition-all text-base font-medium ${ringClass}`}
-                >
-                  <option value="">Select variety...</option>
-                  {CROP_VARIETIES.map((v) => (
-                    <option key={v} value={v}>{v}</option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                  <input
+                    value={varietySearch}
+                    onChange={(e) => {
+                      setVarietySearch(e.target.value);
+                      setShowVarietyDropdown(true);
+                    }}
+                    onFocus={() => {
+                      setVarietySearch(variety);
+                      setShowVarietyDropdown(true);
+                    }}
+                    placeholder="Search Variety..."
+                    className={`w-full pl-9 pr-8 py-3 rounded-xl border border-slate-200 bg-white/60 
+                      text-slate-800 placeholder:text-slate-400 
+                      focus:outline-none focus:ring-2 ${ringClass} 
+                      transition-all text-sm font-medium`}
+                  />
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                </div>
+                {showVarietyDropdown && (
+                  <div className="absolute z-[60] w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="max-h-48 overflow-y-auto p-1" onTouchMove={() => (document.activeElement as HTMLElement)?.blur()}>
+                      {CROP_VARIETIES.filter(v => v.toLowerCase().includes(varietySearch.toLowerCase())).length > 0 ? (
+                        CROP_VARIETIES.filter(v => v.toLowerCase().includes(varietySearch.toLowerCase())).map((v) => (
+                          <div
+                            key={v}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              setVariety(v);
+                              setVarietySearch(v);
+                              setShowVarietyDropdown(false);
+                            }}
+                            className={`flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer transition-colors ${variety === v ? (categoryFilter === 'TRADER' ? 'bg-blue-50 text-blue-700' : 'bg-forest-50 text-forest-700') + ' font-medium' : 'text-slate-700 hover:bg-slate-100'}`}
+                          >
+                            <span className="text-sm truncate pr-2">{v}</span>
+                            {variety === v && <Check size={14} className="flex-shrink-0" />}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="px-4 py-3 text-xs text-slate-500 text-center">No varieties found</div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
