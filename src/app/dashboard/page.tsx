@@ -354,9 +354,9 @@ export default function DashboardPage() {
         <div className="flex items-center gap-3">
           <button
             onClick={() => setViewMode({ type: "main" })}
-            className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center shadow-sm hover:bg-slate-50 transition-colors"
+            className="w-9 h-9 shrink-0 rounded-xl bg-white border border-slate-200 flex items-center justify-center shadow-[0_2px_8px_-3px_rgba(0,0,0,0.1)] hover:bg-slate-50 active:bg-slate-100 active:scale-95 transition-all duration-200"
           >
-            <ArrowLeft size={16} className="text-slate-600" />
+            <ArrowLeft size={18} className="text-slate-700" />
           </button>
           <div className="flex items-center gap-2.5 min-w-0">
             <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
