@@ -40,6 +40,10 @@ model Farmer {
   pinCode          String   @default("")
   projectName      String   @default("")
   category         String   @default("FARMER") // "FARMER" or "TRADER"
+  state            String   @default("")
+  panGst           String   @default("")
+  company          String   @default("")
+  promoterName     String   @default("")
   farmerCode       String   @unique
   registeredBy     String   @default("")  // Agent user ID who registered this farmer
   registeredByName String   @default("")  // Agent name for display

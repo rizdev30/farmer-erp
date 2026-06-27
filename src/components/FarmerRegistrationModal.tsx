@@ -55,6 +55,7 @@ export default function FarmerRegistrationModal({
   const [fatherName, setFatherName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
+  const [town, setTown] = useState("");
   const [village, setVillage] = useState("");
   const [district, setDistrict] = useState("");
   const [block, setBlock] = useState("");
@@ -62,6 +63,10 @@ export default function FarmerRegistrationModal({
   const [gender, setGender] = useState("");
   const [pinCode, setPinCode] = useState("");
   const [projectName, setProjectName] = useState("");
+  const [state, setState] = useState("");
+  const [panGst, setPanGst] = useState("");
+  const [company, setCompany] = useState("");
+  const [promoterName, setPromoterName] = useState("");
 
   const isTrader = category === "TRADER";
   const t = isTrader ? {
@@ -123,6 +128,7 @@ export default function FarmerRegistrationModal({
     setFatherName("");
     setPhone("");
     setAddress("");
+    setTown("");
     setVillage("");
     setDistrict("");
     setBlock("");
@@ -130,6 +136,10 @@ export default function FarmerRegistrationModal({
     setGender("");
     setPinCode("");
     setProjectName("");
+    setState("");
+    setPanGst("");
+    setCompany("");
+    setPromoterName("");
     setSelectedAgentId("");
     setSelectedL3Id("");
     setError("");
@@ -145,6 +155,7 @@ export default function FarmerRegistrationModal({
       fatherName,
       phone,
       address,
+      town,
       village,
       district,
       block,
@@ -152,6 +163,10 @@ export default function FarmerRegistrationModal({
       gender,
       pinCode,
       projectName,
+      state,
+      panGst,
+      company,
+      promoterName,
       agentId: selectedAgentId || undefined,
       assignedL3Id: selectedL3Id || undefined,
     };
@@ -349,7 +364,7 @@ export default function FarmerRegistrationModal({
 
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                    Father&apos;s Name *
+                    Father's Name *
                   </label>
                   <input
                     value={fatherName}
@@ -362,10 +377,43 @@ export default function FarmerRegistrationModal({
                   />
                 </div>
 
+                {isTrader && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                        Company *
+                      </label>
+                      <input
+                        value={company}
+                        onChange={(e) => setCompany(e.target.value)}
+                        placeholder="Enter company name"
+                        className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                          text-slate-800 placeholder:text-slate-400 
+                          focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
+                          transition-all duration-200 text-base`}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                        Promoter Name *
+                      </label>
+                      <input
+                        value={promoterName}
+                        onChange={(e) => setPromoterName(e.target.value)}
+                        placeholder="Enter promoter's name"
+                        className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                          text-slate-800 placeholder:text-slate-400 
+                          focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
+                          transition-all duration-200 text-base`}
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                      Phone Number *
+                      {isTrader ? "Mobile Number *" : "Phone Number *"}
                     </label>
                     <input
                       value={phone}
@@ -393,6 +441,39 @@ export default function FarmerRegistrationModal({
                     />
                   </div>
                 </div>
+
+                {isTrader && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                        PAN / GST Number *
+                      </label>
+                      <input
+                        value={panGst}
+                        onChange={(e) => setPanGst(e.target.value)}
+                        placeholder="Enter PAN or GST number"
+                        className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                          text-slate-800 placeholder:text-slate-400 
+                          focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
+                          transition-all duration-200 text-base`}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                        Mandi
+                      </label>
+                      <input
+                        value={town}
+                        onChange={(e) => setTown(e.target.value)}
+                        placeholder="Enter Mandi"
+                        className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                          text-slate-800 placeholder:text-slate-400 
+                          focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
+                          transition-all duration-200 text-base`}
+                      />
+                    </div>
+                  </div>
+                )}
 
                 {isAdmin && (
                   <>
@@ -482,7 +563,25 @@ export default function FarmerRegistrationModal({
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                      Village *
+                      State
+                    </label>
+                    <input
+                      value={state}
+                      onChange={(e) => setState(e.target.value)}
+                      placeholder="State"
+                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                        text-slate-800 placeholder:text-slate-400 
+                        focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
+                        transition-all duration-200 text-base`}
+                    />
+                  </div>
+                  <div className="hidden"></div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      {isTrader ? "Village/City *" : "Village *"}
                     </label>
                     <input
                       value={village}
@@ -512,7 +611,7 @@ export default function FarmerRegistrationModal({
 
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                    Block *
+                    {isTrader ? "Block / Taluka *" : "Block *"}
                   </label>
                   <input
                     value={block}
@@ -573,7 +672,7 @@ export default function FarmerRegistrationModal({
                     Registering...
                   </>
                 ) : (
-                  "Register Farmer"
+                  "Register"
                 )}
               </button>
             )}

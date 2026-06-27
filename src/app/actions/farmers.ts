@@ -3,7 +3,7 @@
 import prisma from "@/lib/prisma";
 import { auth } from "@/auth";
 
-async function generateFarmerCode(): Promise<string> {
+async function generateFarmerCode(category: string = "FARMER"): Promise<string> {
   const now = new Date();
   
   // YY: Year
@@ -27,7 +27,8 @@ async function generateFarmerCode(): Promise<string> {
 
   const nnnStr = seq.lastSeq.toString().padStart(3, "0");
   
-  return `${yearStr}${monthStr}${weekStr}${nnnStr}`;
+  const prefix = category === "TRADER" ? "T" : "F";
+  return `${prefix}${yearStr}${monthStr}${weekStr}${nnnStr}`;
 }
 
 /**
@@ -91,6 +92,10 @@ export async function searchFarmers(query: string, categoryFilter?: string) {
     gender: f.gender,
     pinCode: f.pinCode,
     projectName: f.projectName,
+    state: f.state,
+    panGst: f.panGst,
+    company: f.company,
+    promoterName: f.promoterName,
     assignedL3Id: (f as any).assignedL3Id,
   }));
 }
@@ -150,6 +155,10 @@ export async function getFarmers(filters?: {
     gender: f.gender,
     pinCode: f.pinCode,
     projectName: f.projectName,
+    state: f.state,
+    panGst: f.panGst,
+    company: f.company,
+    promoterName: f.promoterName,
     assignedL3Id: (f as any).assignedL3Id,
   }));
 }
@@ -184,6 +193,10 @@ export async function getFarmerById(id: number) {
     gender: f.gender,
     pinCode: f.pinCode,
     projectName: f.projectName,
+    state: f.state,
+    panGst: f.panGst,
+    company: f.company,
+    promoterName: f.promoterName,
     createdAt: f.createdAt.toISOString(),
     assignedL3Id: f.assignedL3Id,
   };
@@ -202,13 +215,17 @@ export async function registerFarmer(data: {
   pinCode?: string;
   projectName?: string;
   category?: string;
+  state?: string;
+  panGst?: string;
+  company?: string;
+  promoterName?: string;
   farmerCode?: string; // Optional: If not provided, we generate it
   agentId?: string; // Admin can assign to a specific agent
   assignedL3Id?: string; // Admin can assign to L3
 }) {
   const user = await getSessionUser();
   const isAdmin = user.role === "L4_ADMIN";
-  const code = data.farmerCode || (await generateFarmerCode());
+  const code = data.farmerCode || (await generateFarmerCode(data.category));
 
   let registeredById = user.userId;
   let registeredByName = user.userName;
@@ -239,6 +256,10 @@ export async function registerFarmer(data: {
       pinCode: data.pinCode || "",
       projectName: data.projectName || "",
       category: data.category || "FARMER",
+      state: data.state || "",
+      panGst: data.panGst || "",
+      company: data.company || "",
+      promoterName: data.promoterName || "",
       registeredBy: registeredById,
       registeredByName: registeredByName,
       assignedL3Id: data.assignedL3Id || "",
@@ -265,6 +286,10 @@ export async function registerFarmer(data: {
       gender: farmer.gender,
       pinCode: farmer.pinCode,
       projectName: farmer.projectName,
+      state: farmer.state,
+      panGst: farmer.panGst,
+      company: farmer.company,
+      promoterName: farmer.promoterName,
       assignedL3Id: farmer.assignedL3Id,
     },
   };
