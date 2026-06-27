@@ -52,14 +52,14 @@ interface FarmerProfile {
 export default function FarmerProfilePage() {
   const params = useParams();
   const router = useRouter();
-  const id = parseInt(params.id as string, 10);
+  const id = params.id as string;
 
   const {
     data: farmer,
     isLoading: loading,
     error: swrError,
   } = useSWRCache<FarmerProfile>(
-    isNaN(id) ? null : `farmer-${id}`,
+    !id ? null : `farmer-${id}`,
     async () => {
       const data = await getFarmerById(id);
       return data as FarmerProfile;
@@ -67,7 +67,7 @@ export default function FarmerProfilePage() {
     { ttl: 60000 }
   );
 
-  const error = isNaN(id) ? "Invalid farmer ID" : swrError?.message || "";
+  const error = !id ? "Invalid farmer ID" : swrError?.message || "";
 
   if (loading) {
     return (

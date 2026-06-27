@@ -14,6 +14,7 @@ export async function registerTrader(data: {
   village: string;
   gender?: string;
   pinCode?: string;
+
   projectName?: string;
   state?: string;
   panGst?: string;
@@ -53,6 +54,7 @@ export async function registerTrader(data: {
       village: data.village,
       gender: data.gender || "",
       pinCode: data.pinCode || "",
+
       projectName: data.projectName || "",
       state: data.state || "",
       panGst: data.panGst || "",

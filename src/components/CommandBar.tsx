@@ -13,6 +13,7 @@ interface SearchResult {
   district: string;
   block: string;
   farmerCode: string;
+  category?: string;
 }
 
 export default function CommandBar() {
@@ -86,7 +87,8 @@ export default function CommandBar() {
       e.preventDefault();
       setSelectedIndex((i) => Math.max(i - 1, 0));
     } else if (e.key === "Enter" && results[selectedIndex]) {
-      router.push(`/dashboard/farmers/${results[selectedIndex].id}`);
+      const res = results[selectedIndex];
+      router.push(`/dashboard/farmers/${res.category === "TRADER" ? 't' : 'f'}${res.id}`);
       setOpen(false);
     }
   }
@@ -176,19 +178,23 @@ export default function CommandBar() {
                 <button
                   key={farmer.id}
                   onClick={() => {
-                    router.push(`/dashboard/farmers/${farmer.id}`);
+                    router.push(`/dashboard/farmers/${farmer.category === "TRADER" ? 't' : 'f'}${farmer.id}`);
                     setOpen(false);
                   }}
                   className={`w-full flex items-center gap-3 px-5 py-3.5 text-left
                     transition-colors duration-100 
-                    ${i === selectedIndex ? "bg-forest-50 border-l-2 border-forest-500" : "hover:bg-slate-50 border-l-2 border-transparent"}`}
+                    ${i === selectedIndex ? (farmer.category === "TRADER" ? "bg-blue-50 border-l-2 border-blue-500" : "bg-forest-50 border-l-2 border-forest-500") : "hover:bg-slate-50 border-l-2 border-transparent"}`}
                 >
-                  <div className="w-9 h-9 rounded-xl bg-forest-100 flex items-center justify-center shrink-0">
-                    <User size={16} className="text-forest-600" />
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${farmer.category === "TRADER" ? "bg-blue-100 text-blue-600" : "bg-forest-100 text-forest-600"}`}>
+                    <User size={16} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-800 truncate">
-                      {farmer.name} <span className="ml-1 text-[10px] font-mono bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md">{farmer.farmerCode || "—"}</span>
+                    <p className="text-sm font-medium text-slate-800 truncate flex items-center gap-2">
+                      {farmer.name} 
+                      {farmer.category === "TRADER" && (
+                        <span className="text-[9px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded uppercase font-bold tracking-wider shrink-0">Trader</span>
+                      )}
+                      <span className="text-[10px] font-mono bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md">{farmer.farmerCode || "—"}</span>
                     </p>
                     <p className="text-xs text-slate-400 truncate">
                       {farmer.phone} • {[farmer.district, farmer.block]

@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Loader2, ChevronRight, ChevronLeft, User, MapPin, Shield } from "lucide-react";
+import { X, Loader2, ChevronRight, ChevronLeft, User, MapPin, Shield, Search, Check, ChevronDown } from "lucide-react";
 import { registerFarmer } from "@/app/actions/farmers";
 import { registerTrader } from "@/app/actions/traders";
 import { getAgentsList } from "@/app/actions/procurement";
+import { getMandis } from "@/app/actions/mandis";
 import { useSession } from "next-auth/react";
 
 interface Props {
@@ -51,6 +52,14 @@ export default function FarmerRegistrationModal({
     }
   }, [isAdmin, open]);
 
+  const [mandisData, setMandisData] = useState<{state: string, district: string, mandiName: string}[]>([]);
+
+  useEffect(() => {
+    if (open) {
+      getMandis().then(setMandisData).catch(console.error);
+    }
+  }, [open]);
+
   // Form data
   const [name, setName] = useState("");
   const [fatherName, setFatherName] = useState("");
@@ -65,12 +74,24 @@ export default function FarmerRegistrationModal({
   const [pinCode, setPinCode] = useState("");
   const [projectName, setProjectName] = useState("");
   const [state, setState] = useState("");
+  const [showMandiDropdown, setShowMandiDropdown] = useState(false);
+  const [mandiSearch, setMandiSearch] = useState("");
+
+  // Remove duplicates based on mandiName but keep full object
+  const uniqueMandis = mandisData ? Array.from(new Map(mandisData.map(m => [m.mandiName, m])).values()) : [];
+  uniqueMandis.sort((a, b) => a.mandiName.localeCompare(b.mandiName));
+
+  const filteredMandis = uniqueMandis.filter(m => 
+    (m.mandiName || "").toLowerCase().includes((mandiSearch || "").toLowerCase())
+  );
+
   const [panGst, setPanGst] = useState("");
   const [company, setCompany] = useState("");
   const [promoterName, setPromoterName] = useState("");
   const [bankName, setBankName] = useState("");
   const [ifscCode, setIfscCode] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
+  const [showBankDetails, setShowBankDetails] = useState(false);
 
   const isTrader = category === "TRADER";
   const t = isTrader ? {
@@ -95,6 +116,12 @@ export default function FarmerRegistrationModal({
 
   const [syncing, setSyncing] = useState(false);
   const [offlineCount, setOfflineCount] = useState(0);
+  const [toastMessage, setToastMessage] = useState("");
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(""), 5000);
+  };
 
   useEffect(() => {
     const queue = JSON.parse(localStorage.getItem("offlineFarmers") || "[]");
@@ -115,7 +142,7 @@ export default function FarmerRegistrationModal({
         }
         localStorage.removeItem("offlineFarmers");
         setOfflineCount(0);
-        alert("Success! All offline farmers have been registered to the database.");
+        showToast("Success! All offline data synced.");
       } catch (err) {
         console.error("Sync failed", err);
       }
@@ -144,13 +171,18 @@ export default function FarmerRegistrationModal({
     setGender("");
     setPinCode("");
     setProjectName("");
-    setState("");
+    setState(localStorage.getItem("lastSavedState") || "");
+    setDistrict(localStorage.getItem("lastSavedDistrict") || "");
+    const lastTown = localStorage.getItem("lastSavedMandi") || "";
+    setTown(lastTown);
+    setMandiSearch(lastTown);
     setPanGst("");
     setCompany("");
     setPromoterName("");
     setBankName("");
     setIfscCode("");
     setAccountNumber("");
+    setShowBankDetails(false);
     setSelectedAgentId("");
     setSelectedL3Id("");
     setError("");
@@ -160,6 +192,10 @@ export default function FarmerRegistrationModal({
   async function handleSubmit() {
     setLoading(true);
     setError("");
+
+    localStorage.setItem("lastSavedState", state);
+    localStorage.setItem("lastSavedDistrict", district);
+    localStorage.setItem("lastSavedMandi", town);
 
     const payload = {
       name,
@@ -208,7 +244,7 @@ export default function FarmerRegistrationModal({
       });
       reset();
       onClose();
-      alert("⚠️ No internet connection! Farmer saved locally. Do not close the app; it will automatically sync when internet is restored.");
+      showToast("⚠️ No internet! Saved locally and will sync automatically.");
       return;
     }
 
@@ -248,6 +284,12 @@ export default function FarmerRegistrationModal({
   if (!open) return null;
 
   return (
+    <>
+      {toastMessage ? (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[150] bg-slate-800 text-white px-5 py-3 rounded-2xl shadow-2xl text-sm font-semibold flex items-center gap-2 animate-in slide-in-from-bottom-4 fade-in duration-300">
+          {toastMessage}
+        </div>
+      ) : null}
     <div className="fixed inset-0 z-[100] flex justify-center p-4 sm:p-6 overflow-y-auto items-start md:items-center">
       <div
         className="fixed inset-0 bg-black/40 backdrop-blur-sm backdrop-fade"
@@ -266,8 +308,8 @@ export default function FarmerRegistrationModal({
                 Register New {isTrader ? "Trader" : "Farmer"}
               </h2>
               <p className="text-sm text-slate-500">
-                Step {step} of 3 —{" "}
-                {step === 1 ? "Identity" : step === 2 ? "Location" : "Bank Details"}
+                Step {step} of 2 —{" "}
+                {step === 1 ? "Identity" : "Location & Bank Details"}
               </p>
             </div>
             <button
@@ -301,11 +343,6 @@ export default function FarmerRegistrationModal({
               <div
                 className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${
                   step >= 2 ? t.progress : "bg-slate-200"
-                }`}
-              />
-              <div
-                className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${
-                  step >= 3 ? t.progress : "bg-slate-200"
                 }`}
               />
             </div>
@@ -464,7 +501,7 @@ export default function FarmerRegistrationModal({
                 </div>
 
                 {isTrader && (
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3">
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1.5">
                         PAN / GST Number *
@@ -473,20 +510,6 @@ export default function FarmerRegistrationModal({
                         value={panGst}
                         onChange={(e) => setPanGst(e.target.value)}
                         placeholder="Enter PAN or GST number"
-                        className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-                          text-slate-800 placeholder:text-slate-400 
-                          focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
-                          transition-all duration-200 text-base`}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                        Mandi
-                      </label>
-                      <input
-                        value={town}
-                        onChange={(e) => setTown(e.target.value)}
-                        placeholder="Enter Mandi"
                         className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
                           text-slate-800 placeholder:text-slate-400 
                           focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
@@ -582,6 +605,24 @@ export default function FarmerRegistrationModal({
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      Pin Code
+                    </label>
+                    <input
+                      value={pinCode}
+                      onChange={(e) => setPinCode(e.target.value)}
+                      placeholder="6-digit pin code"
+                      maxLength={6}
+                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                        text-slate-800 placeholder:text-slate-400 
+                        focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
+                        transition-all duration-200 text-base`}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
                       {isTrader ? "Block / Taluka *" : "Block *"}
                     </label>
                     <input
@@ -595,11 +636,10 @@ export default function FarmerRegistrationModal({
                     />
                   </div>
                 </div>
-
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                      District *
+                      District
                     </label>
                     <input
                       value={district}
@@ -627,79 +667,147 @@ export default function FarmerRegistrationModal({
                   </div>
                 </div>
 
-                <div>
+                <div className="relative">
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                    Pin Code
+                    Mandi Search
                   </label>
-                  <input
-                    value={pinCode}
-                    onChange={(e) => setPinCode(e.target.value)}
-                    placeholder="Pin code"
-                    className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-                      text-slate-800 placeholder:text-slate-400 
-                      focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
-                      transition-all duration-200 text-base`}
-                  />
-                </div>
-              </div>
-            )}
-
-            {step === 3 && (
-              <div className="space-y-4">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-9 h-9 rounded-xl bg-purple-100 flex items-center justify-center">
-                    <Shield size={18} className="text-purple-600" />
-                  </div>
-                  <p className="text-sm font-medium text-slate-600">
-                    Bank Details
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                    Bank Name
-                  </label>
-                  <input
-                    value={bankName}
-                    onChange={(e) => setBankName(e.target.value)}
-                    placeholder="e.g. State Bank of India"
-                    className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-                      text-slate-800 placeholder:text-slate-400 
-                      focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
-                      transition-all duration-200 text-base`}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                      IFSC Code
-                    </label>
+                  <div className="relative">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                     <input
-                      value={ifscCode}
-                      onChange={(e) => setIfscCode(e.target.value.toUpperCase())}
-                      placeholder="IFSC Code"
-                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-                        text-slate-800 placeholder:text-slate-400 
+                      value={mandiSearch}
+                      onChange={(e) => {
+                        setMandiSearch(e.target.value);
+                        setShowMandiDropdown(true);
+                      }}
+                      onFocus={() => {
+                        setMandiSearch(town); // Reset search to current selection on focus
+                        setShowMandiDropdown(true);
+                      }}
+                      onBlur={() => setTimeout(() => {
+                        setShowMandiDropdown(false);
+                        setMandiSearch(town); // Revert search text to actual selected town if not clicked
+                      }, 200)}
+                      placeholder="Type to search Mandi..."
+                      className={`w-full pl-11 pr-10 py-3 rounded-xl border border-slate-200 bg-white/60 
+                        text-slate-800 placeholder:text-slate-400
                         focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
                         transition-all duration-200 text-base`}
                     />
+                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                      Account Number
-                    </label>
-                    <input
-                      value={accountNumber}
-                      onChange={(e) => setAccountNumber(e.target.value)}
-                      placeholder="Account Number"
-                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-                        text-slate-800 placeholder:text-slate-400 
-                        focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
-                        transition-all duration-200 text-base`}
-                    />
-                  </div>
+
+                  {showMandiDropdown && (
+                    <div className="absolute z-50 w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                      <div className="max-h-60 overflow-y-auto p-1.5">
+                        {filteredMandis.length > 0 ? (
+                          filteredMandis.map((m) => (
+                            <div
+                              key={m.mandiName}
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                setTown(m.mandiName);
+                                setMandiSearch(m.mandiName);
+                                setShowMandiDropdown(false);
+                              }}
+                              className={`flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer transition-colors ${town === m.mandiName ? (isTrader ? 'bg-blue-50 text-blue-700 font-medium' : 'bg-forest-50 text-forest-700 font-medium') : 'text-slate-700 hover:bg-slate-100'}`}
+                            >
+                              <div className="flex flex-col">
+                                <span>{m.mandiName}</span>
+                                <span className="text-[10px] text-slate-400 font-medium">{m.district}, {m.state}</span>
+                              </div>
+                              {town === m.mandiName && <Check size={16} />}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="px-4 py-4 text-sm text-slate-500 text-center">
+                            No mandis found matching <span className="font-semibold text-slate-700">"{mandiSearch}"</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
+
+                {/* Optional Bank Details Toggle */}
+                {!showBankDetails ? (
+                  <button
+                    onClick={() => setShowBankDetails(true)}
+                    className={`w-full py-3 mt-4 rounded-xl border-2 border-dashed border-slate-200 text-sm font-semibold text-slate-500 hover:text-slate-700 hover:border-slate-300 hover:bg-slate-50 transition-all flex items-center justify-center gap-2`}
+                  >
+                    <Shield size={16} />
+                    Add {isTrader ? "Trader" : "Farmer"} Bank Account (Optional)
+                  </button>
+                ) : (
+                  <div className="space-y-4 pt-4 mt-4 border-t border-slate-100">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-purple-100 flex items-center justify-center">
+                          <Shield size={18} className="text-purple-600" />
+                        </div>
+                        <p className="text-sm font-medium text-slate-600">
+                          Bank Details
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setShowBankDetails(false);
+                          setBankName("");
+                          setIfscCode("");
+                          setAccountNumber("");
+                        }}
+                        className="text-xs text-slate-400 hover:text-red-500 flex items-center gap-1"
+                      >
+                        <X size={14} /> Remove
+                      </button>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                        Bank Name
+                      </label>
+                      <input
+                        value={bankName}
+                        onChange={(e) => setBankName(e.target.value)}
+                        placeholder="e.g. State Bank of India"
+                        className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                          text-slate-800 placeholder:text-slate-400 
+                          focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
+                          transition-all duration-200 text-base`}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                          IFSC Code
+                        </label>
+                        <input
+                          value={ifscCode}
+                          onChange={(e) => setIfscCode(e.target.value.toUpperCase())}
+                          placeholder="IFSC Code"
+                          className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                            text-slate-800 placeholder:text-slate-400 
+                            focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
+                            transition-all duration-200 text-base`}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                          Account Number
+                        </label>
+                        <input
+                          value={accountNumber}
+                          onChange={(e) => setAccountNumber(e.target.value)}
+                          placeholder="Account Number"
+                          className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                            text-slate-800 placeholder:text-slate-400 
+                            focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
+                            transition-all duration-200 text-base`}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -717,7 +825,7 @@ export default function FarmerRegistrationModal({
               </button>
             ) : <div />}
 
-            {step < 3 ? (
+            {step < 2 ? (
               <button
                 onClick={() => {
                   if (step === 1) {
@@ -765,5 +873,6 @@ export default function FarmerRegistrationModal({
         </div>
       </div>
     </div>
+    </>
   );
 }

@@ -194,7 +194,7 @@ export default function FarmersPage() {
           {optimisticFarmers.map((farmer) => (
             <Link 
               key={farmer.id} 
-              href={`/dashboard/farmers/${farmer.id}`}
+              href={`/dashboard/farmers/${farmer.category === "TRADER" ? 't' : 'f'}${farmer.id}`}
               className="glass-card rounded-2xl p-5 hover:shadow-md transition-shadow group relative block"
             >
               <div className="flex items-start gap-3.5">

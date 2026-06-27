@@ -49,10 +49,8 @@ export async function searchFarmers(query: string, categoryFilter?: string) {
   if (!query || query.length < 2) return [];
 
   const user = await getSessionUser();
-  const isAdmin = user.role === "L4_ADMIN";
 
-  // Build where clause
-  const where: Record<string, unknown> = {
+  const whereF: any = {
     active: true,
     OR: [
       { name: { contains: query, mode: "insensitive" } },
@@ -62,19 +60,44 @@ export async function searchFarmers(query: string, categoryFilter?: string) {
     ],
   };
 
+  const whereT: any = {
+    active: true,
+    OR: [
+      { name: { contains: query, mode: "insensitive" } },
+      { phone: { contains: query, mode: "insensitive" } },
+      { traderCode: { contains: query, mode: "insensitive" } },
+      { village: { contains: query, mode: "insensitive" } },
+    ],
+  };
+
   if (user.role === "L1_AGENT") {
-    where.registeredBy = user.userId;
+    whereF.registeredBy = user.userId;
+    whereT.registeredBy = user.userId;
   }
 
-  if (categoryFilter) {
-    where.category = categoryFilter;
+  let farmers: any[] = [];
+  let traders: any[] = [];
+
+  if (!categoryFilter || categoryFilter === "FARMER") {
+    farmers = await prisma.farmer.findMany({
+      where: whereF,
+      take: 20,
+      orderBy: { name: "asc" },
+    });
   }
 
-  const results = await prisma.farmer.findMany({
-    where,
-    take: 20,
-    orderBy: { name: "asc" },
-  });
+  if (!categoryFilter || categoryFilter === "TRADER") {
+    traders = await prisma.trader.findMany({
+      where: whereT,
+      take: 20,
+      orderBy: { name: "asc" },
+    });
+  }
+
+  const results = [
+    ...farmers.map((f) => ({ ...f, category: f.category || "FARMER" })),
+    ...traders.map((t) => ({ ...t, category: "TRADER", farmerCode: t.traderCode }))
+  ].sort((a, b) => a.name.localeCompare(b.name)).slice(0, 20);
 
   return results.map((f) => ({
     id: f.id,
@@ -99,7 +122,7 @@ export async function searchFarmers(query: string, categoryFilter?: string) {
     bankName: f.bankName,
     ifscCode: f.ifscCode,
     accountNumber: f.accountNumber,
-    assignedL3Id: (f as any).assignedL3Id,
+    assignedL3Id: f.assignedL3Id || "",
   }));
 }
 
@@ -111,36 +134,55 @@ export async function getFarmers(filters?: {
   page?: number;
 }) {
   const user = await getSessionUser();
-  const isAdmin = user.role === "L4_ADMIN";
 
-  const where: Record<string, unknown> = { active: true };
+  const whereF: Record<string, unknown> = { active: true };
+  const whereT: Record<string, unknown> = { active: true };
 
   if (user.role === "L1_AGENT") {
-    where.registeredBy = user.userId;
+    whereF.registeredBy = user.userId;
+    whereT.registeredBy = user.userId;
   }
 
   if (filters?.district) {
-    where.district = { contains: filters.district, mode: "insensitive" };
+    whereF.district = { contains: filters.district, mode: "insensitive" };
+    whereT.district = { contains: filters.district, mode: "insensitive" };
   }
   if (filters?.block) {
-    where.block = { contains: filters.block, mode: "insensitive" };
+    whereF.block = { contains: filters.block, mode: "insensitive" };
+    whereT.block = { contains: filters.block, mode: "insensitive" };
   }
   if (filters?.village) {
-    where.village = { contains: filters.village, mode: "insensitive" };
-  }
-  if (filters?.category) {
-    where.category = filters.category;
+    whereF.village = { contains: filters.village, mode: "insensitive" };
+    whereT.village = { contains: filters.village, mode: "insensitive" };
   }
 
   const page = filters?.page || 0;
   const pageSize = 50;
+  let farmers: any[] = [];
+  let traders: any[] = [];
 
-  const results = await prisma.farmer.findMany({
-    where,
-    orderBy: { name: "asc" },
-    take: pageSize,
-    skip: page * pageSize,
-  });
+  if (!filters?.category || filters.category === "FARMER") {
+    farmers = await prisma.farmer.findMany({
+      where: whereF,
+      orderBy: { name: "asc" },
+      take: pageSize,
+      skip: page * pageSize,
+    });
+  }
+
+  if (!filters?.category || filters.category === "TRADER") {
+    traders = await prisma.trader.findMany({
+      where: whereT,
+      orderBy: { name: "asc" },
+      take: pageSize,
+      skip: page * pageSize,
+    });
+  }
+
+  const results = [
+    ...farmers.map((f) => ({ ...f, category: f.category || "FARMER" })),
+    ...traders.map((t) => ({ ...t, category: "TRADER", farmerCode: t.traderCode }))
+  ].sort((a, b) => a.name.localeCompare(b.name)).slice(0, pageSize);
 
   return results.map((f) => ({
     id: f.id,
@@ -165,16 +207,57 @@ export async function getFarmers(filters?: {
     bankName: f.bankName,
     ifscCode: f.ifscCode,
     accountNumber: f.accountNumber,
-    assignedL3Id: (f as any).assignedL3Id,
+    assignedL3Id: f.assignedL3Id || "",
   }));
 }
 
-export async function getFarmerById(id: number) {
+export async function getFarmerById(idParam: string | number) {
   const user = await getSessionUser();
-  const isAdmin = user.role === "L4_ADMIN";
+  const idStr = String(idParam);
+  const isTrader = idStr.startsWith("t");
+  const parsedId = parseInt(idStr.replace(/^[ft]/, ""), 10);
+
+  if (isTrader) {
+    const t = await prisma.trader.findUniqueOrThrow({
+      where: { id: parsedId },
+    });
+
+    if (user.role === "L1_AGENT" && t.registeredBy !== user.userId) {
+      throw new Error("You are not authorized to view this trader's profile");
+    }
+
+    return {
+      id: t.id,
+      name: t.name,
+      phone: t.phone,
+      address: t.address,
+      town: t.town,
+      district: t.district,
+      block: t.block,
+      fatherName: t.fatherName,
+      farmerCode: t.traderCode,
+      village: t.village,
+      registeredBy: t.registeredBy,
+      registeredByName: t.registeredByName,
+      createdByAdmin: false,
+      category: "TRADER",
+      gender: t.gender,
+      pinCode: t.pinCode,
+      projectName: t.projectName,
+      state: t.state,
+      panGst: t.panGst,
+      company: t.company,
+      promoterName: t.promoterName,
+      bankName: t.bankName,
+      ifscCode: t.ifscCode,
+      accountNumber: t.accountNumber,
+      createdAt: t.createdAt.toISOString(),
+      assignedL3Id: "",
+    };
+  }
 
   const f = await prisma.farmer.findUniqueOrThrow({
-    where: { id },
+    where: { id: parsedId },
   });
 
   if (user.role === "L1_AGENT" && f.registeredBy !== user.userId) {

@@ -126,3 +126,13 @@ model Procurement {
   @@map("procurements")
 }
 
+model Mandi {
+  id        Int      @id @default(autoincrement())
+  state     String
+  district  String
+  mandiName String
+
+  @@unique([state, district, mandiName])
+  @@map("mandis")
+}
+
