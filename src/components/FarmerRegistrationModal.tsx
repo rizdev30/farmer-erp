@@ -74,12 +74,31 @@ export default function FarmerRegistrationModal({
   const [pinCode, setPinCode] = useState("");
   const [projectName, setProjectName] = useState("");
   const [state, setState] = useState("");
+  const [showStateDropdown, setShowStateDropdown] = useState(false);
+  const [stateSearch, setStateSearch] = useState("");
+
+
+  const [showDistrictDropdown, setShowDistrictDropdown] = useState(false);
+  const [districtSearch, setDistrictSearch] = useState("");
+
   const [showMandiDropdown, setShowMandiDropdown] = useState(false);
   const [mandiSearch, setMandiSearch] = useState("");
 
-  // Remove duplicates based on mandiName but keep full object
-  const uniqueMandis = mandisData ? Array.from(new Map(mandisData.map(m => [m.mandiName, m])).values()) : [];
+  // Cascading Location Logic
+  const availableStates = Array.from(new Set((mandisData || []).map(m => m.state).filter(Boolean))).sort();
+  const availableDistricts = Array.from(new Set((mandisData || []).filter(m => m.state === state).map(m => m.district).filter(Boolean))).sort();
+  
+  const availableMandis = (mandisData || []).filter(m => m.state === state && m.district === district);
+  const uniqueMandis = Array.from(new Map(availableMandis.map(m => [m.mandiName, m])).values());
   uniqueMandis.sort((a, b) => a.mandiName.localeCompare(b.mandiName));
+
+  const filteredStates = availableStates.filter(s => 
+    (s || "").toLowerCase().includes((stateSearch || "").toLowerCase())
+  );
+  
+  const filteredDistricts = availableDistricts.filter(d => 
+    (d || "").toLowerCase().includes((districtSearch || "").toLowerCase())
+  );
 
   const filteredMandis = uniqueMandis.filter(m => 
     (m.mandiName || "").toLowerCase().includes((mandiSearch || "").toLowerCase())
@@ -171,8 +190,14 @@ export default function FarmerRegistrationModal({
     setGender("");
     setPinCode("");
     setProjectName("");
-    setState(localStorage.getItem("lastSavedState") || "");
-    setDistrict(localStorage.getItem("lastSavedDistrict") || "");
+    const lastState = localStorage.getItem("lastSavedState") || "";
+    setState(lastState);
+    setStateSearch(lastState);
+    
+    const lastDistrict = localStorage.getItem("lastSavedDistrict") || "";
+    setDistrict(lastDistrict);
+    setDistrictSearch(lastDistrict);
+    
     const lastTown = localStorage.getItem("lastSavedMandi") || "";
     setTown(lastTown);
     setMandiSearch(lastTown);
@@ -190,6 +215,11 @@ export default function FarmerRegistrationModal({
   }
 
   async function handleSubmit() {
+    if (!village.trim() || !block.trim() || !state.trim() || !district.trim() || !town.trim()) {
+      setError("Please fill all required location fields (*).");
+      return;
+    }
+
     setLoading(true);
     setError("");
 
@@ -563,8 +593,8 @@ export default function FarmerRegistrationModal({
             )}
 
             {step === 2 && (
-              <div className="space-y-4">
-                <div className="flex items-center gap-3 mb-2">
+              <div className="space-y-5 pb-2">
+                <div className="flex items-center gap-3 pb-2 border-b border-slate-100">
                   <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center">
                     <MapPin size={18} className="text-blue-600" />
                   </div>
@@ -605,24 +635,6 @@ export default function FarmerRegistrationModal({
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                      Pin Code
-                    </label>
-                    <input
-                      value={pinCode}
-                      onChange={(e) => setPinCode(e.target.value)}
-                      placeholder="6-digit pin code"
-                      maxLength={6}
-                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-                        text-slate-800 placeholder:text-slate-400 
-                        focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
-                        transition-all duration-200 text-base`}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
                       {isTrader ? "Block / Taluka *" : "Block *"}
                     </label>
                     <input
@@ -636,69 +648,177 @@ export default function FarmerRegistrationModal({
                     />
                   </div>
                 </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Pin Code
+                  </label>
+                  <input
+                    value={pinCode}
+                    onChange={(e) => setPinCode(e.target.value)}
+                    placeholder="6-digit pin code"
+                    maxLength={6}
+                    className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                      text-slate-800 placeholder:text-slate-400 
+                      focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
+                      transition-all duration-200 text-sm`}
+                  />
+                </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div>
+                  <div className="relative">
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                      District
+                      State Search *
                     </label>
-                    <input
-                      value={district}
-                      onChange={(e) => setDistrict(e.target.value)}
-                      placeholder="District"
-                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-                        text-slate-800 placeholder:text-slate-400 
-                        focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
-                        transition-all duration-200 text-base`}
-                    />
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                      <input
+                        value={stateSearch}
+                        onChange={(e) => {
+                          setStateSearch(e.target.value);
+                          setShowStateDropdown(true);
+                        }}
+                        onFocus={(e) => {
+                          setStateSearch(state);
+                          setShowStateDropdown(true);
+                          setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' }), 200);
+                        }}
+                        onBlur={() => setTimeout(() => {
+                          setShowStateDropdown(false);
+                          setStateSearch(state);
+                        }, 200)}
+                        placeholder="Search State..."
+                        className={`w-full pl-9 pr-8 py-3 rounded-xl border border-slate-200 bg-white/60 
+                          text-slate-800 placeholder:text-slate-400 
+                          focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
+                          transition-all duration-200 text-sm`}
+                      />
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                    </div>
+                    {showStateDropdown && (
+                      <div className="absolute z-[60] w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="max-h-48 overflow-y-auto p-1" onTouchMove={() => (document.activeElement as HTMLElement)?.blur()}>
+                          {filteredStates.length > 0 ? (
+                            filteredStates.map((s) => (
+                              <div
+                                key={s}
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  setState(s);
+                                  setStateSearch(s);
+                                  setDistrict("");
+                                  setDistrictSearch("");
+                                  setTown("");
+                                  setMandiSearch("");
+                                  setShowStateDropdown(false);
+                                }}
+                                className={`flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer transition-colors ${state === s ? (isTrader ? 'bg-blue-50 text-blue-700 font-medium' : 'bg-forest-50 text-forest-700 font-medium') : 'text-slate-700 hover:bg-slate-100'}`}
+                              >
+                                <span className="text-sm truncate pr-2">{s}</span>
+                                {state === s && <Check size={14} className="flex-shrink-0" />}
+                              </div>
+                            ))
+                          ) : (
+                            <div className="px-4 py-3 text-xs text-slate-500 text-center">No states found</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <div>
+
+                  <div className="relative">
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                      State
+                      District Search *
                     </label>
-                    <input
-                      value={state}
-                      onChange={(e) => setState(e.target.value)}
-                      placeholder="State"
-                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-                        text-slate-800 placeholder:text-slate-400 
-                        focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
-                        transition-all duration-200 text-base`}
-                    />
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                      <input
+                        value={districtSearch}
+                        onChange={(e) => {
+                          setDistrictSearch(e.target.value);
+                          setShowDistrictDropdown(true);
+                        }}
+                        onFocus={(e) => {
+                          setDistrictSearch(district);
+                          setShowDistrictDropdown(true);
+                          setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' }), 200);
+                        }}
+                        onBlur={() => setTimeout(() => {
+                          setShowDistrictDropdown(false);
+                          setDistrictSearch(district);
+                        }, 200)}
+                        disabled={!state}
+                        placeholder={state ? "Search District..." : "Select State"}
+                        className={`w-full pl-9 pr-8 py-3 rounded-xl border border-slate-200 bg-white/60 
+                          text-slate-800 placeholder:text-slate-400 
+                          focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
+                          transition-all duration-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed`}
+                      />
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                    </div>
+                    {showDistrictDropdown && (
+                      <div className="absolute z-[60] w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="max-h-48 overflow-y-auto p-1" onTouchMove={() => (document.activeElement as HTMLElement)?.blur()}>
+                          {filteredDistricts.length > 0 ? (
+                            filteredDistricts.map((d) => (
+                              <div
+                                key={d}
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  setDistrict(d);
+                                  setDistrictSearch(d);
+                                  setTown("");
+                                  setMandiSearch("");
+                                  setShowDistrictDropdown(false);
+                                }}
+                                className={`flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer transition-colors ${district === d ? (isTrader ? 'bg-blue-50 text-blue-700 font-medium' : 'bg-forest-50 text-forest-700 font-medium') : 'text-slate-700 hover:bg-slate-100'}`}
+                              >
+                                <span className="text-sm truncate pr-2">{d}</span>
+                                {district === d && <Check size={14} className="flex-shrink-0" />}
+                              </div>
+                            ))
+                          ) : (
+                            <div className="px-4 py-3 text-xs text-slate-500 text-center">No districts found</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 <div className="relative">
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                    Mandi Search
-                  </label>
-                  <div className="relative">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                    <input
-                      value={mandiSearch}
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      Mandi Search *
+                    </label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                      <input
+                        value={mandiSearch}
                       onChange={(e) => {
                         setMandiSearch(e.target.value);
                         setShowMandiDropdown(true);
                       }}
-                      onFocus={() => {
+                      onFocus={(e) => {
                         setMandiSearch(town); // Reset search to current selection on focus
                         setShowMandiDropdown(true);
+                        setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' }), 200);
                       }}
                       onBlur={() => setTimeout(() => {
                         setShowMandiDropdown(false);
                         setMandiSearch(town); // Revert search text to actual selected town if not clicked
                       }, 200)}
-                      placeholder="Type to search Mandi..."
-                      className={`w-full pl-11 pr-10 py-3 rounded-xl border border-slate-200 bg-white/60 
-                        text-slate-800 placeholder:text-slate-400
-                        focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
-                        transition-all duration-200 text-base`}
-                    />
-                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
-                  </div>
+                        disabled={!district}
+                        placeholder={district ? "Type to search..." : "Select District"}
+                        className={`w-full pl-9 pr-8 py-3 rounded-xl border border-slate-200 bg-white/60 
+                          text-slate-800 placeholder:text-slate-400
+                          focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
+                          transition-all duration-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed`}
+                      />
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                    </div>
 
-                  {showMandiDropdown && (
-                    <div className="absolute z-50 w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                      <div className="max-h-60 overflow-y-auto p-1.5">
+                    {showMandiDropdown && (
+                      <div className="absolute z-50 w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="max-h-60 overflow-y-auto p-1" onTouchMove={() => (document.activeElement as HTMLElement)?.blur()}>
                         {filteredMandis.length > 0 ? (
                           filteredMandis.map((m) => (
                             <div
@@ -728,8 +848,9 @@ export default function FarmerRegistrationModal({
                   )}
                 </div>
 
-                {/* Optional Bank Details Toggle */}
-                {!showBankDetails ? (
+
+              {/* Optional Bank Details Toggle */}
+              {!showBankDetails ? (
                   <button
                     onClick={() => setShowBankDetails(true)}
                     className={`w-full py-3 mt-4 rounded-xl border-2 border-dashed border-slate-200 text-sm font-semibold text-slate-500 hover:text-slate-700 hover:border-slate-300 hover:bg-slate-50 transition-all flex items-center justify-center gap-2`}
@@ -829,15 +950,20 @@ export default function FarmerRegistrationModal({
               <button
                 onClick={() => {
                   if (step === 1) {
-                    if (!name.trim() || !fatherName.trim() || !phone.trim()) {
-                      setError("Name, Father's Name, and Phone are required");
+                    if (!name.trim() || !phone.trim()) {
+                      setError("Full Name and Phone Number are required.");
                       return;
                     }
-                  }
-                  if (step === 2) {
-                    if (!village.trim() || !district.trim() || !block.trim()) {
-                      setError("Village, District, and Block are required");
-                      return;
+                    if (isTrader) {
+                      if (!company.trim() || !promoterName.trim() || !panGst.trim()) {
+                        setError("Company, Promoter Name, and PAN/GST are required for Traders.");
+                        return;
+                      }
+                    } else {
+                      if (!fatherName.trim()) {
+                        setError("Father's Name is required for Farmers.");
+                        return;
+                      }
                     }
                   }
                   setError("");
