@@ -500,24 +500,24 @@ export default function DashboardPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gradient-to-r from-forest-700 to-forest-600 text-white">
-                <th className="text-left px-4 py-3 font-semibold text-xs uppercase tracking-wide">Variety</th>
-                <th className="text-right px-3 py-3 font-semibold text-xs uppercase tracking-wide">Bags</th>
-                <th className="text-right px-3 py-3 font-semibold text-xs uppercase tracking-wide">Weight<br />(Qtls)</th>
-                <th className="text-right px-3 py-3 font-semibold text-xs uppercase tracking-wide">Value</th>
-                <th className="text-right px-4 py-3 font-semibold text-xs uppercase tracking-wide">Avg. Cost</th>
-                <th className="px-3 py-3 w-6" />
+                <th className="text-left px-3 sm:px-4 py-3 font-semibold text-[10px] sm:text-xs uppercase tracking-wide whitespace-nowrap">Variety</th>
+                <th className="text-right px-2 sm:px-3 py-3 font-semibold text-[10px] sm:text-xs uppercase tracking-wide whitespace-nowrap">Bags</th>
+                <th className="text-right px-2 sm:px-3 py-3 font-semibold text-[10px] sm:text-xs uppercase tracking-wide whitespace-nowrap">Weight<br className="hidden sm:block" />(Qtls)</th>
+                <th className="text-right px-2 sm:px-3 py-3 font-semibold text-[10px] sm:text-xs uppercase tracking-wide whitespace-nowrap">Value</th>
+                <th className="text-right px-3 sm:px-4 py-3 font-semibold text-[10px] sm:text-xs uppercase tracking-wide whitespace-nowrap">Avg. Cost</th>
+                <th className="px-2 sm:px-3 py-3 w-6" />
               </tr>
             </thead>
             <tbody>
               {varietyLoading && !varietyStats
                 ? [...Array(6)].map((_, i) => (
                     <tr key={i} className="border-b border-slate-100 animate-pulse">
-                      <td className="px-4 py-3"><div className="h-4 bg-slate-200 rounded w-24" /></td>
-                      <td className="px-3 py-3"><div className="h-4 bg-slate-100 rounded w-12 ml-auto" /></td>
-                      <td className="px-3 py-3"><div className="h-4 bg-slate-100 rounded w-12 ml-auto" /></td>
-                      <td className="px-3 py-3"><div className="h-4 bg-slate-100 rounded w-20 ml-auto" /></td>
-                      <td className="px-4 py-3"><div className="h-4 bg-slate-100 rounded w-16 ml-auto" /></td>
-                      <td className="px-3 py-3" />
+                      <td className="px-3 sm:px-4 py-3"><div className="h-4 bg-slate-200 rounded w-16 sm:w-24" /></td>
+                      <td className="px-2 sm:px-3 py-3"><div className="h-4 bg-slate-100 rounded w-8 sm:w-12 ml-auto" /></td>
+                      <td className="px-2 sm:px-3 py-3"><div className="h-4 bg-slate-100 rounded w-8 sm:w-12 ml-auto" /></td>
+                      <td className="px-2 sm:px-3 py-3"><div className="h-4 bg-slate-100 rounded w-12 sm:w-20 ml-auto" /></td>
+                      <td className="px-3 sm:px-4 py-3"><div className="h-4 bg-slate-100 rounded w-10 sm:w-16 ml-auto" /></td>
+                      <td className="px-2 sm:px-3 py-3" />
                     </tr>
                   ))
                 : varieties.map((row, i) => (
@@ -528,20 +528,20 @@ export default function DashboardPage() {
                         i % 2 === 0 ? "bg-white" : "bg-slate-50/50"
                       }`}
                     >
-                      <td className="px-4 py-3 font-semibold text-forest-700">{row.variety}</td>
-                      <td className="px-3 py-3 text-right text-slate-600 tabular-nums">{row.bags.toLocaleString("en-IN")}</td>
-                      <td className="px-3 py-3 text-right text-slate-600 tabular-nums">
+                      <td className="px-3 sm:px-4 py-3 font-semibold text-forest-700 text-xs sm:text-sm whitespace-nowrap">{row.variety}</td>
+                      <td className="px-2 sm:px-3 py-3 text-right text-slate-600 tabular-nums text-xs sm:text-sm">{row.bags.toLocaleString("en-IN")}</td>
+                      <td className="px-2 sm:px-3 py-3 text-right text-slate-600 tabular-nums text-xs sm:text-sm">
                         {parseFloat(row.weightQtl).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </td>
-                      <td className="px-3 py-3 text-right text-slate-600 tabular-nums">
+                      <td className="px-2 sm:px-3 py-3 text-right text-slate-600 tabular-nums text-xs sm:text-sm">
                         ₹{parseFloat(row.value).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </td>
-                      <td className="px-4 py-3 text-right font-medium text-forest-700 tabular-nums">
+                      <td className="px-3 sm:px-4 py-3 text-right font-medium text-forest-700 tabular-nums text-xs sm:text-sm whitespace-nowrap">
                         {parseFloat(row.avgCost) > 0
                           ? `₹${parseFloat(row.avgCost).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
                           : "—"}
                       </td>
-                      <td className="px-3 py-3 text-slate-300">
+                      <td className="px-2 sm:px-3 py-3 text-slate-300">
                         <ChevronRight size={14} />
                       </td>
                     </tr>
