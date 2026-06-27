@@ -322,47 +322,45 @@ export default function HistoryPage() {
         </div>
       )}
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="glass-card rounded-2xl p-5">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl flex items-center justify-center">
-              <FileText size={18} className="text-blue-700" />
+      {/* Summary Cards (Dashboard Style) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Transactions Card */}
+        <div className="glass-card rounded-2xl p-4 flex flex-col gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-blue-100">
+              <ClipboardList size={16} className="text-blue-600" />
             </div>
-            <div>
-              <p className="text-xs text-slate-500 font-medium">Transactions</p>
-              <p className="text-2xl font-bold text-slate-800">
-                {viewTotals.transactions}
-              </p>
-            </div>
+            <span className="text-sm font-bold text-slate-700">Transactions</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-2xl font-bold text-blue-700">{viewTotals.transactions}</span>
           </div>
         </div>
 
-        <div className="glass-card rounded-2xl p-5">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-amber-100 to-amber-200 rounded-xl flex items-center justify-center">
-              <Package size={18} className="text-amber-700" />
+        {/* Quantity Card */}
+        <div className="glass-card rounded-2xl p-4 flex flex-col gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-amber-100">
+              <Package size={16} className="text-amber-600" />
             </div>
-            <div>
-              <p className="text-xs text-slate-500 font-medium">Total Quantity</p>
-              <p className="text-2xl font-bold text-slate-800">
-                {viewTotals.quantity} <span className="text-sm font-medium text-slate-500">Qtl</span>
-              </p>
-            </div>
+            <span className="text-sm font-bold text-slate-700">Total Quantity</span>
+          </div>
+          <div className="flex items-baseline gap-1">
+            <span className="text-2xl font-bold text-amber-700">{viewTotals.quantity}</span>
+            <span className="text-xs font-bold text-amber-600/70 uppercase tracking-wider">Qtl</span>
           </div>
         </div>
 
-        <div className="glass-card rounded-2xl p-5">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-emerald-100 to-emerald-200 rounded-xl flex items-center justify-center">
-              <IndianRupee size={18} className="text-emerald-700" />
+        {/* Payout Card */}
+        <div className="glass-card rounded-2xl p-4 flex flex-col gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-forest-100">
+              <IndianRupee size={16} className="text-forest-600" />
             </div>
-            <div>
-              <p className="text-xs text-slate-500 font-medium">Total Payout</p>
-              <p className="text-2xl font-bold text-slate-800">
-                {formatCurrency(viewTotals.payout)}
-              </p>
-            </div>
+            <span className="text-sm font-bold text-slate-700">Total Payout</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-2xl font-bold text-forest-700">{formatCurrency(viewTotals.payout)}</span>
           </div>
         </div>
       </div>
