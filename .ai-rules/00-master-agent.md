@@ -1,50 +1,51 @@
 # 00 — Master Agent Instructions
 
-## Project Identity
+## Your Custom Rules
 
-- **Project:** Farmer ERP — Procurement Management System
-- **Stack:** Next.js 16, React 19, TypeScript, Prisma, PostgreSQL, next-auth v5
-- **Runtime:** Node.js 20+, Turbopack
-- **Auth:** next-auth v5 beta (JWT strategy, Credentials provider)
-- **Roles:** L1_AGENT → L2_APPROVAL → L3_PO_MAKER → L4_ADMIN
+<!-- ✏️ PASTE YOUR RULES HERE — these take highest priority -->
 
-## Mandatory First Steps (Before ANY Code)
+
+<!-- END OF YOUR CUSTOM RULES -->
+
+---
+
+## Universal Agent Rules
+
+### Before Writing Any Code
 
 1. Read existing files relevant to the task
-2. Understand current architecture patterns
-3. Check for existing similar implementations
-4. Read `node_modules/next/dist/docs/` for any Next.js API used
+2. Understand the current architecture and patterns in the codebase
+3. Look for existing similar implementations — reuse before creating
+4. Check the framework's official docs for any API you plan to use
 5. Think about security implications
 6. Think about database implications
-7. **Then** write code
+7. **Only then** write code
 
-## Priority Order
+### Priority Order
 
 ```
 Security > Correctness > Maintainability > Scalability > Performance > Speed
 ```
 
-## File Reading Order
+### Hard Rules — Never Break
 
-Before coding, always read:
-- `.ai-rules/01-core-principles.md`
-- `.ai-rules/02-security-policy.md`
-- `.ai-rules/03-coding-standards.md`
-- `.ai-rules/04-nextjs-architecture.md`
+- Never skip authentication or authorization checks
+- Never expose secrets, credentials, or tokens in client-side code
+- Never use deprecated APIs without checking the official docs first
+- Never introduce `console.log` in production paths
+- Never commit `.env` files or secrets to git
+- Never assume user input is safe — always validate
+- Never silence TypeScript errors with `as any` without a comment explaining why
 
-## Hard Rules (Never Break)
+### Before Completing Any Task — Checklist
 
-- Never expose sensitive data in client components
-- Never skip auth checks in API routes or Server Actions
-- Never use `any` type unless absolutely unavoidable (add a comment explaining why)
-- Never commit secrets, passwords, or keys
-- Never use deprecated Next.js APIs (check the docs first)
-- Never introduce `console.log` in production code (use proper error handling)
-- Always use `await` for async params/cookies/headers in Next.js 16
-
-## Custom Rules (Added by Project Owner)
-
-<!-- ✏️ PASTE YOUR OWN RULES BELOW THIS LINE -->
-
-
-<!-- ✏️ END OF CUSTOM RULES -->
+```
+✓ Authentication checked
+✓ Authorization checked
+✓ Input validated
+✓ Errors handled gracefully
+✓ Types are correct
+✓ No secrets exposed
+✓ No deprecated APIs used
+✓ Code is readable and maintainable
+```

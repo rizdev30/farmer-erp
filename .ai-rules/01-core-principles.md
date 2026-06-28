@@ -1,76 +1,59 @@
 # 01 — Core Principles
 
-## Think Before Coding
+## Your Custom Rules
 
-Do NOT immediately generate code.
+<!-- ✏️ PASTE YOUR RULES HERE — these take highest priority -->
 
-Ask yourself:
-1. Does a similar pattern already exist in this codebase?
-2. What is the simplest correct solution?
-3. What could go wrong?
-4. Does this introduce technical debt?
 
-## DRY (Don't Repeat Yourself)
+<!-- END OF YOUR CUSTOM RULES -->
 
-- Reuse existing Server Actions in `src/app/actions/`
-- Reuse existing components in `src/components/`
-- Reuse existing lib utilities in `src/lib/`
-- If copying code — extract it into a shared utility instead
+---
 
-## SOLID Principles
+## Universal Core Principles
 
-- **Single Responsibility:** Each file/component does one thing
-- **Open/Closed:** Extend behavior without modifying existing code
-- **Liskov Substitution:** Subtypes must be substitutable
-- **Interface Segregation:** Small focused interfaces
-- **Dependency Inversion:** Depend on abstractions
+### Think Before Coding
 
-## No Hacks
+Do not immediately generate code. Ask first:
+- Does a similar pattern already exist in this codebase?
+- What is the simplest correct solution?
+- What could go wrong?
+- Does this introduce technical debt?
 
-- No `// @ts-ignore` without explanation
-- No `// eslint-disable` without explanation
+### DRY — Don't Repeat Yourself
+
+- Reuse existing utilities, helpers, and components before creating new ones
+- If you copy code more than once — extract it into a shared function
+- Shared logic belongs in a dedicated utility file, not scattered across files
+
+### No Hacks
+
+- No `// @ts-ignore` without a written explanation of why
+- No `// eslint-disable` without a written explanation of why
 - No magic numbers — use named constants
-- No hardcoded strings that should be config
-- No workarounds that hide real bugs
+- No hardcoded values that should come from config or environment
+- No workarounds that hide real bugs instead of fixing them
 
-## Error Handling
+### Error Handling
 
-Always handle errors explicitly:
+- Always handle errors explicitly — never let promises reject silently
+- Return meaningful error messages — not raw stack traces to the user
+- Log errors server-side with enough context to debug
+- Show user-friendly messages on the client
 
-```typescript
-// ✅ Correct
-try {
-  const data = await prisma.farmer.findMany();
-  return { success: true, data };
-} catch (error) {
-  console.error("[ACTION_NAME]", error);
-  return { success: false, error: "Failed to fetch farmers" };
-}
+### Type Safety
 
-// ❌ Wrong
-const data = await prisma.farmer.findMany(); // unhandled rejection
-```
+- Define TypeScript types/interfaces for all data shapes
+- Use generated types from your ORM or schema where available
+- Never use `as any` to silence TypeScript — fix the root cause instead
+- Prefer `unknown` over `any` when the type is genuinely unknown
 
-## Type Safety
-
-- Always define TypeScript interfaces for data shapes
-- Use `Prisma` generated types where possible
-- Never use `as any` to silence TypeScript errors
-- Use `satisfies` operator for config objects
-
-## Completeness Rule
+### Completeness
 
 Every feature must have:
 - ✅ Authentication check
-- ✅ Authorization check (role-based)
+- ✅ Authorization check
 - ✅ Input validation
 - ✅ Error handling
 - ✅ Loading state (UI)
 - ✅ Empty state (UI)
-
-## Custom Rules (Added by Project Owner)
-
-<!-- ✏️ PASTE YOUR OWN RULES BELOW THIS LINE -->
-
-
-<!-- ✏️ END OF CUSTOM RULES -->
+- ✅ Edge case handling

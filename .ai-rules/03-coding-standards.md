@@ -1,145 +1,81 @@
 # 03 — Coding Standards
 
-## Project Structure
+## Your Custom Rules
 
-```
-src/
-├── app/
-│   ├── (auth)/login/       # Login page (unauthenticated)
-│   ├── actions/            # Server Actions (data mutations)
-│   ├── api/                # API Routes (REST endpoints)
-│   └── dashboard/          # Protected dashboard pages
-│       ├── farmers/        # Farmer directory
-│       ├── procurement/    # New procurement form
-│       ├── history/        # Purchase records
-│       ├── agents/         # Agent management (L4 only)
-│       └── settings/       # User settings
-├── components/             # Reusable UI components
-├── lib/                    # Utilities (prisma, swr-cache, etc.)
-└── types/                  # TypeScript type declarations
-```
+<!-- ✏️ PASTE YOUR RULES HERE — these take highest priority -->
 
-## Naming Conventions
 
-| Type | Convention | Example |
-|------|-----------|---------|
-| Components | PascalCase | `FarmerCard.tsx` |
-| Pages | `page.tsx` | `dashboard/farmers/page.tsx` |
-| Server Actions | camelCase functions | `createFarmer()` |
-| API Routes | `route.ts` | `api/farmers/route.ts` |
-| CSS classes | kebab-case | `glass-card`, `login-input` |
-| Variables | camelCase | `farmerName`, `isLoading` |
-| Constants | UPPER_SNAKE_CASE | `MAX_BAGS`, `ROLES` |
-| Types/Interfaces | PascalCase | `FarmerProfile`, `ProcurementRecord` |
+<!-- END OF YOUR CUSTOM RULES -->
 
-## File Conventions (Next.js 16)
+---
 
-| File | Purpose |
-|------|---------|
-| `page.tsx` | Page component |
-| `layout.tsx` | Layout wrapper |
-| `loading.tsx` | Loading skeleton |
-| `error.tsx` | Error boundary |
-| `proxy.ts` | Middleware (renamed from middleware.ts in v16) |
-| `route.ts` | API route handler |
+## Universal Coding Standards
 
-## Component Rules
+### Naming Conventions
+
+| Thing | Style | Example |
+|-------|-------|---------|
+| Components | PascalCase | `UserCard`, `DataTable` |
+| Functions | camelCase | `getUser()`, `handleSubmit()` |
+| Variables | camelCase | `isLoading`, `userName` |
+| Constants | UPPER_SNAKE_CASE | `MAX_RETRIES`, `API_URL` |
+| Types / Interfaces | PascalCase | `UserProfile`, `ApiResponse` |
+| Files (components) | PascalCase | `UserCard.tsx` |
+| Files (utilities) | camelCase | `formatDate.ts` |
+| CSS classes | kebab-case | `glass-card`, `form-input` |
+
+### File & Folder Conventions
+
+- One component per file
+- Group related files by feature, not by type
+- Keep files small and focused — split when a file grows too large
+- Co-locate tests with the code they test
+
+### Import Order
 
 ```typescript
-// ✅ "use client" only when needed (hooks, events, browser APIs)
-"use client";
-import { useState } from "react";
-
-// ✅ Server Components by default (no directive needed)
-// No useState, no useEffect, direct async/await
-export default async function FarmersPage() {
-  const farmers = await getFarmers(); // direct server call
-  return <div>...</div>;
-}
+// 1. Framework / runtime imports
+// 2. Third-party library imports
+// 3. Internal — feature modules
+// 4. Internal — shared utilities / components
+// 5. Types
 ```
 
-## Async Params (Next.js 16 — MANDATORY)
+### Component Rules
+
+- Keep components small and focused on one responsibility
+- Extract reusable logic into custom hooks or utility functions
+- Avoid deeply nested JSX — extract sub-components when nesting gets complex
+- Never mix data fetching logic with rendering logic in the same component
+
+### CSS / Styling Rules
+
+- Never use multi-line string literals inside className attributes — it breaks some bundlers
+- Extract long or repeated className strings into named CSS classes
+- Never use inline `style` for layout — use your CSS utility system
 
 ```typescript
-// ✅ CORRECT — params must be awaited in Next.js 15+/16
-export default async function Page({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-}
-
-// ✅ CORRECT — route handlers
-export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-}
-
-// ❌ WRONG — synchronous params (Next.js 14 style)
-export default function Page({ params }: { params: { id: string } }) {
-  const id = params.id; // This will FAIL in Next.js 16
-}
-```
-
-## Import Order
-
-```typescript
-// 1. React/Next.js
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-
-// 2. Third-party
-import { useSession } from "next-auth/react";
-
-// 3. Internal — actions
-import { getFarmers } from "@/app/actions/farmers";
-
-// 4. Internal — components
-import { Toast } from "@/components/Toast";
-
-// 5. Internal — lib/types
-import { useSWRCache } from "@/lib/swr-cache";
-import type { FarmerProfile } from "@/types";
-```
-
-## CSS / Styling Rules
-
-- Use **Tailwind CSS** utility classes
-- For long multi-line classNames → extract to `globals.css` as a named class
-- Use `glass`, `glass-dark`, `glass-card` utility classes for cards
-- Colors: Forest green = primary, Slate = neutral, Blue = trader category
-- Never use inline `style` for layout — use Tailwind
-
-```typescript
-// ❌ Wrong — multi-line string in className breaks Turbopack
-className="w-full px-4 py-3
+// ❌ Can break Turbopack and similar bundlers
+className="w-full px-4
   rounded-xl border"
 
-// ✅ Correct — single line or extracted CSS class
-className="w-full px-4 py-3 rounded-xl border"
-// OR in globals.css:
-// .my-input { @apply w-full px-4 py-3 rounded-xl border; }
+// ✅ Always single line or extract to a CSS class
+className="w-full px-4 rounded-xl border"
 ```
 
-## Prisma Usage
+### Comments
 
-```typescript
-// ✅ Always import from the singleton
-import prisma from "@/lib/prisma";
+- Write comments that explain **why**, not **what** (the code already shows what)
+- Remove commented-out dead code before committing
+- Add a `// TODO:` comment with your name and date if leaving known incomplete work
 
-// ✅ Always use select to limit data returned
-const farmer = await prisma.farmer.findUnique({
-  where: { id },
-  select: { id: true, name: true, phone: true } // only what you need
-});
+### No Debugging Code in Commits
 
-// ✅ Use transactions for related operations
-await prisma.$transaction([
-  prisma.procurement.create({ data: procurementData }),
-  prisma.farmer.update({ where: { id }, data: { updatedAt: new Date() } }),
-]);
-```
+- No `console.log`, `console.debug`, `alert()`, or `debugger` in committed code
+- Use proper logging utilities for server-side diagnostic output
 
-## Custom Rules (Added by Project Owner)
+### Keep Functions Small
 
-<!-- ✏️ PASTE YOUR OWN RULES BELOW THIS LINE -->
-
-
-<!-- ✏️ END OF CUSTOM RULES -->
+- A function should do one thing
+- If a function is longer than ~40 lines, consider breaking it up
+- Avoid functions with more than 4–5 parameters — use an options object instead
