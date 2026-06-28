@@ -518,7 +518,7 @@ export default function ProcurementPage() {
               onClick={() => {
                 setCropItems([...cropItems, { id: Date.now().toString(), crop: "Rice", variety: "", bags: "", packingSize: "", grossQuantity: "", deduction: "", rate: "", bones: "" }]);
               }}
-              className={`text-xs font-semibold px-3 py-1.5 rounded-xl border flex items-center gap-1 transition-colors ${categoryFilter === 'TRADER' ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' : 'bg-forest-50 text-forest-700 border-forest-200 hover:bg-forest-100'}`}
+              className={`text-sm font-semibold px-4 py-2 rounded-xl border flex items-center gap-1 transition-colors shadow-sm active:scale-95 ${categoryFilter === 'TRADER' ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' : 'bg-forest-50 text-forest-700 border-forest-200 hover:bg-forest-100'}`}
             >
               + Add Crop
             </button>
@@ -535,9 +535,9 @@ export default function ProcurementPage() {
                       newItems.splice(index, 1);
                       setCropItems(newItems);
                     }}
-                    className="absolute top-2 right-2 text-slate-400 hover:text-red-500"
+                    className="absolute top-1 right-1 p-3 text-slate-400 hover:text-red-500 active:scale-95 transition-transform"
                   >
-                    <X size={16} />
+                    <X size={18} />
                   </button>
                 )}
                 <div className="text-xs font-bold text-slate-400 mb-3 uppercase tracking-wider">Item {index + 1}</div>
