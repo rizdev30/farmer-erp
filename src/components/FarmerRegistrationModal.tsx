@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { X, Loader2, ChevronRight, ChevronLeft, User, MapPin, Shield, Search, Check, ChevronDown } from "lucide-react";
 import { registerFarmer } from "@/app/actions/farmers";
 import { registerTrader } from "@/app/actions/traders";
-import { getAgentsList } from "@/app/actions/procurement";
+
 import { getMandis } from "@/app/actions/mandis";
 import { useSession } from "next-auth/react";
 
@@ -41,16 +41,7 @@ export default function FarmerRegistrationModal({
 
   const { data: session } = useSession();
   const isAdmin = (session?.user as any)?.roles?.includes("L4_ADMIN") || (session?.user as any)?.isSuperAdmin;
-  const [agents, setAgents] = useState<{id: string, name: string, roles: string[]}[]>([]);
-  const [selectedAgentId, setSelectedAgentId] = useState("");
-  const [selectedL3Id, setSelectedL3Id] = useState("");
 
-  // Fetch agents if admin
-  useEffect(() => {
-    if (isAdmin && open) {
-      getAgentsList().then(setAgents).catch(console.error);
-    }
-  }, [isAdmin, open]);
 
   const [mandisData, setMandisData] = useState<{state: string, district: string, mandiName: string}[]>([]);
 
@@ -235,8 +226,7 @@ export default function FarmerRegistrationModal({
     setIfscCode("");
     setAccountNumber("");
     setShowBankDetails(false);
-    setSelectedAgentId("");
-    setSelectedL3Id("");
+
     setError("");
     setLoading(false);
   }
@@ -274,8 +264,6 @@ export default function FarmerRegistrationModal({
       bankName,
       ifscCode,
       accountNumber,
-      agentId: selectedAgentId || undefined,
-      assignedL3Id: selectedL3Id || undefined,
     };
 
     if (!navigator.onLine) {
@@ -562,46 +550,7 @@ export default function FarmerRegistrationModal({
                   </div>
                 )}
 
-                {isAdmin && (
-                  <>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5 flex items-center gap-1.5">
-                      <Shield size={14} className="text-purple-600" />
-                      Assign to Agent (Admin Only)
-                    </label>
-                    <select
-                      value={selectedAgentId}
-                      onChange={(e) => setSelectedAgentId(e.target.value)}
-                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-                        text-slate-800 focus:outline-none focus:ring-2 ${t.ring} 
-                        ${t.borderFocus} transition-all duration-200 text-base appearance-none`}
-                    >
-                      <option value="">Assign to myself</option>
-                      {agents.map(a => (
-                        <option key={a.id} value={a.id}>{a.name} ({a.roles?.join(", ")})</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5 flex items-center gap-1.5">
-                      <Shield size={14} className="text-purple-600" />
-                      Assign to L3 Group Leader
-                    </label>
-                    <select
-                      value={selectedL3Id}
-                      onChange={(e) => setSelectedL3Id(e.target.value)}
-                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-                        text-slate-800 focus:outline-none focus:ring-2 ${t.ring} 
-                        ${t.borderFocus} transition-all duration-200 text-base appearance-none`}
-                    >
-                      <option value="">No Group Leader</option>
-                      {agents.filter(a => a.roles?.includes("L3_PO_MAKER")).map(a => (
-                        <option key={a.id} value={a.id}>{a.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  </>
-                )}
+
               </div>
             )}
 
