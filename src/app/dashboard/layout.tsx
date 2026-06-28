@@ -175,7 +175,7 @@ export default function DashboardLayout({
         </div>
 
         {/* Mobile Bottom Navigation */}
-        <nav className={`md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-40 print:hidden shadow-[0_-8px_30px_rgba(0,0,0,0.08)] ${sidebarOpen ? "hidden" : "block"}`} style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+        <nav className={`md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-slate-200/80 z-40 print:hidden shadow-[0_-4px_16px_rgba(0,0,0,0.04)] ${sidebarOpen ? "hidden" : "block"}`} style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
           <div className="flex items-center justify-around h-16 px-2">
             {allNavItems.map((item) => {
               const isActive = pathname === item.href;
