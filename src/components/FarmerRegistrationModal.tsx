@@ -40,8 +40,8 @@ export default function FarmerRegistrationModal({
   const [error, setError] = useState("");
 
   const { data: session } = useSession();
-  const isAdmin = (session?.user as any)?.role === "L4_ADMIN";
-  const [agents, setAgents] = useState<{id: string, name: string, role: string}[]>([]);
+  const isAdmin = (session?.user as any)?.roles?.includes("L4_ADMIN") || (session?.user as any)?.isSuperAdmin;
+  const [agents, setAgents] = useState<{id: string, name: string, roles: string[]}[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState("");
   const [selectedL3Id, setSelectedL3Id] = useState("");
 
@@ -578,7 +578,7 @@ export default function FarmerRegistrationModal({
                     >
                       <option value="">Assign to myself</option>
                       {agents.map(a => (
-                        <option key={a.id} value={a.id}>{a.name} ({a.role})</option>
+                        <option key={a.id} value={a.id}>{a.name} ({a.roles?.join(", ")})</option>
                       ))}
                     </select>
                   </div>
@@ -595,7 +595,7 @@ export default function FarmerRegistrationModal({
                         ${t.borderFocus} transition-all duration-200 text-base appearance-none`}
                     >
                       <option value="">No Group Leader</option>
-                      {agents.filter(a => a.role === "L3_PO_MAKER").map(a => (
+                      {agents.filter(a => a.roles?.includes("L3_PO_MAKER")).map(a => (
                         <option key={a.id} value={a.id}>{a.name}</option>
                       ))}
                     </select>

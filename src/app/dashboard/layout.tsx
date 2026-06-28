@@ -36,9 +36,8 @@ export default function DashboardLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
   const { data: session } = useSession();
-  const isAdmin = session?.user?.role === "L4_ADMIN";
-
-  const allNavItems = isAdmin ? [...navItems, ...adminItems] : navItems;
+  const isSuperAdmin = (session?.user as any)?.isSuperAdmin === true;
+  const allNavItems = isSuperAdmin ? [...navItems, ...adminItems] : navItems;
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
@@ -137,7 +136,7 @@ export default function DashboardLayout({
                   {session?.user?.name || "User"}
                 </p>
                 <p className="text-[11px] text-forest-300/60 truncate">
-                  {session?.user?.role || "Agent"}
+                  {(session?.user as any)?.roles?.join(", ") || "Agent"}
                 </p>
               </div>
             </div>

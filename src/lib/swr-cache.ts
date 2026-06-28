@@ -30,6 +30,43 @@ const DEFAULT_TTL = 5 * 60 * 1000;
 // SSR guard
 const isBrowser = typeof window !== "undefined";
 
+// ─── PRIORITY QUEUE FOR FETCHES ──────────────────────────────
+// Ensures background pre-fetching doesn't block active user navigation
+let activeHighPriorityCount = 0;
+let activeLowPriorityCount = 0;
+const lowPriorityQueue: Array<() => Promise<void>> = [];
+
+function runNextLowPriority() {
+  // Only run background tasks if no active user tasks and no background tasks are currently running
+  if (activeHighPriorityCount > 0 || activeLowPriorityCount > 0) return;
+  const next = lowPriorityQueue.shift();
+  if (next) {
+    activeLowPriorityCount++;
+    next().finally(() => {
+      activeLowPriorityCount--;
+      runNextLowPriority();
+    });
+  }
+}
+
+async function executeHighPriority<T>(task: () => Promise<T>): Promise<T> {
+  activeHighPriorityCount++;
+  try {
+    return await task();
+  } finally {
+    activeHighPriorityCount--;
+    if (activeHighPriorityCount === 0) {
+      setTimeout(runNextLowPriority, 100);
+    }
+  }
+}
+
+function enqueueLowPriority(task: () => Promise<void>) {
+  lowPriorityQueue.push(task);
+  runNextLowPriority();
+}
+// ─────────────────────────────────────────────────────────────
+
 // Quick hash for data comparison
 function quickHash(data: any): string {
   const str = JSON.stringify(data);
@@ -136,19 +173,25 @@ export function invalidateCache(pattern: string): void {
 
 /**
  * Prefetch data into cache without rendering.
- * Call this to pre-load data for pages the user is likely to visit next.
+ * Uses a low-priority queue to ensure active user navigation is never blocked.
  */
-export async function prefetchCache<T>(key: string, fetcher: () => Promise<T>): Promise<void> {
+export function prefetchCache<T>(key: string, fetcher: () => Promise<T>): void {
   // Skip if already cached and fresh
   const existing = getCachedData<T>(key);
   if (existing && Date.now() - existing.timestamp < DEFAULT_TTL) return;
 
-  try {
-    const data = await fetcher();
-    setCacheData(key, data);
-  } catch {
-    // Prefetch failures are silent — not critical
-  }
+  enqueueLowPriority(async () => {
+    // Check again right before execution in case it was fetched while waiting
+    const current = getCachedData<T>(key);
+    if (current && Date.now() - current.timestamp < DEFAULT_TTL) return;
+    
+    try {
+      const data = await fetcher();
+      setCacheData(key, data);
+    } catch {
+      // Prefetch failures are silent
+    }
+  });
 }
 
 /**
@@ -205,7 +248,8 @@ export function useSWRCache<T>(
 
     setIsValidating(true);
     try {
-      const freshData = await fetcherRef.current();
+      // Wrap the fetcher in the high-priority queue
+      const freshData = await executeHighPriority(fetcherRef.current);
       if (!mountedRef.current) return;
 
       const freshHash = quickHash(freshData);
@@ -245,12 +289,8 @@ export function useSWRCache<T>(
       setData(entry.data);
       setIsLoading(false);
 
-      // Only revalidate if cache is stale (past TTL)
-      const isStale = Date.now() - entry.timestamp > ttl;
-      if (isStale) {
-        revalidate(); // Background refresh — UI already shows cached data
-      }
-      // If cache is fresh, do NOTHING — no DB hit
+      // ALWAYS revalidate in background on navigation to ensure fresh data
+      revalidate(); // Background refresh — UI already shows cached data
     } else {
       // Cache MISS — need to fetch
       setIsLoading(true);

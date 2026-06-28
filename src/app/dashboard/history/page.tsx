@@ -48,6 +48,8 @@ interface ProcurementRecord {
   status: string;
   l2ApproverName?: string | null;
   l3ApproverName?: string | null;
+  l2Edited?: boolean;
+  l3Edited?: boolean;
   createdByAdmin: boolean;
   validated: boolean;
   createdAt: string;
@@ -65,15 +67,15 @@ interface MonthlySummary {
 interface AgentOption {
   id: string;
   name: string;
-  role: string;
+  roles: string[];
 }
 
 export default function HistoryPage() {
   const { data: session } = useSession();
-  const role = (session?.user as any)?.role;
-  const isAdmin = role === "L4_ADMIN";
-  const isL2 = role === "L2_APPROVAL";
-  const isL3 = role === "L3_PO_MAKER";
+  const roles = (session?.user as any)?.roles || [];
+  const isAdmin = roles.includes("L4_ADMIN") || (session?.user as any)?.isSuperAdmin;
+  const isL2 = roles.includes("L2_APPROVAL");
+  const isL3 = roles.includes("L3_PO_MAKER");
 
   // Filters
   const [selectedMonth, setSelectedMonth] = useState("");
@@ -276,7 +278,7 @@ export default function HistoryPage() {
                   <option value="">All Agents</option>
                   {agents.map((a) => (
                     <option key={a.id} value={a.id}>
-                      {a.name} ({a.role})
+                      {a.name} ({a.roles?.join(", ")})
                     </option>
                   ))}
                 </select>
@@ -559,12 +561,14 @@ export default function HistoryPage() {
                     </p>
                     {record.l2ApproverName && (
                       <p className="text-[10px] text-indigo-600 mt-0.5 font-semibold">
-                        L2: {record.l2ApproverName}
+                        {record.l2Edited ? "Updated & Approved By (L2): " : "L2: "}
+                        {record.l2ApproverName}
                       </p>
                     )}
                     {record.l3ApproverName && (
                       <p className="text-[10px] text-emerald-600 mt-0.5 font-semibold">
-                        L3: {record.l3ApproverName}
+                        {record.l3Edited ? "Updated & Final PO By (L3): " : "L3: "}
+                        {record.l3ApproverName}
                       </p>
                     )}
                     <p className="text-xs text-slate-400 mt-0.5">

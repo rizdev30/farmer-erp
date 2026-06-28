@@ -33,9 +33,9 @@ export async function registerTrader(data: {
     return { success: false, error: "Not authenticated" };
   }
 
-  // Role authorization check (only L1 agents and L4 admins can register traders)
-  if (user.role !== "L1_AGENT" && user.role !== "L4_ADMIN") {
-    return { success: false, error: "Only agents and admins are authorized to register traders" };
+  // Role authorization check (only L1 agents can register traders)
+  if (!user.roles.includes("L1_AGENT")) {
+    return { success: false, error: "Only L1 agents are authorized to register traders" };
   }
 
   // Input Validation
@@ -73,7 +73,7 @@ export async function registerTrader(data: {
   if (data.accountNumber && data.accountNumber.length > 30) return { success: false, error: "Account number is too long" };
 
   try {
-    const isAdmin = user.role === "L4_ADMIN";
+    const isAdmin = user.roles.includes("L4_ADMIN");
     const code = data.traderCode || (await generateFarmerCode("TRADER"));
 
     let registeredById = user.userId;

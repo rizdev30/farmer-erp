@@ -283,10 +283,13 @@ export default function DashboardPage() {
   // Prefetch background pages after stats load
   useEffect(() => {
     if (!stats) return;
-    prefetchCache("farmers-list---", () => getFarmers({}).then((d) => d as any[]));
+    prefetchCache("farmers-list----", () => getFarmers({}).then((d) => d as any[]));
     prefetchCache("history-records---", () => getProcurementHistory({}));
     prefetchCache("history-summary-", () => getMonthlySummary());
-  }, [stats]);
+    if ((session?.user as any)?.isSuperAdmin) {
+      prefetchCache("agents-list", () => fetch("/api/agents").then((r) => r.json()));
+    }
+  }, [stats, session]);
 
   // Click handlers
   const handleVarietyClick = useCallback((variety: string) => {

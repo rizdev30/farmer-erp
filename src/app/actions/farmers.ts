@@ -33,7 +33,7 @@ export async function generateFarmerCode(category: string = "FARMER"): Promise<s
 
 /**
  * Get current session user info for agent-scoping.
- * Returns { userId, userName, role }
+ * Returns { userId, userName, roles }
  */
 export async function getSessionUser() {
   const session = await auth();
@@ -41,7 +41,13 @@ export async function getSessionUser() {
   return {
     userId: session.user.id,
     userName: session.user.name || "Unknown",
-    role: (session.user as { role?: string }).role || "L1_AGENT",
+    roles: (session.user as any).roles || ["L1_AGENT"],
+    isSuperAdmin: (session.user as any).isSuperAdmin || false,
+    assignedStates: (session.user as any).assignedStates || [],
+    assignedMandis: (session.user as any).assignedMandis || [],
+    assignedL1Users: (session.user as any).assignedL1Users || [],
+    assignedL2Users: (session.user as any).assignedL2Users || [],
+    assignedL3Users: (session.user as any).assignedL3Users || [],
   };
 }
 
@@ -70,9 +76,16 @@ export async function searchFarmers(query: string, categoryFilter?: string) {
     ],
   };
 
-  if (user.role === "L1_AGENT") {
-    whereF.registeredBy = user.userId;
-    whereT.registeredBy = user.userId;
+  if (!user.roles.includes("L4_ADMIN") && !user.isSuperAdmin) {
+    if (user.assignedStates.includes("ALL") || user.assignedMandis.includes("ALL")) {
+      // User has explicit ALL access, do not apply scope filters
+    } else {
+      const scope: any[] = [{ registeredBy: user.userId }];
+      if (user.assignedStates.length > 0) scope.push({ state: { in: user.assignedStates } });
+      if (user.assignedMandis.length > 0) scope.push({ town: { in: user.assignedMandis } });
+      whereF.AND = [{ OR: scope }];
+      whereT.AND = [{ OR: scope }];
+    }
   }
 
   let farmers: any[] = [];
@@ -138,9 +151,16 @@ export async function getFarmers(filters?: {
   const whereF: Record<string, unknown> = { active: true };
   const whereT: Record<string, unknown> = { active: true };
 
-  if (user.role === "L1_AGENT") {
-    whereF.registeredBy = user.userId;
-    whereT.registeredBy = user.userId;
+  if (!user.roles.includes("L4_ADMIN") && !user.isSuperAdmin) {
+    if (user.assignedStates.includes("ALL") || user.assignedMandis.includes("ALL")) {
+      // User has explicit ALL access, do not apply scope filters
+    } else {
+      const scope: any[] = [{ registeredBy: user.userId }];
+      if (user.assignedStates.length > 0) scope.push({ state: { in: user.assignedStates } });
+      if (user.assignedMandis.length > 0) scope.push({ town: { in: user.assignedMandis } });
+      whereF.AND = [{ OR: scope }];
+      whereT.AND = [{ OR: scope }];
+    }
   }
 
   if (filters?.district) {
@@ -222,8 +242,15 @@ export async function getFarmerById(idParam: string | number) {
       where: { id: parsedId },
     });
 
-    if (user.role === "L1_AGENT" && t.registeredBy !== user.userId) {
-      throw new Error("You are not authorized to view this trader's profile");
+    if (!user.roles.includes("L4_ADMIN") && !user.isSuperAdmin) {
+      if (!user.assignedStates.includes("ALL") && !user.assignedMandis.includes("ALL")) {
+        const isRegisteredByMe = t.registeredBy === user.userId;
+        const inAssignedState = user.assignedStates.includes(t.state);
+        const inAssignedMandi = user.assignedMandis.includes(t.town);
+        if (!isRegisteredByMe && !inAssignedState && !inAssignedMandi) {
+          throw new Error("You are not authorized to view this trader's profile");
+        }
+      }
     }
 
     return {
@@ -260,8 +287,15 @@ export async function getFarmerById(idParam: string | number) {
     where: { id: parsedId },
   });
 
-  if (user.role === "L1_AGENT" && f.registeredBy !== user.userId) {
-    throw new Error("You are not authorized to view this farmer's profile");
+  if (!user.roles.includes("L4_ADMIN") && !user.isSuperAdmin) {
+    if (!user.assignedStates.includes("ALL") && !user.assignedMandis.includes("ALL")) {
+      const isRegisteredByMe = f.registeredBy === user.userId;
+      const inAssignedState = user.assignedStates.includes(f.state);
+      const inAssignedMandi = user.assignedMandis.includes(f.town);
+      if (!isRegisteredByMe && !inAssignedState && !inAssignedMandi) {
+        throw new Error("You are not authorized to view this farmer's profile");
+      }
+    }
   }
 
   return {
@@ -325,9 +359,9 @@ export async function registerFarmer(data: {
     return { success: false, error: "Not authenticated" };
   }
 
-  // Role authorization check (only L1 agents and L4 admins can register farmers)
-  if (user.role !== "L1_AGENT" && user.role !== "L4_ADMIN") {
-    return { success: false, error: "Only agents and admins are authorized to register farmers" };
+  // Role authorization check (only L1 agents can register farmers)
+  if (!user.roles.includes("L1_AGENT")) {
+    return { success: false, error: "Only L1 agents are authorized to register farmers" };
   }
 
   // Input Validation
@@ -367,7 +401,7 @@ export async function registerFarmer(data: {
   if (data.accountNumber && data.accountNumber.length > 30) return { success: false, error: "Account number is too long" };
 
   try {
-    const isAdmin = user.role === "L4_ADMIN";
+    const isAdmin = user.roles.includes("L4_ADMIN") || user.isSuperAdmin;
     const code = data.farmerCode || (await generateFarmerCode(data.category));
 
     let registeredById = user.userId;

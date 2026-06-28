@@ -23,7 +23,13 @@ async function getSessionUser() {
   return {
     userId: session.user.id,
     userName: session.user.name || "Unknown",
-    role: (session.user as { role?: string }).role || "L1_AGENT",
+    roles: (session.user as any).roles || ["L1_AGENT"],
+    isSuperAdmin: (session.user as any).isSuperAdmin || false,
+    assignedStates: (session.user as any).assignedStates || [],
+    assignedMandis: (session.user as any).assignedMandis || [],
+    assignedL1Users: (session.user as any).assignedL1Users || [],
+    assignedL2Users: (session.user as any).assignedL2Users || [],
+    assignedL3Users: (session.user as any).assignedL3Users || [],
   };
 }
 
@@ -107,8 +113,8 @@ export async function createProcurement(
   }
 
   // 1. Role authorization check
-  if (user.role === "L3_PO_MAKER" || user.role === "L4_ADMIN") {
-    return { success: false, error: "PO Makers and Admins cannot create procurements" };
+  if (!user.roles.includes("L1_AGENT")) {
+    return { success: false, error: "Only L1 Agents can create procurements" };
   }
 
   // 2. Input Validation
@@ -150,7 +156,7 @@ export async function createProcurement(
   let procurementAgentName = user.userName;
   let createdByAdmin = false;
 
-  if (user.role === "L4_ADMIN" && data.agentId && data.agentId !== user.userId) {
+  if (user.roles.includes("L4_ADMIN") && data.agentId && data.agentId !== user.userId) {
     const agent = await prisma.user.findUnique({ where: { id: data.agentId } });
     if (agent) {
       procurementAgentId = agent.id;
@@ -160,7 +166,7 @@ export async function createProcurement(
   }
 
   // Verify the farmer belongs to this agent (if not admin/approver)
-  if (user.role !== "L4_ADMIN" && user.role !== "L2_APPROVAL") {
+  if (!user.roles.includes("L4_ADMIN") && !user.roles.includes("L2_APPROVAL")) {
     const farmer = await prisma.farmer.findUnique({
       where: { id: data.farmerId },
       select: { registeredBy: true },
@@ -253,19 +259,10 @@ export async function getProcurementHistory(filters?: {
 
   const where: Record<string, unknown> = {};
 
-  if (user.role === "L3_PO_MAKER") {
-    if (filters?.status) {
-      if (filters.status === "PENDING") {
-        where.status = "PENDING_L3";
-      } else if (filters.status === "REJECTED") {
-        where.status = "REJECTED_L3";
-      } else {
-        where.status = filters.status;
-      }
-    } else {
-      where.status = { in: ["PENDING_L3", "APPROVED", "REJECTED_L3"] };
+  if (user.roles.includes("L4_ADMIN") || user.isSuperAdmin) {
+    if (filters?.agentId) {
+      where.agentId = filters.agentId;
     }
-  } else {
     if (filters?.status) {
       if (filters.status === "PENDING") {
         where.status = { in: ["PENDING_L2", "PENDING_L3"] };
@@ -275,19 +272,61 @@ export async function getProcurementHistory(filters?: {
         where.status = filters.status;
       }
     }
+  } else {
+    const hasAllAccess = user.assignedStates.includes("ALL") || user.assignedMandis.includes("ALL");
+    const assignmentOr: any[] = [{ agentId: user.userId }];
+    if (!hasAllAccess) {
+      if (user.assignedL1Users.length > 0) assignmentOr.push({ agentId: { in: user.assignedL1Users } });
+      if (user.assignedStates.length > 0) assignmentOr.push({ farmer: { state: { in: user.assignedStates } } });
+      if (user.assignedMandis.length > 0) assignmentOr.push({ farmer: { town: { in: user.assignedMandis } } });
+    }
 
-    if (user.role === "L1_AGENT") {
-      where.agentId = user.userId;
-    } else if (user.role === "L2_APPROVAL") {
-      // Level 2 can see their own, pending L2, or records they approved
-      where.OR = [
-        { agentId: user.userId },
-        { status: "PENDING_L2" },
-        { l2ApprovedBy: user.userId }
-      ];
-    } else if (user.role === "L4_ADMIN") {
-      if (filters?.agentId) {
-        where.agentId = filters.agentId;
+    if (user.roles.includes("L3_PO_MAKER")) {
+      if (!hasAllAccess) {
+        if (user.assignedL2Users.length > 0) assignmentOr.push({ l2ApprovedBy: { in: user.assignedL2Users } });
+        assignmentOr.push({ l3ApprovedBy: user.userId });
+        where.OR = assignmentOr;
+      }
+      
+      if (filters?.status) {
+        if (filters.status === "PENDING") {
+          where.status = "PENDING_L3";
+        } else if (filters.status === "REJECTED") {
+          where.status = "REJECTED_L3";
+        } else {
+          where.status = filters.status;
+        }
+      } else {
+        where.status = { in: ["PENDING_L3", "APPROVED", "REJECTED_L3"] };
+      }
+    } else if (user.roles.includes("L2_APPROVAL")) {
+      if (!hasAllAccess) {
+        assignmentOr.push({ l2ApprovedBy: user.userId });
+        where.OR = assignmentOr;
+      }
+
+      if (filters?.status) {
+        if (filters.status === "PENDING") {
+          where.status = { in: ["PENDING_L2", "PENDING_L3"] };
+        } else if (filters.status === "REJECTED") {
+          where.status = { in: ["REJECTED_L2", "REJECTED_L3"] };
+        } else {
+          where.status = filters.status;
+        }
+      }
+    } else if (user.roles.includes("L1_AGENT")) {
+      if (!hasAllAccess) {
+        where.OR = assignmentOr;
+      }
+
+      if (filters?.status) {
+        if (filters.status === "PENDING") {
+          where.status = { in: ["PENDING_L2", "PENDING_L3"] };
+        } else if (filters.status === "REJECTED") {
+          where.status = { in: ["REJECTED_L2", "REJECTED_L3"] };
+        } else {
+          where.status = filters.status;
+        }
       }
     }
   }
@@ -353,6 +392,8 @@ export async function getProcurementHistory(filters?: {
     status: p.status,
     l2ApproverName: p.l2ApprovedBy ? userMap.get(p.l2ApprovedBy) : null,
     l3ApproverName: p.l3ApprovedBy ? userMap.get(p.l3ApprovedBy) : null,
+    l2Edited: p.l2Edited,
+    l3Edited: p.l3Edited,
     createdByAdmin: p.createdByAdmin,
     validated: p.validated,
     createdAt: p.createdAt.toISOString(),
@@ -364,7 +405,7 @@ export async function getProcurementHistory(filters?: {
  */
 export async function getProcurementBySlipId(slipId: string) {
   const user = await getSessionUser();
-  const isAdmin = user.role === "L4_ADMIN";
+  const isAdmin = user.roles.includes("L4_ADMIN");
 
   const procurement = await prisma.procurement.findUniqueOrThrow({
     where: { slipId },
@@ -373,15 +414,22 @@ export async function getProcurementBySlipId(slipId: string) {
     },
   });
 
-  if (user.role === "L1_AGENT" && procurement.agentId !== user.userId) {
-    throw new Error("You are not authorized to view this record.");
-  } else if (user.role === "L2_APPROVAL") {
-    if (procurement.agentId !== user.userId && procurement.status !== "PENDING_L2" && procurement.l2ApprovedBy !== user.userId) {
-      throw new Error("You are not authorized to view this record.");
-    }
-  } else if (user.role === "L3_PO_MAKER") {
-    if (!["PENDING_L3", "APPROVED", "REJECTED_L3"].includes(procurement.status)) {
-      throw new Error("You are not authorized to view this record.");
+  if (user.roles.includes("L4_ADMIN") || user.isSuperAdmin) {
+    // allowed
+  } else {
+    const hasAllAccess = user.assignedStates.includes("ALL") || user.assignedMandis.includes("ALL");
+    if (!hasAllAccess) {
+      const isMyAgent = procurement.agentId === user.userId;
+      const isAssignedL1 = user.assignedL1Users.includes(procurement.agentId);
+      const isAssignedL2 = user.assignedL2Users.includes(procurement.l2ApprovedBy || "");
+      const inAssignedState = user.assignedStates.includes((procurement as any).farmer?.state);
+      const inAssignedMandi = user.assignedMandis.includes((procurement as any).farmer?.town);
+      const iApprovedL2 = procurement.l2ApprovedBy === user.userId;
+      const iApprovedL3 = procurement.l3ApprovedBy === user.userId;
+
+      if (!isMyAgent && !isAssignedL1 && !isAssignedL2 && !inAssignedState && !inAssignedMandi && !iApprovedL2 && !iApprovedL3) {
+        throw new Error("You are not authorized to view this record.");
+      }
     }
   }
 
@@ -428,19 +476,36 @@ export async function getMonthlySummary(filters?: { agentId?: string }) {
 
   const where: Record<string, unknown> = {};
 
-  if (user.role === "L1_AGENT") {
-    where.agentId = user.userId;
-  } else if (user.role === "L2_APPROVAL") {
-    where.OR = [
-      { agentId: user.userId },
-      { status: "PENDING_L2" },
-      { l2ApprovedBy: user.userId }
-    ];
-  } else if (user.role === "L3_PO_MAKER") {
-    where.status = { in: ["PENDING_L3", "APPROVED", "REJECTED_L3"] };
-  } else if (user.role === "L4_ADMIN") {
+  if (user.roles.includes("L4_ADMIN") || user.isSuperAdmin) {
     if (filters?.agentId) {
       where.agentId = filters.agentId;
+    }
+  } else {
+    const hasAllAccess = user.assignedStates.includes("ALL") || user.assignedMandis.includes("ALL");
+    const assignmentOr: any[] = [{ agentId: user.userId }];
+    
+    if (!hasAllAccess) {
+      if (user.assignedL1Users.length > 0) assignmentOr.push({ agentId: { in: user.assignedL1Users } });
+      if (user.assignedStates.length > 0) assignmentOr.push({ farmer: { state: { in: user.assignedStates } } });
+      if (user.assignedMandis.length > 0) assignmentOr.push({ farmer: { town: { in: user.assignedMandis } } });
+    }
+
+    if (user.roles.includes("L3_PO_MAKER")) {
+      if (!hasAllAccess) {
+        if (user.assignedL2Users.length > 0) assignmentOr.push({ l2ApprovedBy: { in: user.assignedL2Users } });
+        assignmentOr.push({ l3ApprovedBy: user.userId });
+        where.OR = assignmentOr;
+      }
+      where.status = { in: ["PENDING_L3", "APPROVED", "REJECTED_L3"] };
+    } else if (user.roles.includes("L2_APPROVAL")) {
+      if (!hasAllAccess) {
+        assignmentOr.push({ l2ApprovedBy: user.userId });
+        where.OR = assignmentOr;
+      }
+    } else if (user.roles.includes("L1_AGENT")) {
+      if (!hasAllAccess) {
+        where.OR = assignmentOr;
+      }
     }
   }
 
@@ -508,18 +573,18 @@ export async function getMonthlySummary(filters?: { agentId?: string }) {
  */
 export async function getAgentsList() {
   const user = await getSessionUser();
-  if (user.role !== "L4_ADMIN") return [];
+  if (!user.roles.includes("L4_ADMIN")) return [];
 
   const agents = await prisma.user.findMany({
     where: { active: true },
-    select: { id: true, name: true, role: true },
+    select: { id: true, name: true, roles: true },
     orderBy: { name: "asc" },
   });
 
   return agents.map((a) => ({
     id: a.id,
     name: a.name,
-    role: a.role,
+    roles: a.roles,
   }));
 }
 
@@ -534,38 +599,51 @@ export async function updateProcurementStatus(
   const dataToUpdate: any = {};
 
   if (action === "L2_APPROVE") {
-    if (user.role !== "L2_APPROVAL" && user.role !== "L4_ADMIN") throw new Error("Unauthorized");
+    if (!user.roles.includes("L2_APPROVAL") && !user.roles.includes("L4_ADMIN")) throw new Error("Unauthorized");
     if (procurement.status !== "PENDING_L2") throw new Error("Invalid status");
     dataToUpdate.status = "PENDING_L3";
     dataToUpdate.l2ApprovedBy = user.userId;
   } else if (action === "L2_REJECT") {
-    if (user.role !== "L2_APPROVAL" && user.role !== "L4_ADMIN") throw new Error("Unauthorized");
+    if (!user.roles.includes("L2_APPROVAL") && !user.roles.includes("L4_ADMIN")) throw new Error("Unauthorized");
     if (procurement.status !== "PENDING_L2") throw new Error("Invalid status");
     dataToUpdate.status = "REJECTED_L2";
   } else if (action === "L3_APPROVE") {
-    if (user.role !== "L3_PO_MAKER" && user.role !== "L4_ADMIN") throw new Error("Unauthorized");
+    if (!user.roles.includes("L3_PO_MAKER") && !user.roles.includes("L4_ADMIN")) throw new Error("Unauthorized");
     if (procurement.status !== "PENDING_L3") throw new Error("Invalid status");
     dataToUpdate.status = "APPROVED";
     dataToUpdate.l3ApprovedBy = user.userId;
   } else if (action === "L3_REJECT") {
-    if (user.role !== "L3_PO_MAKER" && user.role !== "L4_ADMIN") throw new Error("Unauthorized");
+    if (!user.roles.includes("L3_PO_MAKER") && !user.roles.includes("L4_ADMIN")) throw new Error("Unauthorized");
     if (procurement.status !== "PENDING_L3") throw new Error("Invalid status");
     dataToUpdate.status = "REJECTED_L3";
   }
 
   if (updates) {
+    let hasEdit = false;
     if (updates.rate !== undefined) {
       if (typeof updates.rate !== "number" || updates.rate <= 0) {
         throw new Error("Rate must be a positive number");
       }
-      dataToUpdate.rate = updates.rate;
+      if (updates.rate !== procurement.rate) {
+        dataToUpdate.rate = updates.rate;
+        hasEdit = true;
+      }
     }
     if (updates.deduction !== undefined) {
       if (typeof updates.deduction !== "number" || updates.deduction < 0) {
         throw new Error("Deduction must be a non-negative number");
       }
-      dataToUpdate.deduction = updates.deduction;
+      if (updates.deduction !== procurement.deduction) {
+        dataToUpdate.deduction = updates.deduction;
+        hasEdit = true;
+      }
     }
+    
+    if (hasEdit) {
+      if (action.startsWith("L2")) dataToUpdate.l2Edited = true;
+      if (action.startsWith("L3")) dataToUpdate.l3Edited = true;
+    }
+
     // Recalculate total if needed
     const newRate = updates.rate !== undefined ? updates.rate : procurement.rate;
     const newDeduction = updates.deduction !== undefined ? updates.deduction : procurement.deduction;

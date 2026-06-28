@@ -17,8 +17,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
+        const emailStr = (credentials.email as string).trim();
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email as string },
+          where: { email: emailStr },
         });
 
         if (!user || !user.active) return null;
@@ -30,11 +31,33 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         if (!isValid) return null;
 
+        const sessionId = crypto.randomUUID();
+        const isHighLevel = user.roles.includes("L3_PO_MAKER") || user.roles.includes("L4_ADMIN") || user.isSuperAdmin;
+        const maxSessions = isHighLevel ? 2 : 1;
+        
+        const currentSessions = user.activeSessions || [];
+        const keepCount = Math.max(0, maxSessions - 1);
+        const updatedSessions = keepCount > 0 
+          ? [...currentSessions.slice(-keepCount), sessionId]
+          : [sessionId];
+
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { activeSessions: updatedSessions }
+        });
+
         return {
           id: user.id,
           name: user.name,
           email: user.email,
-          role: user.role,
+          roles: user.roles,
+          isSuperAdmin: user.isSuperAdmin,
+          assignedStates: user.assignedStates,
+          assignedMandis: user.assignedMandis,
+          assignedL1Users: user.assignedL1Users,
+          assignedL2Users: user.assignedL2Users,
+          assignedL3Users: user.assignedL3Users,
+          sessionId,
         };
       },
     }),

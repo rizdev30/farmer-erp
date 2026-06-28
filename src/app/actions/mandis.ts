@@ -20,8 +20,8 @@ export async function addMandi(state: string, district: string, mandiName: strin
   if (!session?.user) {
     return { success: false, error: "Not authenticated" };
   }
-  const role = (session.user as { role?: string }).role || "L1_AGENT";
-  if (role !== "L4_ADMIN") {
+  const roles = (session.user as any).roles || ["L1_AGENT"];
+  if (!roles.includes("L4_ADMIN")) {
     return { success: false, error: "Only administrators can add mandis" };
   }
   
