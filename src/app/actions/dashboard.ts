@@ -50,52 +50,15 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     const todayEnd = new Date();
     todayEnd.setHours(23, 59, 59, 999);
 
-    const totalPurchase = await prisma.procurement.count({
-      where: procurementWhere,
-    });
-
-    const todayProcurements = await prisma.procurement.count({
-      where: {
-        ...procurementWhere,
-        createdAt: { gte: todayStart, lte: todayEnd }
-      }
-    });
-
-    const pendingApproval = await prisma.procurement.count({
-      where: {
-        ...procurementWhere,
-        status: { in: ["PENDING_L2", "PENDING_L3"] }
-      }
-    });
-
-    const approved = await prisma.procurement.count({
-      where: {
-        ...procurementWhere,
-        status: "APPROVED"
-      }
-    });
-
-    const rejected = await prisma.procurement.count({
-      where: {
-        ...procurementWhere,
-        status: { in: ["REJECTED_L2", "REJECTED_L3"] }
-      }
-    });
-
-    const allAgg = await prisma.procurement.aggregate({
-      where: procurementWhere,
-      _sum: { netQuantity: true, bags: true },
-      _avg: { rate: true },
-    });
-    
-    const todayAgg = await prisma.procurement.aggregate({
-      where: {
-        ...procurementWhere,
-        createdAt: { gte: todayStart, lte: todayEnd }
-      },
-      _sum: { netQuantity: true, bags: true },
-      _avg: { rate: true }
-    });
+    const [totalPurchase, todayProcurements, pendingApproval, approved, rejected, allAgg, todayAgg] = await Promise.all([
+      prisma.procurement.count({ where: procurementWhere }),
+      prisma.procurement.count({ where: { ...procurementWhere, createdAt: { gte: todayStart, lte: todayEnd } } }),
+      prisma.procurement.count({ where: { ...procurementWhere, status: { in: ["PENDING_L2", "PENDING_L3"] } } }),
+      prisma.procurement.count({ where: { ...procurementWhere, status: "APPROVED" } }),
+      prisma.procurement.count({ where: { ...procurementWhere, status: { in: ["REJECTED_L2", "REJECTED_L3"] } } }),
+      prisma.procurement.aggregate({ where: procurementWhere, _sum: { netQuantity: true, bags: true }, _avg: { rate: true } }),
+      prisma.procurement.aggregate({ where: { ...procurementWhere, createdAt: { gte: todayStart, lte: todayEnd } }, _sum: { netQuantity: true, bags: true }, _avg: { rate: true } })
+    ]);
 
     return {
       totalPurchase,
