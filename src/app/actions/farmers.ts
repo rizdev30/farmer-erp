@@ -318,80 +318,132 @@ export async function registerFarmer(data: {
   agentId?: string; // Admin can assign to a specific agent
   assignedL3Id?: string; // Admin can assign to L3
 }) {
-  const user = await getSessionUser();
-  const isAdmin = user.role === "L4_ADMIN";
-  const code = data.farmerCode || (await generateFarmerCode(data.category));
-
-  let registeredById = user.userId;
-  let registeredByName = user.userName;
-  let createdByAdmin = false;
-
-  if (isAdmin && data.agentId && data.agentId !== user.userId) {
-    // Admin is assigning to another agent
-    const agent = await prisma.user.findUnique({ where: { id: data.agentId } });
-    if (agent) {
-      registeredById = agent.id;
-      registeredByName = agent.name;
-      createdByAdmin = true;
-    }
+  let user;
+  try {
+    user = await getSessionUser();
+  } catch (e) {
+    return { success: false, error: "Not authenticated" };
   }
 
-  const farmer = await prisma.farmer.create({
-    data: {
-      name: data.name,
-      phone: data.phone,
-      address: data.address,
-      town: data.town || data.village,
-      district: data.district,
-      block: data.block,
-      fatherName: data.fatherName,
-      farmerCode: code,
-      village: data.village,
-      gender: data.gender || "",
-      pinCode: data.pinCode || "",
-      projectName: data.projectName || "",
-      category: data.category || "FARMER",
-      state: data.state || "",
-      panGst: data.panGst || "",
-      company: data.company || "",
-      promoterName: data.promoterName || "",
-      bankName: data.bankName || "",
-      ifscCode: data.ifscCode || "",
-      accountNumber: data.accountNumber || "",
-      registeredBy: registeredById,
-      registeredByName: registeredByName,
-      assignedL3Id: data.assignedL3Id || "",
-      createdByAdmin,
-    },
-  });
+  // Role authorization check (only L1 agents and L4 admins can register farmers)
+  if (user.role !== "L1_AGENT" && user.role !== "L4_ADMIN") {
+    return { success: false, error: "Only agents and admins are authorized to register farmers" };
+  }
 
-  return {
-    success: true,
-    id: farmer.id,
-    farmer: {
+  // Input Validation
+  if (!data.name || typeof data.name !== "string" || !data.name.trim() || data.name.length > 100) {
+    return { success: false, error: "Invalid name (must be 1-100 characters)" };
+  }
+  if (!data.phone || typeof data.phone !== "string" || !/^\+?[0-9]{10,15}$/.test(data.phone.trim())) {
+    return { success: false, error: "Invalid phone number (must be 10-15 digits)" };
+  }
+  if (!data.address || typeof data.address !== "string" || !data.address.trim() || data.address.length > 500) {
+    return { success: false, error: "Invalid address (must be 1-500 characters)" };
+  }
+  if (!data.district || typeof data.district !== "string" || !data.district.trim() || data.district.length > 100) {
+    return { success: false, error: "Invalid district (must be 1-100 characters)" };
+  }
+  if (!data.block || typeof data.block !== "string" || !data.block.trim() || data.block.length > 100) {
+    return { success: false, error: "Invalid block (must be 1-100 characters)" };
+  }
+  if (!data.village || typeof data.village !== "string" || !data.village.trim() || data.village.length > 100) {
+    return { success: false, error: "Invalid village (must be 1-100 characters)" };
+  }
+  if (!data.fatherName || typeof data.fatherName !== "string" || !data.fatherName.trim() || data.fatherName.length > 100) {
+    return { success: false, error: "Invalid father's name (must be 1-100 characters)" };
+  }
+
+  // Optional string fields length limits to prevent buffer/DB size attack
+  if (data.town && data.town.length > 100) return { success: false, error: "Town is too long" };
+  if (data.state && data.state.length > 100) return { success: false, error: "State is too long" };
+  if (data.gender && data.gender.length > 20) return { success: false, error: "Gender is too long" };
+  if (data.pinCode && data.pinCode.length > 10) return { success: false, error: "Pin code is too long" };
+  if (data.projectName && data.projectName.length > 100) return { success: false, error: "Project name is too long" };
+  if (data.panGst && data.panGst.length > 30) return { success: false, error: "PAN/GST is too long" };
+  if (data.company && data.company.length > 100) return { success: false, error: "Company name is too long" };
+  if (data.promoterName && data.promoterName.length > 100) return { success: false, error: "Promoter name is too long" };
+  if (data.bankName && data.bankName.length > 100) return { success: false, error: "Bank name is too long" };
+  if (data.ifscCode && data.ifscCode.length > 20) return { success: false, error: "IFSC code is too long" };
+  if (data.accountNumber && data.accountNumber.length > 30) return { success: false, error: "Account number is too long" };
+
+  try {
+    const isAdmin = user.role === "L4_ADMIN";
+    const code = data.farmerCode || (await generateFarmerCode(data.category));
+
+    let registeredById = user.userId;
+    let registeredByName = user.userName;
+    let createdByAdmin = false;
+
+    if (isAdmin && data.agentId && data.agentId !== user.userId) {
+      // Admin is assigning to another agent
+      const agent = await prisma.user.findUnique({ where: { id: data.agentId } });
+      if (agent) {
+        registeredById = agent.id;
+        registeredByName = agent.name;
+        createdByAdmin = true;
+      }
+    }
+
+    const farmer = await prisma.farmer.create({
+      data: {
+        name: data.name.trim(),
+        phone: data.phone.trim(),
+        address: data.address.trim(),
+        town: (data.town || data.village).trim(),
+        district: data.district.trim(),
+        block: data.block.trim(),
+        fatherName: data.fatherName.trim(),
+        farmerCode: code,
+        village: data.village.trim(),
+        gender: data.gender || "",
+        pinCode: data.pinCode || "",
+        projectName: data.projectName || "",
+        category: data.category || "FARMER",
+        state: data.state || "",
+        panGst: data.panGst || "",
+        company: data.company || "",
+        promoterName: data.promoterName || "",
+        bankName: data.bankName || "",
+        ifscCode: data.ifscCode || "",
+        accountNumber: data.accountNumber || "",
+        registeredBy: registeredById,
+        registeredByName: registeredByName,
+        assignedL3Id: data.assignedL3Id || "",
+        createdByAdmin,
+      },
+    });
+
+    return {
+      success: true,
       id: farmer.id,
-      name: farmer.name,
-      phone: farmer.phone,
-      address: farmer.address,
-      town: farmer.town,
-      district: farmer.district,
-      block: farmer.block,
-      fatherName: farmer.fatherName,
-      farmerCode: farmer.farmerCode,
-      village: farmer.village,
-      registeredByName: farmer.registeredByName,
-      category: farmer.category,
-      gender: farmer.gender,
-      pinCode: farmer.pinCode,
-      projectName: farmer.projectName,
-      state: farmer.state,
-      panGst: farmer.panGst,
-      company: farmer.company,
-      promoterName: farmer.promoterName,
-      bankName: farmer.bankName,
-      ifscCode: farmer.ifscCode,
-      accountNumber: farmer.accountNumber,
-      assignedL3Id: farmer.assignedL3Id,
-    },
-  };
+      farmer: {
+        id: farmer.id,
+        name: farmer.name,
+        phone: farmer.phone,
+        address: farmer.address,
+        town: farmer.town,
+        district: farmer.district,
+        block: farmer.block,
+        fatherName: farmer.fatherName,
+        farmerCode: farmer.farmerCode,
+        village: farmer.village,
+        registeredByName: farmer.registeredByName,
+        category: farmer.category,
+        gender: farmer.gender,
+        pinCode: farmer.pinCode,
+        projectName: farmer.projectName,
+        state: farmer.state,
+        panGst: farmer.panGst,
+        company: farmer.company,
+        promoterName: farmer.promoterName,
+        bankName: farmer.bankName,
+        ifscCode: farmer.ifscCode,
+        accountNumber: farmer.accountNumber,
+        assignedL3Id: farmer.assignedL3Id,
+      },
+    };
+  } catch (error: any) {
+    console.error("Failed to register farmer:", error);
+    return { success: false, error: error.message || "Failed to register farmer" };
+  }
 }

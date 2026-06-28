@@ -11,8 +11,11 @@ import {
   Loader2,
 } from "lucide-react";
 
+// Narrow the type to the success case of the ProcurementReceipt union
+type SuccessReceipt = Extract<ProcurementReceipt, { success: true }>;
+
 interface Props {
-  receipt: ProcurementReceipt;
+  receipt: SuccessReceipt;
   onClose: () => void;
 }
 

@@ -74,7 +74,7 @@ export default function ProcurementPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  const [receipt, setReceipt] = useState<ProcurementReceipt | null>(null);
+  const [receipt, setReceipt] = useState<Extract<ProcurementReceipt, { success: true }> | null>(null);
 
   const { data: session } = useSession();
   const isAdmin = session?.user?.role === "ADMIN";
@@ -243,7 +243,7 @@ export default function ProcurementPage() {
     if (networkStatus === "offline" || networkStatus === "slow") {
       // Save to IndexedDB (much more reliable than localStorage)
       const offlineId = `OFF-${Date.now().toString().slice(-5)}`;
-      const offlineReceipt: ProcurementReceipt = {
+      const offlineReceipt: Extract<ProcurementReceipt, { success: true }> = {
         success: true,
         invoiceId: Date.now(),
         slipId: offlineId,
@@ -295,6 +295,11 @@ export default function ProcurementPage() {
     // Online — normal submission
     try {
       const result = await createProcurement(payload);
+      if (!result.success) {
+        setError(result.error || "Failed to create procurement");
+        setSubmitting(false);
+        return;
+      }
       setReceipt(result);
       resetForm();
       
@@ -312,7 +317,7 @@ export default function ProcurementPage() {
       // If online submit fails, auto-save offline as fallback
       try {
         const offlineId = `OFF-${Date.now().toString().slice(-5)}`;
-        const offlineReceipt: ProcurementReceipt = {
+        const offlineReceipt: Extract<ProcurementReceipt, { success: true }> = {
           success: true, invoiceId: Date.now(), slipId: offlineId,
           farmerName: payload.farmerName, farmerCode: payload.farmerCode || "",
           fatherName: payload.fatherName || "", village: payload.village || "",

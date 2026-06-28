@@ -46,42 +46,109 @@ export interface ProcurementData {
   agentId?: string; // Admin can assign to a specific agent
 }
 
-export interface ProcurementReceipt {
-  success: boolean;
-  slipId: string;
-  invoiceId: number;
-  timestamp: string;
-  farmerName: string;
-  fatherName?: string;
-  farmerCode?: string;
-  village?: string;
-  crop: string;
-  variety: string;
-  bags: number;
-  packingSize: number;
-  grossQuantity: number;
-  deduction: number;
-  netQuantity: number;
-  rate: number;
-  bones: number;
-  adtiyaName?: string;
-  lotNo?: string;
-  total: number;
-  agentName?: string;
-}
+export type ProcurementReceipt =
+  | {
+      success: true;
+      slipId: string;
+      invoiceId: number;
+      timestamp: string;
+      farmerName: string;
+      fatherName?: string;
+      farmerCode?: string;
+      village?: string;
+      crop: string;
+      variety: string;
+      bags: number;
+      packingSize: number;
+      grossQuantity: number;
+      deduction: number;
+      netQuantity: number;
+      rate: number;
+      bones: number;
+      adtiyaName?: string;
+      lotNo?: string;
+      total: number;
+      agentName?: string;
+      error?: undefined;
+    }
+  | {
+      success: false;
+      error: string;
+      slipId?: undefined;
+      invoiceId?: undefined;
+      timestamp?: undefined;
+      farmerName?: undefined;
+      fatherName?: undefined;
+      farmerCode?: undefined;
+      village?: undefined;
+      crop?: undefined;
+      variety?: undefined;
+      bags?: undefined;
+      packingSize?: undefined;
+      grossQuantity?: undefined;
+      deduction?: undefined;
+      netQuantity?: undefined;
+      rate?: undefined;
+      bones?: undefined;
+      adtiyaName?: undefined;
+      lotNo?: undefined;
+      total?: undefined;
+      agentName?: undefined;
+    };
 
 export async function createProcurement(
   data: ProcurementData
 ): Promise<ProcurementReceipt> {
-  const user = await getSessionUser();
+  let user;
+  try {
+    user = await getSessionUser();
+  } catch (e) {
+    return { success: false, error: "Not authenticated" };
+  }
+
+  // 1. Role authorization check
+  if (user.role === "L3_PO_MAKER" || user.role === "L4_ADMIN") {
+    return { success: false, error: "PO Makers and Admins cannot create procurements" };
+  }
+
+  // 2. Input Validation
+  if (!data.farmerId || typeof data.farmerId !== "number") {
+    return { success: false, error: "Invalid farmer ID" };
+  }
+  if (!data.crop || typeof data.crop !== "string" || !data.crop.trim() || data.crop.length > 100) {
+    return { success: false, error: "Invalid crop type (must be 1-100 characters)" };
+  }
+  if (data.variety === undefined || typeof data.variety !== "string" || data.variety.length > 100) {
+    return { success: false, error: "Invalid variety" };
+  }
+  if (!data.bags || !Number.isInteger(data.bags) || data.bags <= 0) {
+    return { success: false, error: "Number of bags must be a positive integer" };
+  }
+  if (!data.packingSize || typeof data.packingSize !== "number" || data.packingSize <= 0) {
+    return { success: false, error: "Packing size must be a positive number" };
+  }
+  if (!data.grossQuantity || typeof data.grossQuantity !== "number" || data.grossQuantity <= 0) {
+    return { success: false, error: "Gross quantity must be a positive number" };
+  }
+  if (data.deduction === undefined || typeof data.deduction !== "number" || data.deduction < 0) {
+    return { success: false, error: "Deduction must be a non-negative number" };
+  }
+  if (!data.rate || typeof data.rate !== "number" || data.rate <= 0) {
+    return { success: false, error: "Rate per quintal must be a positive number" };
+  }
+  if (data.bones === undefined || typeof data.bones !== "number" || data.bones < 0) {
+    return { success: false, error: "Bones must be a non-negative number" };
+  }
+  if (data.adtiyaName && data.adtiyaName.length > 100) {
+    return { success: false, error: "Adtiya name is too long" };
+  }
+  if (data.lotNo && data.lotNo.length > 100) {
+    return { success: false, error: "Lot number is too long" };
+  }
 
   let procurementAgentId = user.userId;
   let procurementAgentName = user.userName;
   let createdByAdmin = false;
-
-  if (user.role === "L3_PO_MAKER" || user.role === "L4_ADMIN") {
-    throw new Error("PO Makers and Admins cannot create procurements");
-  }
 
   if (user.role === "L4_ADMIN" && data.agentId && data.agentId !== user.userId) {
     const agent = await prisma.user.findUnique({ where: { id: data.agentId } });
@@ -92,34 +159,65 @@ export async function createProcurement(
     }
   }
 
-  // Verify the farmer belongs to this agent (if not admin)
+  // Verify the farmer belongs to this agent (if not admin/approver)
   if (user.role !== "L4_ADMIN" && user.role !== "L2_APPROVAL") {
     const farmer = await prisma.farmer.findUnique({
       where: { id: data.farmerId },
       select: { registeredBy: true },
     });
     if (!farmer || farmer.registeredBy !== user.userId) {
-      throw new Error("You can only procure from farmers you registered");
+      return { success: false, error: "You can only procure from farmers you registered" };
     }
   }
 
-  const grossQuantity = roundQuintal(data.grossQuantity);
-  const deduction = roundQuintal(data.deduction || 0);
-  const totalDeduction = roundQuintal(deduction * data.bags);
-  const netQuantity = roundQuintal(grossQuantity - totalDeduction);
-  const rate = roundQuintal(data.rate);
-  const total = roundQuintal(netQuantity * rate);
-  const slipId = generateSlipId();
+  try {
+    const grossQuantity = roundQuintal(data.grossQuantity);
+    const deduction = roundQuintal(data.deduction || 0);
+    const totalDeduction = roundQuintal(deduction * data.bags);
+    const netQuantity = roundQuintal(grossQuantity - totalDeduction);
+    const rate = roundQuintal(data.rate);
+    const total = roundQuintal(netQuantity * rate);
+    const slipId = generateSlipId();
 
-  // Create procurement record in local DB
-  const procurement = await prisma.procurement.create({
-    data: {
+    // Create procurement record in local DB
+    const procurement = await prisma.procurement.create({
+      data: {
+        slipId,
+        farmerId: data.farmerId,
+        farmerName: data.farmerName.trim(),
+        fatherName: (data.fatherName || "").trim(),
+        farmerCode: (data.farmerCode || "").trim(),
+        village: (data.village || "").trim(),
+        crop: data.crop.trim(),
+        variety: data.variety.trim(),
+        bags: data.bags,
+        packingSize: data.packingSize,
+        grossQuantity,
+        deduction,
+        netQuantity,
+        rate,
+        bones: data.bones,
+        adtiyaName: (data.adtiyaName || "").trim(),
+        lotNo: (data.lotNo || "").trim(),
+        total,
+        agentId: procurementAgentId,
+        agentName: procurementAgentName,
+        status: "PENDING_L2",
+        createdByAdmin,
+        validated: true,
+      },
+    });
+
+    return {
+      success: true,
       slipId,
-      farmerId: data.farmerId,
+      invoiceId: procurement.id,
+      timestamp: procurement.createdAt.toISOString(),
       farmerName: data.farmerName,
-      fatherName: data.fatherName || "",
-      farmerCode: data.farmerCode || "",
-      village: data.village || "",
+      fatherName: data.fatherName,
+      farmerCode: data.farmerCode,
+      village: data.village,
+      agentName: user.userName,
       crop: data.crop,
       variety: data.variety,
       bags: data.bags,
@@ -129,40 +227,14 @@ export async function createProcurement(
       netQuantity,
       rate,
       bones: data.bones,
-      adtiyaName: data.adtiyaName || "",
-      lotNo: data.lotNo || "",
+      adtiyaName: data.adtiyaName,
+      lotNo: data.lotNo,
       total,
-      agentId: procurementAgentId,
-      agentName: procurementAgentName,
-      status: "PENDING_L2",
-      createdByAdmin,
-      validated: true,
-    },
-  });
-
-  return {
-    success: true,
-    slipId,
-    invoiceId: procurement.id,
-    timestamp: procurement.createdAt.toISOString(),
-    farmerName: data.farmerName,
-    fatherName: data.fatherName,
-    farmerCode: data.farmerCode,
-    village: data.village,
-    agentName: user.userName,
-    crop: data.crop,
-    variety: data.variety,
-    bags: data.bags,
-    packingSize: data.packingSize,
-    grossQuantity,
-    deduction,
-    netQuantity,
-    rate,
-    bones: data.bones,
-    adtiyaName: data.adtiyaName,
-    lotNo: data.lotNo,
-    total,
-  };
+    };
+  } catch (error: any) {
+    console.error("Failed to create procurement:", error);
+    return { success: false, error: error.message || "Failed to create procurement" };
+  }
 }
 
 /**
@@ -482,8 +554,18 @@ export async function updateProcurementStatus(
   }
 
   if (updates) {
-    if (updates.rate !== undefined) dataToUpdate.rate = updates.rate;
-    if (updates.deduction !== undefined) dataToUpdate.deduction = updates.deduction;
+    if (updates.rate !== undefined) {
+      if (typeof updates.rate !== "number" || updates.rate <= 0) {
+        throw new Error("Rate must be a positive number");
+      }
+      dataToUpdate.rate = updates.rate;
+    }
+    if (updates.deduction !== undefined) {
+      if (typeof updates.deduction !== "number" || updates.deduction < 0) {
+        throw new Error("Deduction must be a non-negative number");
+      }
+      dataToUpdate.deduction = updates.deduction;
+    }
     // Recalculate total if needed
     const newRate = updates.rate !== undefined ? updates.rate : procurement.rate;
     const newDeduction = updates.deduction !== undefined ? updates.deduction : procurement.deduction;

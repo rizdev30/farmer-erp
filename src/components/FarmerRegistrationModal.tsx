@@ -311,25 +311,11 @@ export default function FarmerRegistrationModal({
         : await registerFarmer(payload);
 
       if (result.success) {
-        onSuccess(((result as any).trader || (result as any).farmer) as {
-          id: number;
-          name: string;
-          phone: string;
-          address: string;
-          town?: string;
-          village?: string;
-          district: string;
-          block: string;
-          fatherName?: string;
-          farmerCode: string;
-          category?: string;
-          gender?: string;
-          pinCode?: string;
-          projectName?: string;
-          assignedL3Id?: string;
-        });
+        onSuccess(((result as any).trader || (result as any).farmer) as any);
         reset();
         onClose();
+      } else {
+        setError(result.error || "Failed to register");
       }
     } catch {
       setError("Network error. Turn off WiFi to save offline and sync later.");
