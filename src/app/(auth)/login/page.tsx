@@ -64,7 +64,7 @@ export default function LoginPage() {
 
       {/* Login Card */}
       <div
-        className={`relative w-full max-w-md ${shake ? "animate-[shake_0.5s_ease-in-out]" : ""}`}
+        className={`relative w-full max-w-md ${shake ? "login-shake" : ""}`}
       >
         <div className="glass rounded-3xl p-8 md:p-10 shadow-2xl shadow-black/20">
           {/* Logo */}
@@ -103,10 +103,7 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="agent@farmererp.com"
                 required
-                className="w-full px-4 py-3.5 rounded-xl border border-slate-200 bg-white/60 
-                  text-slate-800 placeholder:text-slate-400 
-                  focus:outline-none focus:ring-2 focus:ring-forest-500/30 focus:border-forest-500 
-                  transition-all duration-200 text-base"
+                className="login-input"
               />
             </div>
 
@@ -125,10 +122,7 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
-                  className="w-full px-4 py-3.5 rounded-xl border border-slate-200 bg-white/60 
-                    text-slate-800 placeholder:text-slate-400 
-                    focus:outline-none focus:ring-2 focus:ring-forest-500/30 focus:border-forest-500 
-                    transition-all duration-200 text-base pr-12"
+                  className="login-input pr-12"
                 />
                 <button
                   type="button"
@@ -143,14 +137,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-forest-800 to-forest-700 
-                text-white font-semibold text-base
-                hover:from-forest-700 hover:to-forest-600 
-                focus:outline-none focus:ring-2 focus:ring-forest-500/50 focus:ring-offset-2
-                disabled:opacity-50 disabled:cursor-not-allowed
-                transition-all duration-200 
-                shadow-lg shadow-forest-900/20 hover:shadow-xl hover:shadow-forest-900/30
-                active:scale-[0.98]"
+              className="login-submit-btn"
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -169,18 +156,6 @@ export default function LoginPage() {
           </p>
         </div>
       </div>
-
-      <style jsx>{`
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
-          20%, 40%, 60%, 80% { transform: translateX(4px); }
-        }
-        @keyframes float {
-          from { transform: translateY(0px) scale(1); }
-          to { transform: translateY(-20px) scale(1.5); }
-        }
-      `}</style>
     </div>
   );
 }

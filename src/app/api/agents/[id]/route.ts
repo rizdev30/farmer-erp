@@ -5,8 +5,9 @@ import bcrypt from "bcryptjs";
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const session = await auth();
   if (!session || (session.user as { role?: string })?.role !== "L4_ADMIN") {
     return Response.json({ error: "Unauthorized" }, { status: 403 });
@@ -23,7 +24,7 @@ export async function PATCH(
   }
 
   const user = await prisma.user.update({
-    where: { id: params.id },
+    where: { id: id },
     data: updateData,
     select: {
       id: true,
