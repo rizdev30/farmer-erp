@@ -14,6 +14,7 @@ interface SearchResult {
   block: string;
   farmerCode: string;
   category?: string;
+  _source?: string;
 }
 
 export default function CommandBar() {
@@ -88,7 +89,7 @@ export default function CommandBar() {
       setSelectedIndex((i) => Math.max(i - 1, 0));
     } else if (e.key === "Enter" && results[selectedIndex]) {
       const res = results[selectedIndex];
-      router.push(`/dashboard/farmers/${res.category === "TRADER" ? 't' : 'f'}${res.id}`);
+      router.push(`/dashboard/farmers/${res._source === "TRADER" ? 't' : 'f'}${res.id}`);
       setOpen(false);
     }
   }
@@ -178,7 +179,7 @@ export default function CommandBar() {
                 <button
                   key={farmer.id}
                   onClick={() => {
-                    router.push(`/dashboard/farmers/${farmer.category === "TRADER" ? 't' : 'f'}${farmer.id}`);
+                    router.push(`/dashboard/farmers/${farmer._source === "TRADER" ? 't' : 'f'}${farmer.id}`);
                     setOpen(false);
                   }}
                   className={`w-full flex items-center gap-3 px-5 py-3.5 text-left

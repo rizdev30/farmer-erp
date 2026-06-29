@@ -110,12 +110,13 @@ export async function searchFarmers(query: string, categoryFilter?: string) {
   const [farmers, traders] = await Promise.all([farmersPromise, tradersPromise]);
 
   const results = [
-    ...farmers.map((f) => ({ ...f, category: f.category || "FARMER" })),
-    ...traders.map((t) => ({ ...t, category: "TRADER", farmerCode: t.traderCode }))
+    ...farmers.map((f) => ({ ...f, category: f.category || "FARMER", _source: "FARMER" })),
+    ...traders.map((t) => ({ ...t, category: "TRADER", farmerCode: t.traderCode, _source: "TRADER" }))
   ].sort((a, b) => a.name.localeCompare(b.name)).slice(0, 20);
 
   return results.map((f) => ({
     id: f.id,
+    _source: f._source,
     name: f.name,
     phone: f.phone,
     address: f.address,
@@ -204,12 +205,13 @@ export async function getFarmers(filters?: {
   const [farmers, traders] = await Promise.all([farmersPromise, tradersPromise]);
 
   const results = [
-    ...farmers.map((f) => ({ ...f, category: f.category || "FARMER" })),
-    ...traders.map((t) => ({ ...t, category: "TRADER", farmerCode: t.traderCode }))
+    ...farmers.map((f) => ({ ...f, category: f.category || "FARMER", _source: "FARMER" })),
+    ...traders.map((t) => ({ ...t, category: "TRADER", farmerCode: t.traderCode, _source: "TRADER" }))
   ].sort((a, b) => a.name.localeCompare(b.name)).slice(0, pageSize);
 
   return results.map((f) => ({
     id: f.id,
+    _source: f._source,
     name: f.name,
     phone: f.phone,
     address: f.address,
