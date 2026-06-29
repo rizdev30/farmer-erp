@@ -158,17 +158,17 @@ export default function DashboardLayout({
         {/* Mobile Header (No longer has hamburger) */}
         <header className="md:hidden flex items-center justify-center px-4 pb-1.5 glass border-b border-slate-200/50 print:hidden relative" style={{ paddingTop: "max(0.375rem, env(safe-area-inset-top))" }}>
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-gradient-to-br from-forest-500 to-forest-600 rounded-md flex items-center justify-center">
+            <div className="w-8 h-8 bg-gradient-to-br from-forest-500 to-forest-600 rounded-lg flex items-center justify-center">
               <Sprout className="w-4 h-4 text-white" />
             </div>
-            <span className="font-semibold text-forest-900 text-sm leading-none">
+            <span className="font-semibold text-forest-900 text-sm">
               Farmer ERP
             </span>
           </div>
         </header>
 
         {/* Page Content */}
-        <div className="flex-1 overflow-y-auto pb-24 md:pb-0">
+        <div className="flex-1 overflow-y-auto pb-20 md:pb-0">
           <div className="max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-8">
             {children}
           </div>
@@ -176,7 +176,7 @@ export default function DashboardLayout({
 
         {/* Mobile Bottom Navigation */}
         <nav className={`md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-slate-200/80 z-40 print:hidden shadow-[0_-4px_16px_rgba(0,0,0,0.04)] ${sidebarOpen ? "hidden" : "block"}`} style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
-          <div className="flex items-center justify-around h-14 px-2">
+          <div className="flex items-center justify-around h-[52px] px-2">
             {allNavItems.map((item) => {
               const isActive = pathname === item.href;
               return (
@@ -184,7 +184,7 @@ export default function DashboardLayout({
                   key={item.href}
                   href={item.href}
                   className={`
-                    flex flex-col items-center justify-center w-full h-full space-y-1
+                    flex flex-col items-center justify-center w-full h-full space-y-0.5
                     transition-colors duration-200
                     ${
                       isActive
@@ -197,7 +197,7 @@ export default function DashboardLayout({
                     size={20}
                     className={isActive ? "text-forest-600" : ""}
                   />
-                  <span className="text-[10px] font-medium">{item.label}</span>
+                  <span className="text-[10px] font-medium leading-none">{item.label}</span>
                 </Link>
               );
             })}
