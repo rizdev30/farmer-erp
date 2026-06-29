@@ -37,7 +37,8 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const { data: session } = useSession();
   const isSuperAdmin = (session?.user as any)?.isSuperAdmin === true;
-  const allNavItems = isSuperAdmin ? [...navItems, ...adminItems] : navItems;
+  const isL4Admin = (session?.user as any)?.roles?.includes("L4_ADMIN") === true;
+  const allNavItems = (isSuperAdmin || isL4Admin) ? [...navItems, ...adminItems] : navItems;
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
@@ -175,7 +176,7 @@ export default function DashboardLayout({
         </div>
 
         {/* Mobile Bottom Navigation */}
-        <nav className={`md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-slate-200/80 z-40 print:hidden shadow-[0_-4px_16px_rgba(0,0,0,0.04)] ${sidebarOpen ? "hidden" : "block"}`} style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+        <nav className={`md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-[8px] border-t border-slate-200/80 z-40 print:hidden shadow-[0_-4px_16px_rgba(0,0,0,0.04)] ${sidebarOpen ? "hidden" : "block"}`} style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
           <div className="flex items-center justify-around h-[52px] px-2">
             {allNavItems.map((item) => {
               const isActive = pathname === item.href;

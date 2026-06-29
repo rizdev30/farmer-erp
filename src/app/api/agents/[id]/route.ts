@@ -10,8 +10,8 @@ export async function PATCH(
   const { id } = await params;
   const session = await auth();
   const roles = (session?.user as any)?.roles || ["L1_AGENT"];
-  if (!session || !(session.user as any)?.isSuperAdmin) {
-    return Response.json({ error: "Unauthorized: Super Admin access required" }, { status: 403 });
+  if (!session || (!(session.user as any)?.isSuperAdmin && !(session.user as any)?.roles?.includes("L4_ADMIN"))) {
+    return Response.json({ error: "Unauthorized: Admin access required" }, { status: 403 });
   }
 
   const body = await req.json();

@@ -5,8 +5,8 @@ import bcrypt from "bcryptjs";
 export async function GET() {
   const session = await auth();
   const roles = (session?.user as any)?.roles || ["L1_AGENT"];
-  if (!session || !(session.user as any)?.isSuperAdmin) {
-    return Response.json({ error: "Unauthorized: Super Admin access required" }, { status: 403 });
+  if (!session || (!(session.user as any)?.isSuperAdmin && !(session.user as any)?.roles?.includes("L4_ADMIN"))) {
+    return Response.json({ error: "Unauthorized: Admin access required" }, { status: 403 });
   }
 
   const users = await prisma.user.findMany({
@@ -36,8 +36,8 @@ export async function GET() {
 export async function POST(req: Request) {
   const session = await auth();
   const rolesSession = (session?.user as any)?.roles || ["L1_AGENT"];
-  if (!session || !(session.user as any)?.isSuperAdmin) {
-    return Response.json({ error: "Unauthorized: Super Admin access required" }, { status: 403 });
+  if (!session || (!(session.user as any)?.isSuperAdmin && !(session.user as any)?.roles?.includes("L4_ADMIN"))) {
+    return Response.json({ error: "Unauthorized: Admin access required" }, { status: 403 });
   }
 
   const body = await req.json();

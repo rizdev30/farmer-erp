@@ -172,6 +172,28 @@ export default function AgentsPage() {
   const [superAdminConfirmInput, setSuperAdminConfirmInput] = useState("");
   const [superAdminTargetState, setSuperAdminTargetState] = useState<"form" | "edit">("form");
 
+  const formMandiOptions = useMemo(() => {
+    const names = new Set<string>();
+    const isAllStates = formAssignedStates.includes("ALL");
+    mandis.forEach(m => {
+      if (isAllStates || formAssignedStates.length === 0 || formAssignedStates.includes(m.state)) {
+        names.add(m.mandiName);
+      }
+    });
+    return ["ALL", ...Array.from(names).sort()];
+  }, [mandis, formAssignedStates]);
+
+  const editMandiOptions = useMemo(() => {
+    const names = new Set<string>();
+    const isAllStates = editAssignedStates.includes("ALL");
+    mandis.forEach(m => {
+      if (isAllStates || editAssignedStates.length === 0 || editAssignedStates.includes(m.state)) {
+        names.add(m.mandiName);
+      }
+    });
+    return ["ALL", ...Array.from(names).sort()];
+  }, [mandis, editAssignedStates]);
+
   const handleSuperAdminToggle = (checked: boolean, target: "form" | "edit") => {
     if (checked) {
       setSuperAdminConfirmWord(Math.random().toString(36).substring(2, 8).toUpperCase());
@@ -557,16 +579,7 @@ export default function AgentsPage() {
                       Assigned Mandis
                     </label>
                     <MultiSelectCombobox 
-                      options={useMemo(() => {
-                        const names = new Set<string>();
-                        const isAllStates = formAssignedStates.includes("ALL");
-                        mandis.forEach(m => {
-                          if (isAllStates || formAssignedStates.length === 0 || formAssignedStates.includes(m.state)) {
-                            names.add(m.mandiName);
-                          }
-                        });
-                        return ["ALL", ...Array.from(names).sort()];
-                      }, [mandis, formAssignedStates])}
+                      options={formMandiOptions}
                       selectedValues={formAssignedMandis}
                       onChange={setFormAssignedMandis}
                       placeholder="Search and select mandis..."
@@ -709,16 +722,7 @@ export default function AgentsPage() {
                       Assigned Mandis
                     </label>
                     <MultiSelectCombobox 
-                      options={useMemo(() => {
-                        const names = new Set<string>();
-                        const isAllStates = editAssignedStates.includes("ALL");
-                        mandis.forEach(m => {
-                          if (isAllStates || editAssignedStates.length === 0 || editAssignedStates.includes(m.state)) {
-                            names.add(m.mandiName);
-                          }
-                        });
-                        return ["ALL", ...Array.from(names).sort()];
-                      }, [mandis, editAssignedStates])}
+                      options={editMandiOptions}
                       selectedValues={editAssignedMandis}
                       onChange={setEditAssignedMandis}
                       placeholder="Search and select mandis..."
