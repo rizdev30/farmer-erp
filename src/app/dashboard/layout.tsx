@@ -156,7 +156,7 @@ export default function DashboardLayout({
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Mobile Header (No longer has hamburger) */}
-        <header className="md:hidden flex items-center justify-center px-4 pb-1.5 glass border-b border-slate-200/50 print:hidden relative" style={{ paddingTop: "max(0.375rem, env(safe-area-inset-top))" }}>
+        <header className="md:hidden flex items-center justify-center px-4 pb-2 glass border-b border-slate-200/50 print:hidden relative" style={{ paddingTop: "max(0.375rem, env(safe-area-inset-top))" }}>
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-gradient-to-br from-forest-500 to-forest-600 rounded-lg flex items-center justify-center">
               <Sprout className="w-4 h-4 text-white" />
@@ -168,7 +168,7 @@ export default function DashboardLayout({
         </header>
 
         {/* Page Content */}
-        <div className="flex-1 overflow-y-auto pb-20 md:pb-0">
+        <div className="flex-1 overflow-y-auto pb-24 md:pb-0">
           <div className="max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-8">
             {children}
           </div>
@@ -197,7 +197,7 @@ export default function DashboardLayout({
                     size={20}
                     className={isActive ? "text-forest-600" : ""}
                   />
-                  <span className="text-[10px] font-medium leading-none">{item.label}</span>
+                  <span className="text-[10px] font-medium">{item.label}</span>
                 </Link>
               );
             })}
