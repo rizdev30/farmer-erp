@@ -15,7 +15,6 @@ import {
   Sprout,
   ChevronRight,
   Settings as SettingsIcon,
-  Menu,
 } from "lucide-react";
 
 const navItems = [
@@ -156,21 +155,13 @@ export default function DashboardLayout({
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden">
-        {/* Mobile Header */}
-        <header className="md:hidden flex items-center justify-center px-4 pb-3 glass border-b border-slate-200/50 print:hidden relative" style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}>
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="absolute left-4 p-2 -ml-2 text-slate-500 hover:text-slate-800 active:scale-95 transition-all"
-            aria-label="Open menu"
-          >
-            <Menu size={20} />
-          </button>
-          
+        {/* Mobile Header (No longer has hamburger) */}
+        <header className="md:hidden flex items-center justify-center px-4 pb-1.5 glass border-b border-slate-200/50 print:hidden relative" style={{ paddingTop: "max(0.375rem, env(safe-area-inset-top))" }}>
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-forest-500 to-forest-600 rounded-lg flex items-center justify-center shadow-sm">
+            <div className="w-7 h-7 bg-gradient-to-br from-forest-500 to-forest-600 rounded-md flex items-center justify-center">
               <Sprout className="w-4 h-4 text-white" />
             </div>
-            <span className="font-semibold text-forest-900 text-sm tracking-tight">
+            <span className="font-semibold text-forest-900 text-sm leading-none">
               Farmer ERP
             </span>
           </div>
@@ -185,7 +176,7 @@ export default function DashboardLayout({
 
         {/* Mobile Bottom Navigation */}
         <nav className={`md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-slate-200/80 z-40 print:hidden shadow-[0_-4px_16px_rgba(0,0,0,0.04)] ${sidebarOpen ? "hidden" : "block"}`} style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
-          <div className="flex items-center justify-around h-16 px-2">
+          <div className="flex items-center justify-around h-14 px-2">
             {allNavItems.map((item) => {
               const isActive = pathname === item.href;
               return (
