@@ -88,11 +88,11 @@ export async function searchFarmers(query: string, categoryFilter?: string) {
     }
   }
 
-  let farmers: any[] = [];
-  let traders: any[] = [];
+  let farmersPromise: Promise<any[]> = Promise.resolve([]);
+  let tradersPromise: Promise<any[]> = Promise.resolve([]);
 
   if (!categoryFilter || categoryFilter === "FARMER") {
-    farmers = await prisma.farmer.findMany({
+    farmersPromise = prisma.farmer.findMany({
       where: whereF,
       take: 20,
       orderBy: { name: "asc" },
@@ -100,12 +100,14 @@ export async function searchFarmers(query: string, categoryFilter?: string) {
   }
 
   if (!categoryFilter || categoryFilter === "TRADER") {
-    traders = await prisma.trader.findMany({
+    tradersPromise = prisma.trader.findMany({
       where: whereT,
       take: 20,
       orderBy: { name: "asc" },
     });
   }
+
+  const [farmers, traders] = await Promise.all([farmersPromise, tradersPromise]);
 
   const results = [
     ...farmers.map((f) => ({ ...f, category: f.category || "FARMER" })),
@@ -178,11 +180,11 @@ export async function getFarmers(filters?: {
 
   const page = filters?.page || 0;
   const pageSize = 50;
-  let farmers: any[] = [];
-  let traders: any[] = [];
+  let farmersPromise: Promise<any[]> = Promise.resolve([]);
+  let tradersPromise: Promise<any[]> = Promise.resolve([]);
 
   if (!filters?.category || filters.category === "FARMER") {
-    farmers = await prisma.farmer.findMany({
+    farmersPromise = prisma.farmer.findMany({
       where: whereF,
       orderBy: { name: "asc" },
       take: pageSize,
@@ -191,13 +193,15 @@ export async function getFarmers(filters?: {
   }
 
   if (!filters?.category || filters.category === "TRADER") {
-    traders = await prisma.trader.findMany({
+    tradersPromise = prisma.trader.findMany({
       where: whereT,
       orderBy: { name: "asc" },
       take: pageSize,
       skip: page * pageSize,
     });
   }
+
+  const [farmers, traders] = await Promise.all([farmersPromise, tradersPromise]);
 
   const results = [
     ...farmers.map((f) => ({ ...f, category: f.category || "FARMER" })),
