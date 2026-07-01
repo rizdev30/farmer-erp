@@ -22,6 +22,7 @@ interface Farmer {
   farmerCode: string;
   fatherName?: string;
   category?: string;
+  _source?: string;
 }
 
 export default function FarmersPage() {
@@ -194,7 +195,7 @@ export default function FarmersPage() {
           {optimisticFarmers.map((farmer) => (
             <Link 
               key={farmer.id} 
-              href={`/dashboard/farmers/${farmer.category === "TRADER" ? 't' : 'f'}${farmer.id}`}
+              href={`/dashboard/farmers/${farmer._source === "TRADER" ? 't' : 'f'}${farmer.id}`}
               className="glass-card rounded-2xl p-5 hover:shadow-md transition-shadow group relative block"
             >
               <div className="flex items-start gap-3.5">

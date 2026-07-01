@@ -9,14 +9,27 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  password  String
-  role      String   @default("L1_AGENT") // "L1_AGENT", "L2_APPROVAL", "L3_PO_MAKER", "L4_ADMIN"
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String   @id @default(cuid())
+  name            String
+  email           String   @unique
+  password        String
+  
+  // Permissions & Roles
+  roles           String[] @default(["L1_AGENT"])
+  isSuperAdmin    Boolean  @default(false)
+  
+  // Assignments for geographic filtering
+  assignedStates  String[] @default([])
+  assignedMandis  String[] @default([])
+  
+  // Assignments for hierarchical filtering
+  assignedL1Users String[] @default([])
+  assignedL2Users String[] @default([])
+  assignedL3Users String[] @default([])
+  activeSessions  String[] @default([])
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@map("users")
 }
@@ -118,10 +131,14 @@ model Procurement {
   status        String   @default("PENDING_L2") // PENDING_L2, REJECTED_L2, PENDING_L3, REJECTED_L3, APPROVED
   l2ApprovedBy  String   @default("")
   l3ApprovedBy  String   @default("")
+  l2Edited      Boolean  @default(false)
+  l3Edited      Boolean  @default(false)
   createdByAdmin Boolean @default(false)
   validated     Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  
+  purchaseOrder PurchaseOrder?
 
   @@map("procurements")
 }
@@ -134,5 +151,35 @@ model Mandi {
 
   @@unique([state, district, mandiName])
   @@map("mandis")
+}
+
+model PurchaseOrder {
+  id               Int      @id @default(autoincrement())
+  poNumber         String   @unique
+  slipId           String   @unique
+  procurement      Procurement @relation(fields: [slipId], references: [slipId])
+  
+  // Supplier Info (Auto-fetched)
+  supplierName     String   @default("")
+  supplierLocation String   @default("")
+  
+  // Company Info
+  companyName      String   @default("Farmer ERP")
+  companyAddress   String   @default("123 Sample Address, Sample City, State 123456")
+  
+  // Dynamic Items / Columns Fill (e.g., Cash Discount)
+  // Store as JSON to allow dynamic adding/removing of fields
+  items            Json     @default("[]")
+  
+  // Payment terms
+  paymentDuration  Int      @default(0) // 10, 20, 30 days
+  paymentDate      DateTime?
+  
+  // Meta
+  createdById      String   @default("")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("purchase_orders")
 }
 

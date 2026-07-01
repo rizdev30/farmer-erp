@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { X, Loader2, ChevronRight, ChevronLeft, User, MapPin, Shield, Search, Check, ChevronDown } from "lucide-react";
 import { registerFarmer } from "@/app/actions/farmers";
 import { registerTrader } from "@/app/actions/traders";
-import { getAgentsList } from "@/app/actions/procurement";
+
 import { getMandis } from "@/app/actions/mandis";
 import { useSession } from "next-auth/react";
 
@@ -40,17 +40,8 @@ export default function FarmerRegistrationModal({
   const [error, setError] = useState("");
 
   const { data: session } = useSession();
-  const isAdmin = (session?.user as any)?.role === "L4_ADMIN";
-  const [agents, setAgents] = useState<{id: string, name: string, role: string}[]>([]);
-  const [selectedAgentId, setSelectedAgentId] = useState("");
-  const [selectedL3Id, setSelectedL3Id] = useState("");
+  const isAdmin = (session?.user as any)?.roles?.includes("L4_ADMIN") || (session?.user as any)?.isSuperAdmin;
 
-  // Fetch agents if admin
-  useEffect(() => {
-    if (isAdmin && open) {
-      getAgentsList().then(setAgents).catch(console.error);
-    }
-  }, [isAdmin, open]);
 
   const [mandisData, setMandisData] = useState<{state: string, district: string, mandiName: string}[]>([]);
 
@@ -235,8 +226,7 @@ export default function FarmerRegistrationModal({
     setIfscCode("");
     setAccountNumber("");
     setShowBankDetails(false);
-    setSelectedAgentId("");
-    setSelectedL3Id("");
+
     setError("");
     setLoading(false);
   }
@@ -274,8 +264,6 @@ export default function FarmerRegistrationModal({
       bankName,
       ifscCode,
       accountNumber,
-      agentId: selectedAgentId || undefined,
-      assignedL3Id: selectedL3Id || undefined,
     };
 
     if (!navigator.onLine) {
@@ -311,25 +299,11 @@ export default function FarmerRegistrationModal({
         : await registerFarmer(payload);
 
       if (result.success) {
-        onSuccess(((result as any).trader || (result as any).farmer) as {
-          id: number;
-          name: string;
-          phone: string;
-          address: string;
-          town?: string;
-          village?: string;
-          district: string;
-          block: string;
-          fatherName?: string;
-          farmerCode: string;
-          category?: string;
-          gender?: string;
-          pinCode?: string;
-          projectName?: string;
-          assignedL3Id?: string;
-        });
+        onSuccess(((result as any).trader || (result as any).farmer) as any);
         reset();
         onClose();
+      } else {
+        setError(result.error || "Failed to register");
       }
     } catch {
       setError("Network error. Turn off WiFi to save offline and sync later.");
@@ -576,46 +550,7 @@ export default function FarmerRegistrationModal({
                   </div>
                 )}
 
-                {isAdmin && (
-                  <>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5 flex items-center gap-1.5">
-                      <Shield size={14} className="text-purple-600" />
-                      Assign to Agent (Admin Only)
-                    </label>
-                    <select
-                      value={selectedAgentId}
-                      onChange={(e) => setSelectedAgentId(e.target.value)}
-                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-                        text-slate-800 focus:outline-none focus:ring-2 ${t.ring} 
-                        ${t.borderFocus} transition-all duration-200 text-base appearance-none`}
-                    >
-                      <option value="">Assign to myself</option>
-                      {agents.map(a => (
-                        <option key={a.id} value={a.id}>{a.name} ({a.role})</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5 flex items-center gap-1.5">
-                      <Shield size={14} className="text-purple-600" />
-                      Assign to L3 Group Leader
-                    </label>
-                    <select
-                      value={selectedL3Id}
-                      onChange={(e) => setSelectedL3Id(e.target.value)}
-                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-                        text-slate-800 focus:outline-none focus:ring-2 ${t.ring} 
-                        ${t.borderFocus} transition-all duration-200 text-base appearance-none`}
-                    >
-                      <option value="">No Group Leader</option>
-                      {agents.filter(a => a.role === "L3_PO_MAKER").map(a => (
-                        <option key={a.id} value={a.id}>{a.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  </>
-                )}
+
               </div>
             )}
 

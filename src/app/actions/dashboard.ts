@@ -3,29 +3,46 @@
 import prisma from "@/lib/prisma";
 import { auth } from "@/auth";
 import { CROP_VARIETIES, VarietyStat, DashboardStats, VarietyRecord, SlipRecord, SlipStats } from "@/lib/crop-varieties";
+
+function buildProcurementWhere(user: any): Record<string, unknown> {
+  const roles = user?.roles || ["L1_AGENT"];
+  const userId = user?.id || "";
+  const isSuperAdmin = user?.isSuperAdmin || false;
+  const assignedStates: string[] = user?.assignedStates || [];
+  const assignedMandis: string[] = user?.assignedMandis || [];
+  const assignedL1Users: string[] = user?.assignedL1Users || [];
+  const assignedL2Users: string[] = user?.assignedL2Users || [];
+
+  const where: Record<string, unknown> = {};
+
+  if (roles.includes("L4_ADMIN") || isSuperAdmin) {
+    return where;
+  }
+
+  const assignmentOr: any[] = [{ agentId: userId }];
+  if (assignedL1Users.length > 0) assignmentOr.push({ agentId: { in: assignedL1Users } });
+  if (assignedStates.length > 0) assignmentOr.push({ farmer: { state: { in: assignedStates } } });
+  if (assignedMandis.length > 0) assignmentOr.push({ farmer: { town: { in: assignedMandis } } });
+
+  if (roles.includes("L3_PO_MAKER")) {
+    if (assignedL2Users.length > 0) assignmentOr.push({ l2ApprovedBy: { in: assignedL2Users } });
+    assignmentOr.push({ l3ApprovedBy: userId });
+    where.OR = assignmentOr;
+    where.status = { in: ["PENDING_L3", "APPROVED", "REJECTED_L3"] };
+  } else if (roles.includes("L2_APPROVAL")) {
+    assignmentOr.push({ l2ApprovedBy: userId });
+    where.OR = assignmentOr;
+  } else if (roles.includes("L1_AGENT")) {
+    where.OR = assignmentOr;
+  }
+
+  return where;
+}
+
 export async function getDashboardStats(): Promise<DashboardStats> {
   try {
     const session = await auth();
-    const role = (session?.user as { role?: string })?.role || "L1_AGENT";
-    const userId = session?.user?.id || "";
-
-    const farmerWhere: Record<string, unknown> = { active: true };
-    const procurementWhere: Record<string, unknown> = {};
-
-    if (role === "L1_AGENT") {
-      farmerWhere.registeredBy = userId;
-      procurementWhere.agentId = userId;
-    } else if (role === "L2_APPROVAL") {
-      // Level 2 sees their own and pending L2
-      procurementWhere.OR = [
-        { agentId: userId },
-        { status: "PENDING_L2" },
-        { l2ApprovedBy: userId }
-      ];
-    } else if (role === "L3_PO_MAKER") {
-      procurementWhere.status = { in: ["PENDING_L3", "APPROVED", "REJECTED_L3"] };
-    }
-    // L4_ADMIN sees everything so where clauses remain empty
+    const procurementWhere = buildProcurementWhere(session?.user);
 
     // Get today's date range
     const todayStart = new Date();
@@ -33,52 +50,15 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     const todayEnd = new Date();
     todayEnd.setHours(23, 59, 59, 999);
 
-    const totalPurchase = await prisma.procurement.count({
-      where: procurementWhere,
-    });
-
-    const todayProcurements = await prisma.procurement.count({
-      where: {
-        ...procurementWhere,
-        createdAt: { gte: todayStart, lte: todayEnd }
-      }
-    });
-
-    const pendingApproval = await prisma.procurement.count({
-      where: {
-        ...procurementWhere,
-        status: { in: ["PENDING_L2", "PENDING_L3"] }
-      }
-    });
-
-    const approved = await prisma.procurement.count({
-      where: {
-        ...procurementWhere,
-        status: "APPROVED"
-      }
-    });
-
-    const rejected = await prisma.procurement.count({
-      where: {
-        ...procurementWhere,
-        status: { in: ["REJECTED_L2", "REJECTED_L3"] }
-      }
-    });
-
-    const allAgg = await prisma.procurement.aggregate({
-      where: procurementWhere,
-      _sum: { netQuantity: true, bags: true },
-      _avg: { rate: true },
-    });
-    
-    const todayAgg = await prisma.procurement.aggregate({
-      where: {
-        ...procurementWhere,
-        createdAt: { gte: todayStart, lte: todayEnd }
-      },
-      _sum: { netQuantity: true, bags: true },
-      _avg: { rate: true }
-    });
+    const [totalPurchase, todayProcurements, pendingApproval, approved, rejected, allAgg, todayAgg] = await Promise.all([
+      prisma.procurement.count({ where: procurementWhere }),
+      prisma.procurement.count({ where: { ...procurementWhere, createdAt: { gte: todayStart, lte: todayEnd } } }),
+      prisma.procurement.count({ where: { ...procurementWhere, status: { in: ["PENDING_L2", "PENDING_L3"] } } }),
+      prisma.procurement.count({ where: { ...procurementWhere, status: "APPROVED" } }),
+      prisma.procurement.count({ where: { ...procurementWhere, status: { in: ["REJECTED_L2", "REJECTED_L3"] } } }),
+      prisma.procurement.aggregate({ where: procurementWhere, _sum: { netQuantity: true, bags: true }, _avg: { rate: true } }),
+      prisma.procurement.aggregate({ where: { ...procurementWhere, createdAt: { gte: todayStart, lte: todayEnd } }, _sum: { netQuantity: true, bags: true }, _avg: { rate: true } })
+    ]);
 
     return {
       totalPurchase,
@@ -114,21 +94,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
 export async function getVarietyStats(): Promise<VarietyStat[]> {
   try {
     const session = await auth();
-    const role = (session?.user as { role?: string })?.role || "L1_AGENT";
-    const userId = session?.user?.id || "";
-
-    const where: Record<string, unknown> = {};
-    if (role === "L1_AGENT") {
-      where.agentId = userId;
-    } else if (role === "L2_APPROVAL") {
-      where.OR = [
-        { agentId: userId },
-        { status: "PENDING_L2" },
-        { l2ApprovedBy: userId },
-      ];
-    } else if (role === "L3_PO_MAKER") {
-      where.status = { in: ["PENDING_L3", "APPROVED", "REJECTED_L3"] };
-    }
+    const where = buildProcurementWhere(session?.user);
 
     const results = await prisma.procurement.groupBy({
       by: ["variety"],
@@ -176,26 +142,7 @@ export async function getVarietyDetail(variety: string): Promise<{
 }> {
   try {
     const session = await auth();
-    const role = (session?.user as { role?: string })?.role || "L1_AGENT";
-    const userId = session?.user?.id || "";
-
-    // Build base scope — variety always added on top
-    let baseWhere: Record<string, unknown> = { variety };
-    if (role === "L1_AGENT") {
-      baseWhere.agentId = userId;
-    } else if (role === "L2_APPROVAL") {
-      // For L2 the variety filter is pushed inside each OR branch
-      baseWhere = {
-        variety,
-        OR: [
-          { agentId: userId },
-          { status: "PENDING_L2" },
-          { l2ApprovedBy: userId },
-        ],
-      };
-    } else if (role === "L3_PO_MAKER") {
-      baseWhere.status = { in: ["PENDING_L3", "APPROVED", "REJECTED_L3"] };
-    }
+    const baseWhere = { variety, ...buildProcurementWhere(session?.user) };
 
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
@@ -279,16 +226,7 @@ export async function getTodayDetail(): Promise<{
 }> {
   try {
     const session = await auth();
-    const role = (session?.user as { role?: string })?.role || "L1_AGENT";
-    const userId = session?.user?.id || "";
-
-    const baseWhere: Record<string, unknown> = {};
-    if (role === "L1_AGENT") baseWhere.agentId = userId;
-    else if (role === "L2_APPROVAL") {
-      baseWhere.OR = [{ agentId: userId }, { status: "PENDING_L2" }, { l2ApprovedBy: userId }];
-    } else if (role === "L3_PO_MAKER") {
-      baseWhere.status = { in: ["PENDING_L3", "APPROVED", "REJECTED_L3"] };
-    }
+    const baseWhere = buildProcurementWhere(session?.user);
 
     const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
     const todayEnd   = new Date(); todayEnd.setHours(23, 59, 59, 999);
@@ -354,16 +292,7 @@ export async function getAllSlipsDetail(): Promise<{
 }> {
   try {
     const session = await auth();
-    const role = (session?.user as { role?: string })?.role || "L1_AGENT";
-    const userId = session?.user?.id || "";
-
-    const baseWhere: Record<string, unknown> = {};
-    if (role === "L1_AGENT") baseWhere.agentId = userId;
-    else if (role === "L2_APPROVAL") {
-      baseWhere.OR = [{ agentId: userId }, { status: "PENDING_L2" }, { l2ApprovedBy: userId }];
-    } else if (role === "L3_PO_MAKER") {
-      baseWhere.status = { in: ["PENDING_L3", "APPROVED", "REJECTED_L3"] };
-    }
+    const baseWhere = buildProcurementWhere(session?.user);
 
     const [total, approved, awaiting, cancelled, agg, rows] = await Promise.all([
       prisma.procurement.count({ where: baseWhere }),

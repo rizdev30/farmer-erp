@@ -15,9 +15,12 @@ import {
   User,
   ShoppingCart,
   Shield,
+  Check,
+  ChevronDown,
+  X,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { getAgentsList } from "@/app/actions/procurement";
+
 import { useDebounce } from "@/lib/use-debounce";
 import { useFormAutoSave } from "@/lib/form-autosave";
 import { addToSyncQueue, detectNetworkQuality, getQueueCount } from "@/lib/offline-sync";
@@ -54,44 +57,40 @@ export default function ProcurementPage() {
 
   const [categoryFilter, setCategoryFilter] = useState("FARMER");
 
-  const [crop, setCrop] = useState("Rice");
-  const [variety, setVariety] = useState("");
-  const [bags, setBags] = useState("");
-  const [packingSize, setPackingSize] = useState("");
-  const [grossQuantity, setGrossQuantity] = useState("");
-  const [deduction, setDeduction] = useState("");
-  const [rate, setRate] = useState("");
-  const [bones, setBones] = useState("");
+  const [cropItems, setCropItems] = useState([
+    { id: '1', crop: "Rice", variety: "", bags: "", packingSize: "", grossQuantity: "", deduction: "", rate: "", bones: "" }
+  ]);
   const [adtiyaName, setAdtiyaName] = useState("");
   const [lotNo, setLotNo] = useState("");
+  const [activeDropdown, setActiveDropdown] = useState<{index: number, type: 'crop' | 'variety'} | null>(null);
+  const [dropdownSearch, setDropdownSearch] = useState("");
+
+  const [receipts, setReceipts] = useState<Extract<ProcurementReceipt, { success: true }>[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  const [receipt, setReceipt] = useState<ProcurementReceipt | null>(null);
+  const [receipt, setReceipt] = useState<Extract<ProcurementReceipt, { success: true }> | null>(null);
 
   const { data: session } = useSession();
-  const isAdmin = session?.user?.role === "ADMIN";
-  const [agents, setAgents] = useState<{ id: string, name: string }[]>([]);
-  const [selectedAgentId, setSelectedAgentId] = useState("");
+  const isAdmin = (session?.user as any)?.roles?.includes("L4_ADMIN") || (session?.user as any)?.isSuperAdmin;
 
-  useEffect(() => {
-    if (isAdmin) {
-      getAgentsList().then(setAgents).catch(console.error);
-    }
-  }, [isAdmin]);
 
   // Live math
-  const netQuantity = useMemo(() => {
-    const gross = parseFloat(grossQuantity) || 0;
-    const ded = parseFloat(deduction) || 0;
-    const b = parseInt(bags) || 0;
-    return Math.max(0, Math.round((gross - ded * b) * 100) / 100);
-  }, [grossQuantity, deduction, bags]);
+  const netQuantities = useMemo(() => {
+    return cropItems.map(item => {
+      const gross = parseFloat(item.grossQuantity) || 0;
+      const ded = parseFloat(item.deduction) || 0;
+      const b = parseInt(item.bags) || 0;
+      return Math.max(0, Math.round((gross - ded * b) * 100) / 100);
+    });
+  }, [cropItems]);
 
   const total = useMemo(() => {
-    const r = parseFloat(rate) || 0;
-    return Math.round(netQuantity * r * 100) / 100;
-  }, [netQuantity, rate]);
+    return cropItems.reduce((acc, item, index) => {
+      const r = parseFloat(item.rate) || 0;
+      return acc + Math.round(netQuantities[index] * r * 100) / 100;
+    }, 0);
+  }, [netQuantities, cropItems]);
 
   const ringClass = categoryFilter === "TRADER" 
     ? "focus:ring-blue-500/30 focus:border-blue-500" 
@@ -111,8 +110,8 @@ export default function ProcurementPage() {
   const formData = useMemo(() => ({
     farmerId: selectedFarmer?.id,
     farmerName: selectedFarmer?.name,
-    crop, variety, bags, packingSize, grossQuantity, deduction, rate, bones, adtiyaName, lotNo,
-  }), [selectedFarmer, crop, variety, bags, packingSize, grossQuantity, deduction, rate, bones, adtiyaName, lotNo]);
+    cropItems, adtiyaName, lotNo,
+  }), [selectedFarmer, cropItems, adtiyaName, lotNo]);
 
   const { clearDraft, loadDraft, hasDraft } = useFormAutoSave({
     key: "procurement-form",
@@ -153,16 +152,27 @@ export default function ProcurementPage() {
     getQueueCount().then(setOfflineCount).catch(() => {});
   }, []);
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.combobox-crop') && !target.closest('.combobox-variety')) {
+        setActiveDropdown(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside, { passive: true });
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, []);
+
+  
+
   function resetForm() {
     setSelectedFarmer(null);
     setFarmerQuery("");
-    setVariety("");
-    setBags("");
-    setPackingSize("");
-    setGrossQuantity("");
-    setDeduction("");
-    setRate("");
-    setBones("");
+    setCropItems([{ id: '1', crop: "Rice", variety: "", bags: "", packingSize: "", grossQuantity: "", deduction: "", rate: "", bones: "" }]);
     setAdtiyaName("");
     setLotNo("");
     clearDraft();
@@ -174,141 +184,134 @@ export default function ProcurementPage() {
       setError("Please select a farmer");
       return;
     }
-    if (!grossQuantity || parseFloat(grossQuantity) <= 0) {
-      setError("Please enter a valid gross quantity");
-      return;
-    }
-    if (!rate || parseFloat(rate) <= 0) {
-      setError("Please enter a valid rate");
-      return;
+    
+    // Validation
+    for (let i = 0; i < cropItems.length; i++) {
+      const item = cropItems[i];
+      if (!item.grossQuantity || parseFloat(item.grossQuantity) <= 0) {
+        setError(`Please enter a valid gross quantity for item ${i + 1}`);
+        return;
+      }
+      if (!item.rate || parseFloat(item.rate) <= 0) {
+        setError(`Please enter a valid rate for item ${i + 1}`);
+        return;
+      }
     }
 
     setSubmitting(true);
     setError("");
 
-    const payload = {
-      farmerId: selectedFarmer.id,
-      farmerName: selectedFarmer.name,
-      fatherName: selectedFarmer.fatherName,
-      farmerCode: selectedFarmer.farmerCode,
-      village: selectedFarmer.village,
-      crop,
-      variety,
-      bags: parseInt(bags) || 0,
-      packingSize: parseInt(packingSize) || 0,
-      grossQuantity: parseFloat(grossQuantity),
-      deduction: parseFloat(deduction) || 0,
-      rate: parseFloat(rate),
-      bones: parseFloat(bones) || 0,
-      adtiyaName,
-      lotNo,
-      agentId: selectedAgentId || undefined,
-    };
-
-    // Smart network detection — checks actual connectivity, not just navigator.onLine
     const networkStatus = await detectNetworkQuality();
+    const isOffline = networkStatus === "offline" || networkStatus === "slow";
+    
+    let allReceipts: Extract<ProcurementReceipt, { success: true }>[] = [];
+    let hasError = false;
 
-    if (networkStatus === "offline" || networkStatus === "slow") {
-      // Save to IndexedDB (much more reliable than localStorage)
-      const offlineId = `OFF-${Date.now().toString().slice(-5)}`;
-      const offlineReceipt: ProcurementReceipt = {
-        success: true,
-        invoiceId: Date.now(),
-        slipId: offlineId,
-        farmerName: payload.farmerName,
-        farmerCode: payload.farmerCode || "",
-        fatherName: payload.fatherName || "",
-        village: payload.village || "",
-        crop: payload.crop,
-        variety: payload.variety,
-        bags: payload.bags,
-        packingSize: payload.packingSize,
-        grossQuantity: payload.grossQuantity,
-        deduction: payload.deduction,
-        netQuantity,
-        rate: payload.rate,
-        bones: payload.bones,
-        adtiyaName: payload.adtiyaName,
-        lotNo: payload.lotNo,
-        total,
-        timestamp: new Date().toISOString(),
-        agentName: session?.user?.name || "Agent",
+    for (let i = 0; i < cropItems.length; i++) {
+      const item = cropItems[i];
+      const payload = {
+        farmerId: selectedFarmer.id,
+        farmerName: selectedFarmer.name,
+        fatherName: selectedFarmer.fatherName,
+        farmerCode: selectedFarmer.farmerCode,
+        village: selectedFarmer.village,
+        crop: item.crop,
+        variety: item.variety,
+        bags: parseInt(item.bags) || 0,
+        packingSize: parseInt(item.packingSize) || 0,
+        grossQuantity: parseFloat(item.grossQuantity),
+        deduction: parseFloat(item.deduction) || 0,
+        rate: parseFloat(item.rate),
+        bones: parseFloat(item.bones) || 0,
+        adtiyaName,
+        lotNo,
+
       };
-
-      try {
-        await addToSyncQueue("procurement", payload, offlineReceipt);
-        const count = await getQueueCount();
-        setOfflineCount(count);
-        setReceipt(offlineReceipt);
-        resetForm();
-        addToast({
-          type: "offline",
-          title: "Saved offline!",
-          message: networkStatus === "slow"
-            ? "Network is slow. Data saved locally and will auto-sync when network improves. Please don't close the app."
-            : "No internet. Data saved locally and will auto-sync when you're back online. Please don't close the app.",
-          duration: 8000,
-        });
-
-        // Seed individual receipt cache
-        setCacheData(`receipt-${offlineReceipt.slipId}`, offlineReceipt);
-        
-      } catch (err) {
-        setError("Failed to save offline. Please try again.");
-      }
-      setSubmitting(false);
-      return;
-    }
-
-    // Online — normal submission
-    try {
-      const result = await createProcurement(payload);
-      setReceipt(result);
-      resetForm();
       
-      // Seed the exact receipt cache so opening it is instant
-      setCacheData(`receipt-${result.slipId}`, result);
-      
-      // Invalidate caches
-      invalidateCache("dashboard-*");
-      invalidateCache("history-*");
+      const itemNetQuantity = netQuantities[i];
+      const itemTotal = Math.round(itemNetQuantity * parseFloat(item.rate) * 100) / 100;
 
-      // Proactively prefetch the updated dashboard and history in the background
-      prefetchCache("dashboard-stats", () => getDashboardStats());
-      prefetchCache("history-records---", () => getProcurementHistory({}));
-    } catch (err) {
-      // If online submit fails, auto-save offline as fallback
-      try {
-        const offlineId = `OFF-${Date.now().toString().slice(-5)}`;
-        const offlineReceipt: ProcurementReceipt = {
-          success: true, invoiceId: Date.now(), slipId: offlineId,
+      if (isOffline) {
+        const offlineId = `OFF-${Date.now().toString().slice(-5)}-${i}`;
+        const offlineReceipt: Extract<ProcurementReceipt, { success: true }> = {
+          success: true, invoiceId: Date.now() + i, slipId: offlineId,
           farmerName: payload.farmerName, farmerCode: payload.farmerCode || "",
           fatherName: payload.fatherName || "", village: payload.village || "",
           crop: payload.crop, variety: payload.variety, bags: payload.bags,
           packingSize: payload.packingSize, grossQuantity: payload.grossQuantity,
-          deduction: payload.deduction, netQuantity, rate: payload.rate,
+          deduction: payload.deduction, netQuantity: itemNetQuantity, rate: payload.rate,
           bones: payload.bones, adtiyaName: payload.adtiyaName, lotNo: payload.lotNo,
-          total, timestamp: new Date().toISOString(),
+          total: itemTotal, timestamp: new Date().toISOString(),
           agentName: session?.user?.name || "Agent",
         };
-        await addToSyncQueue("procurement", payload, offlineReceipt);
-        setReceipt(offlineReceipt);
-        resetForm();
-        
-        // Seed individual receipt cache
-        setCacheData(`receipt-${offlineReceipt.slipId}`, offlineReceipt);
-
-        addToast({
-          type: "warning",
-          title: "Connection lost during save",
-          message: "Data saved locally. Will auto-sync when network is stable.",
-          duration: 6000,
-        });
-      } catch {
-        setError("Failed to process procurement. Please check your connection and try again.");
+        try {
+          await addToSyncQueue("procurement", payload, offlineReceipt);
+          allReceipts.push(offlineReceipt);
+          setCacheData(`receipt-${offlineReceipt.slipId}`, offlineReceipt);
+        } catch (err) {
+          setError(`Failed to save item ${i + 1} offline.`);
+          hasError = true;
+          break;
+        }
+      } else {
+        try {
+          const result = await createProcurement(payload);
+          if (!result.success) {
+            setError(result.error || `Failed to create procurement for item ${i + 1}`);
+            hasError = true;
+            break;
+          }
+          allReceipts.push(result);
+          setCacheData(`receipt-${result.slipId}`, result);
+        } catch (err) {
+          // Fallback to offline
+          const offlineId = `OFF-${Date.now().toString().slice(-5)}-${i}`;
+          const offlineReceipt: Extract<ProcurementReceipt, { success: true }> = {
+            success: true, invoiceId: Date.now() + i, slipId: offlineId,
+            farmerName: payload.farmerName, farmerCode: payload.farmerCode || "",
+            fatherName: payload.fatherName || "", village: payload.village || "",
+            crop: payload.crop, variety: payload.variety, bags: payload.bags,
+            packingSize: payload.packingSize, grossQuantity: payload.grossQuantity,
+            deduction: payload.deduction, netQuantity: itemNetQuantity, rate: payload.rate,
+            bones: payload.bones, adtiyaName: payload.adtiyaName, lotNo: payload.lotNo,
+            total: itemTotal, timestamp: new Date().toISOString(),
+            agentName: session?.user?.name || "Agent",
+          };
+          try {
+            await addToSyncQueue("procurement", payload, offlineReceipt);
+            allReceipts.push(offlineReceipt);
+            setCacheData(`receipt-${offlineReceipt.slipId}`, offlineReceipt);
+          } catch(e) {
+            hasError = true;
+            break;
+          }
+        }
       }
     }
 
+    if (!hasError && allReceipts.length > 0) {
+      setReceipts(allReceipts);
+      resetForm();
+      
+      if (isOffline) {
+        const count = await getQueueCount();
+        setOfflineCount(count);
+        addToast({
+          type: "offline",
+          title: "Saved offline!",
+          message: networkStatus === "slow"
+            ? "Network is slow. Data saved locally and will auto-sync when network improves."
+            : "No internet. Data saved locally and will auto-sync when you're back online.",
+          duration: 8000,
+        });
+      } else {
+        invalidateCache("dashboard-*");
+        invalidateCache("history-*");
+        prefetchCache("dashboard-stats", () => getDashboardStats());
+        prefetchCache("history-records---", () => getProcurementHistory({}));
+      }
+    }
+    
     setSubmitting(false);
   }
 
@@ -506,161 +509,268 @@ export default function ProcurementPage() {
 
         {/* Crop + Quantity + Rate */}
         <div className="glass-card rounded-2xl p-5">
-          <label className="block text-sm font-semibold text-slate-700 mb-3">
-            2. Transaction Details
-          </label>
+          <div className="flex justify-between items-center mb-3">
+            <label className="block text-sm font-semibold text-slate-700">
+              2. Transaction Details
+            </label>
+            <button
+              type="button"
+              onClick={() => {
+                setCropItems([...cropItems, { id: Date.now().toString(), crop: "Rice", variety: "", bags: "", packingSize: "", grossQuantity: "", deduction: "", rate: "", bones: "" }]);
+              }}
+              className={`text-sm font-semibold px-4 py-2 rounded-xl border flex items-center gap-1 transition-colors shadow-sm active:scale-95 ${categoryFilter === 'TRADER' ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' : 'bg-forest-50 text-forest-700 border-forest-200 hover:bg-forest-100'}`}
+            >
+              + Add Crop
+            </button>
+          </div>
 
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              {/* Crop */}
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1.5">
-                  Crop
-                </label>
-                <select
-                  value={crop}
-                  onChange={(e) => setCrop(e.target.value)}
-                  className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-                    text-slate-800 focus:outline-none focus:ring-2 
-                    transition-all text-base font-medium ${ringClass}`}
-                >
-                  <option value="Rice">Rice</option>
-                  <option value="Paddy">Paddy</option>
-                </select>
-              </div>
+          <div className="space-y-6">
+            {cropItems.map((item, index) => (
+              <div key={item.id} className="p-4 bg-white/50 border border-slate-200/60 rounded-xl relative">
+                {cropItems.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newItems = [...cropItems];
+                      newItems.splice(index, 1);
+                      setCropItems(newItems);
+                    }}
+                    className="absolute top-1 right-1 p-3 text-slate-400 hover:text-red-500 active:scale-95 transition-transform"
+                  >
+                    <X size={18} />
+                  </button>
+                )}
+                <div className="text-xs font-bold text-slate-400 mb-3 uppercase tracking-wider">Item {index + 1}</div>
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  {/* Crop */}
+                  <div className="relative combobox-crop">
+                    <label className="block text-xs font-medium text-slate-500 mb-1.5">
+                      Crop Type
+                    </label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                      <input
+                        value={activeDropdown?.index === index && activeDropdown.type === 'crop' ? dropdownSearch : item.crop}
+                        onChange={(e) => {
+                          setDropdownSearch(e.target.value);
+                          setActiveDropdown({ index, type: 'crop' });
+                        }}
+                        onFocus={() => {
+                          setDropdownSearch(item.crop);
+                          setActiveDropdown({ index, type: 'crop' });
+                        }}
+                        placeholder="Search Crop..."
+                        className={`w-full pl-9 pr-8 py-3 rounded-xl border border-slate-200 bg-white/60 
+                          text-slate-800 placeholder:text-slate-400 
+                          focus:outline-none focus:ring-2 ${ringClass} 
+                          transition-all text-sm font-medium`}
+                      />
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                    </div>
+                    {activeDropdown?.index === index && activeDropdown.type === 'crop' && (
+                      <div className="absolute z-[60] w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="max-h-48 overflow-y-auto p-1" onTouchMove={() => (document.activeElement as HTMLElement)?.blur()}>
+                          {["Rice", "Paddy"].filter(c => c.toLowerCase().includes(dropdownSearch.toLowerCase())).map((c) => (
+                            <div
+                              key={c}
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                const newItems = [...cropItems];
+                                newItems[index].crop = c;
+                                setCropItems(newItems);
+                                setActiveDropdown(null);
+                              }}
+                              className={`flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer transition-colors ${item.crop === c ? (categoryFilter === 'TRADER' ? 'bg-blue-50 text-blue-700' : 'bg-forest-50 text-forest-700') + ' font-medium' : 'text-slate-700 hover:bg-slate-100'}`}
+                            >
+                              <span className="text-sm truncate pr-2">{c}</span>
+                              {item.crop === c && <Check size={14} className="flex-shrink-0" />}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
-              {/* Variety */}
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1.5">
-                  Variety
-                </label>
-                <select
-                  value={variety}
-                  onChange={(e) => setVariety(e.target.value)}
-                  className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-                    text-slate-800 focus:outline-none focus:ring-2 
-                    transition-all text-base font-medium ${ringClass}`}
-                >
-                  <option value="">Select variety...</option>
-                  {CROP_VARIETIES.map((v) => (
-                    <option key={v} value={v}>{v}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
+                  {/* Variety */}
+                  <div className="relative combobox-variety">
+                    <label className="block text-xs font-medium text-slate-500 mb-1.5">
+                      Variety
+                    </label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                      <input
+                        value={activeDropdown?.index === index && activeDropdown.type === 'variety' ? dropdownSearch : item.variety}
+                        onChange={(e) => {
+                          setDropdownSearch(e.target.value);
+                          setActiveDropdown({ index, type: 'variety' });
+                        }}
+                        onFocus={() => {
+                          setDropdownSearch(item.variety);
+                          setActiveDropdown({ index, type: 'variety' });
+                        }}
+                        placeholder="Search Variety..."
+                        className={`w-full pl-9 pr-8 py-3 rounded-xl border border-slate-200 bg-white/60 
+                          text-slate-800 placeholder:text-slate-400 
+                          focus:outline-none focus:ring-2 ${ringClass} 
+                          transition-all text-sm font-medium`}
+                      />
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                    </div>
+                    {activeDropdown?.index === index && activeDropdown.type === 'variety' && (
+                      <div className="absolute z-[60] w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="max-h-48 overflow-y-auto p-1" onTouchMove={() => (document.activeElement as HTMLElement)?.blur()}>
+                          {CROP_VARIETIES.filter(v => v.toLowerCase().includes(dropdownSearch.toLowerCase())).length > 0 ? (
+                            CROP_VARIETIES.filter(v => v.toLowerCase().includes(dropdownSearch.toLowerCase())).map((v) => (
+                              <div
+                                key={v}
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  const newItems = [...cropItems];
+                                  newItems[index].variety = v;
+                                  setCropItems(newItems);
+                                  setActiveDropdown(null);
+                                }}
+                                className={`flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer transition-colors ${item.variety === v ? (categoryFilter === 'TRADER' ? 'bg-blue-50 text-blue-700' : 'bg-forest-50 text-forest-700') + ' font-medium' : 'text-slate-700 hover:bg-slate-100'}`}
+                              >
+                                <span className="text-sm truncate pr-2">{v}</span>
+                                {item.variety === v && <Check size={14} className="flex-shrink-0" />}
+                              </div>
+                            ))
+                          ) : (
+                            <div className="px-4 py-3 text-xs text-slate-500 text-center">No varieties found</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              {/* Bags */}
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1.5">
-                  No. of Bags
-                </label>
-                <input
-                  type="number"
-                  value={bags}
-                  onChange={(e) => setBags(e.target.value)}
-                  placeholder="0"
-                  min="0"
-                  className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-                    text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
-                    transition-all text-base ${ringClass}`}
-                />
-              </div>
-
-              {/* Packing Size */}
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1.5">
-                  Packing Size
-                </label>
-                <input
-                  type="number"
-                  value={packingSize}
-                  onChange={(e) => setPackingSize(e.target.value)}
-                  placeholder="0"
-                  min="0"
-                  className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-                    text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
-                    transition-all text-base ${ringClass}`}
-                />
-              </div>
-
-              {/* Weight Qtl */}
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1.5">
-                  Weight Qtl.
-                </label>
-                <input
-                  type="number"
-                  value={grossQuantity}
-                  onChange={(e) => setGrossQuantity(e.target.value)}
-                  placeholder="0.00"
-                  step="0.01"
-                  min="0"
-                  className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-                    text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
-                    transition-all text-base ${ringClass}`}
-                />
-              </div>
-
-              {/* Deduction Qtl/Bag */}
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1.5">
-                  Deduction Qtl./Bag
-                </label>
-                <input
-                  type="number"
-                  value={deduction}
-                  onChange={(e) => setDeduction(e.target.value)}
-                  placeholder="0.00"
-                  step="0.01"
-                  min="0"
-                  className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-                    text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
-                    transition-all text-base ${ringClass}`}
-                />
-              </div>
-
-              {/* Rate */}
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1.5">
-                  RATE PER QUINTAL
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">
-                    ₹
-                  </span>
-                  <input
-                    type="number"
-                    value={rate}
-                    onChange={(e) => setRate(e.target.value)}
-                    placeholder="0.00"
-                    step="0.01"
-                    min="0"
-                    className={`w-full pl-8 pr-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-                      text-slate-800 placeholder:text-slate-400 
-                      focus:outline-none focus:ring-2 transition-all text-base ${ringClass}`}
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Bags */}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1.5">No. of Bags</label>
+                    <input
+                      type="number"
+                      value={item.bags}
+                      onChange={(e) => {
+                        const newItems = [...cropItems];
+                        newItems[index].bags = e.target.value;
+                        setCropItems(newItems);
+                      }}
+                      placeholder="0"
+                      min="0"
+                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                        text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
+                        transition-all text-base ${ringClass}`}
+                    />
+                  </div>
+                  {/* Packing Size */}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1.5">Packing Size</label>
+                    <input
+                      type="number"
+                      value={item.packingSize}
+                      onChange={(e) => {
+                        const newItems = [...cropItems];
+                        newItems[index].packingSize = e.target.value;
+                        setCropItems(newItems);
+                      }}
+                      placeholder="0"
+                      min="0"
+                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                        text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
+                        transition-all text-base ${ringClass}`}
+                    />
+                  </div>
+                  {/* Weight Qtl */}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1.5">Weight Qtl.</label>
+                    <input
+                      type="number"
+                      value={item.grossQuantity}
+                      onChange={(e) => {
+                        const newItems = [...cropItems];
+                        newItems[index].grossQuantity = e.target.value;
+                        setCropItems(newItems);
+                      }}
+                      placeholder="0.00"
+                      step="0.01"
+                      min="0"
+                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                        text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
+                        transition-all text-base ${ringClass}`}
+                    />
+                  </div>
+                  {/* Deduction Qtl/Bag */}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1.5">Deduction Qtl./Bag</label>
+                    <input
+                      type="number"
+                      value={item.deduction}
+                      onChange={(e) => {
+                        const newItems = [...cropItems];
+                        newItems[index].deduction = e.target.value;
+                        setCropItems(newItems);
+                      }}
+                      placeholder="0.00"
+                      step="0.01"
+                      min="0"
+                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                        text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
+                        transition-all text-base ${ringClass}`}
+                    />
+                  </div>
+                  {/* Rate */}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1.5">RATE PER QUINTAL</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">₹</span>
+                      <input
+                        type="number"
+                        value={item.rate}
+                        onChange={(e) => {
+                          const newItems = [...cropItems];
+                          newItems[index].rate = e.target.value;
+                          setCropItems(newItems);
+                        }}
+                        placeholder="0.00"
+                        step="0.01"
+                        min="0"
+                        className={`w-full pl-8 pr-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                          text-slate-800 placeholder:text-slate-400 
+                          focus:outline-none focus:ring-2 transition-all text-base ${ringClass}`}
+                      />
+                    </div>
+                  </div>
+                  {/* Bones */}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1.5">Bones</label>
+                    <input
+                      type="number"
+                      value={item.bones}
+                      onChange={(e) => {
+                        const newItems = [...cropItems];
+                        newItems[index].bones = e.target.value;
+                        setCropItems(newItems);
+                      }}
+                      placeholder="0"
+                      step="0.01"
+                      min="0"
+                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                        text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
+                        transition-all text-base ${ringClass}`}
+                    />
+                  </div>
+                </div>
+                
+                <div className="bg-white/50 rounded-xl p-3 mt-4 border border-slate-200/50 flex justify-between items-center">
+                  <span className="text-xs text-slate-500 font-medium">Net Quantity</span>
+                  <span className="text-sm font-bold text-slate-700">{netQuantities[index]} Quintals</span>
                 </div>
               </div>
-
-              {/* Bones */}
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1.5">
-                  Bones
-                </label>
-                <input
-                  type="number"
-                  value={bones}
-                  onChange={(e) => setBones(e.target.value)}
-                  placeholder="0"
-                  step="0.01"
-                  min="0"
-                  className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-                    text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
-                    transition-all text-base ${ringClass}`}
-                />
-              </div>
-
+            ))}
+            
+            <div className="grid grid-cols-2 gap-3 pt-4 border-t border-slate-100">
               {/* Adtiya Name */}
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1.5">
@@ -694,31 +804,7 @@ export default function ProcurementPage() {
               </div>
             </div>
 
-            <div className="bg-white/50 rounded-xl p-3 mt-4 border border-slate-200/50 flex justify-between items-center">
-              <span className="text-xs text-slate-500 font-medium">Net Quantity</span>
-              <span className="text-sm font-bold text-slate-700">{netQuantity} Quintals</span>
-            </div>
 
-            {isAdmin && (
-              <div className="mt-4 pt-4 border-t border-slate-100">
-                <label className="block text-sm font-medium text-slate-700 mb-1.5 flex items-center gap-1.5">
-                  <Shield size={14} className="text-purple-600" />
-                  Assign to Agent (Admin Only)
-                </label>
-                <select
-                  value={selectedAgentId}
-                  onChange={(e) => setSelectedAgentId(e.target.value)}
-                  className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-                    text-slate-800 focus:outline-none focus:ring-2 transition-all duration-200 text-base appearance-none ${ringClass}`}
-                >
-                  <option value="">Assign to myself</option>
-                  {agents.map(a => (
-                    <option key={a.id} value={a.id}>{a.name}</option>
-                  ))}
-                </select>
-                <p className="text-xs text-slate-400 mt-1">If not selected, it will be assigned to you.</p>
-              </div>
-            )}
           </div>
         </div>
 
@@ -734,7 +820,7 @@ export default function ProcurementPage() {
                   Total Payout
                 </p>
                 <p className="text-xs text-slate-400">
-                  {netQuantity} Net Qtl × ₹{rate || "0"}
+                  {cropItems.length} item(s)
                 </p>
               </div>
             </div>
@@ -752,7 +838,7 @@ export default function ProcurementPage() {
         {/* Submit */}
         <button
           type="submit"
-          disabled={submitting || !selectedFarmer || !grossQuantity || !rate}
+          disabled={submitting || !selectedFarmer || cropItems.some(i => !i.grossQuantity || !i.rate)}
           className={`w-full py-4 rounded-2xl bg-gradient-to-r text-white text-base font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl active:scale-[0.99] ${submitButtonClass}`}
         >
           {submitting ? (
@@ -767,12 +853,13 @@ export default function ProcurementPage() {
       </form>
 
       {/* Receipt Modal */}
-      {receipt && (
+      {receipts.length > 0 && (
         <PurchaseSlip
-          receipt={receipt}
-          onClose={() => setReceipt(null)}
+          receipts={receipts}
+          onClose={() => setReceipts([])}
         />
       )}
+
     </div>
   );
 }

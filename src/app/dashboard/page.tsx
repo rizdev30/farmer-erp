@@ -283,10 +283,13 @@ export default function DashboardPage() {
   // Prefetch background pages after stats load
   useEffect(() => {
     if (!stats) return;
-    prefetchCache("farmers-list---", () => getFarmers({}).then((d) => d as any[]));
+    prefetchCache("farmers-list----", () => getFarmers({}).then((d) => d as any[]));
     prefetchCache("history-records---", () => getProcurementHistory({}));
     prefetchCache("history-summary-", () => getMonthlySummary());
-  }, [stats]);
+    if ((session?.user as any)?.isSuperAdmin) {
+      prefetchCache("agents-list", () => fetch("/api/agents").then((r) => r.json()));
+    }
+  }, [stats, session]);
 
   // Click handlers
   const handleVarietyClick = useCallback((variety: string) => {
@@ -600,6 +603,34 @@ export default function DashboardPage() {
             </div>
           </div>
         </Link>
+
+        {(session?.user as any)?.roles?.includes("L3_PO_MAKER") || (session?.user as any)?.roles?.includes("L4_ADMIN") || (session?.user as any)?.isSuperAdmin ? (
+          <Link href="/dashboard/po-records" className="glass-card rounded-2xl p-6 group">
+            <div className="flex items-center gap-4">
+              <div className="shrink-0 w-12 h-12 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
+                <FileText size={22} className="text-white" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-slate-800 group-hover:text-indigo-700 transition-colors">PO Maker & Records</h3>
+                <p className="text-sm text-slate-500">Create, view, and edit Purchase Orders</p>
+              </div>
+            </div>
+          </Link>
+        ) : null}
+
+        {(session?.user as any)?.isSuperAdmin || (session?.user as any)?.roles?.includes("L4_ADMIN") ? (
+          <Link href="/dashboard/agents" className="glass-card rounded-2xl p-6 group">
+            <div className="flex items-center gap-4">
+              <div className="shrink-0 w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
+                <Users size={22} className="text-white" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-slate-800 group-hover:text-purple-700 transition-colors">Manage Agents</h3>
+                <p className="text-sm text-slate-500">View and manage agent accounts</p>
+              </div>
+            </div>
+          </Link>
+        ) : null}
       </div>
     </div>
   );

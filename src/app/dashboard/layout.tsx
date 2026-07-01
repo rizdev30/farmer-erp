@@ -15,6 +15,7 @@ import {
   Sprout,
   ChevronRight,
   Settings as SettingsIcon,
+  FileText,
 } from "lucide-react";
 
 const navItems = [
@@ -36,9 +37,17 @@ export default function DashboardLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
   const { data: session } = useSession();
-  const isAdmin = session?.user?.role === "L4_ADMIN";
-
-  const allNavItems = isAdmin ? [...navItems, ...adminItems] : navItems;
+  const isSuperAdmin = (session?.user as any)?.isSuperAdmin === true;
+  const isL4Admin = (session?.user as any)?.roles?.includes("L4_ADMIN") === true;
+  const isL3Maker = (session?.user as any)?.roles?.includes("L3_PO_MAKER") === true;
+  
+  const allNavItems = [...navItems];
+  if (isL3Maker || isL4Admin || isSuperAdmin) {
+    allNavItems.push({ href: "/dashboard/po-records", label: "PO Maker", icon: FileText });
+  }
+  if (isL4Admin || isSuperAdmin) {
+    allNavItems.push(...adminItems);
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
@@ -137,7 +146,7 @@ export default function DashboardLayout({
                   {session?.user?.name || "User"}
                 </p>
                 <p className="text-[11px] text-forest-300/60 truncate">
-                  {session?.user?.role || "Agent"}
+                  {(session?.user as any)?.roles?.join(", ") || "Agent"}
                 </p>
               </div>
             </div>
@@ -157,7 +166,7 @@ export default function DashboardLayout({
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Mobile Header (No longer has hamburger) */}
-        <header className="md:hidden flex items-center justify-center px-4 py-3 glass border-b border-slate-200/50 print:hidden relative">
+        <header className="md:hidden flex items-center justify-center px-4 pb-2 glass border-b border-slate-200/50 print:hidden relative" style={{ paddingTop: "max(0.375rem, env(safe-area-inset-top))" }}>
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-gradient-to-br from-forest-500 to-forest-600 rounded-lg flex items-center justify-center">
               <Sprout className="w-4 h-4 text-white" />
@@ -176,8 +185,8 @@ export default function DashboardLayout({
         </div>
 
         {/* Mobile Bottom Navigation */}
-        <nav className={`md:hidden fixed bottom-0 left-0 right-0 glass border-t border-slate-200/50 z-40 print:hidden shadow-[0_-4px_24px_rgba(0,0,0,0.04)] ${sidebarOpen ? "hidden" : "block"}`} style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
-          <div className="flex items-center justify-around h-16 px-2">
+        <nav className={`md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-[8px] border-t border-slate-200/80 z-40 print:hidden shadow-[0_-4px_16px_rgba(0,0,0,0.04)] ${sidebarOpen ? "hidden" : "block"}`} style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+          <div className="flex items-center justify-around h-[52px] px-2">
             {allNavItems.map((item) => {
               const isActive = pathname === item.href;
               return (
@@ -185,7 +194,7 @@ export default function DashboardLayout({
                   key={item.href}
                   href={item.href}
                   className={`
-                    flex flex-col items-center justify-center w-full h-full space-y-1
+                    flex flex-col items-center justify-center w-full h-full space-y-0.5
                     transition-colors duration-200
                     ${
                       isActive

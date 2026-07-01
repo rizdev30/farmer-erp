@@ -5,6 +5,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  viewportFit: "cover",
   themeColor: "#059669", // forest-600 (Solid smooth green)
 };
 import { Inter } from "next/font/google";

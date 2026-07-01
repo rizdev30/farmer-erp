@@ -9,15 +9,26 @@ import {
   CheckCircle2,
   Sprout,
   Loader2,
+  FileText
 } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+
+// Narrow the type to the success case of the ProcurementReceipt union
+type SuccessReceipt = Extract<ProcurementReceipt, { success: true }>;
 
 interface Props {
-  receipt: ProcurementReceipt;
+  receipts: SuccessReceipt[];
   onClose: () => void;
 }
 
-export default function PurchaseSlip({ receipt, onClose }: Props) {
+export default function PurchaseSlip({ receipts, onClose }: Props) {
   const [isSharing, setIsSharing] = useState(false);
+  const { data: session } = useSession();
+  const router = useRouter();
+
+  const userRoles = (session?.user as any)?.roles || [];
+  const canMakePO = userRoles.includes("L3_PO_MAKER") || userRoles.includes("L4_ADMIN") || (session?.user as any)?.isSuperAdmin;
 
   // Computed immediately on render
   const currentTime = new Date().toLocaleString("en-IN", {
@@ -25,7 +36,8 @@ export default function PurchaseSlip({ receipt, onClose }: Props) {
     timeStyle: "short",
   });
 
-  const formattedDate = new Date(receipt.timestamp).toLocaleString("en-IN", {
+  const firstReceipt = receipts[0];
+  const formattedDate = new Date(firstReceipt.timestamp).toLocaleString("en-IN", {
     dateStyle: "long",
     timeStyle: "short",
   });
@@ -54,14 +66,14 @@ export default function PurchaseSlip({ receipt, onClose }: Props) {
 
       canvas.toBlob(async (blob) => {
         if (!blob) return;
-        const file = new File([blob], `Receipt_${receipt.slipId}.jpg`, {
+        const file = new File([blob], `Receipt_${firstReceipt.slipId}.jpg`, {
           type: "image/jpeg",
         });
 
         const shareData = {
           files: [file],
           title: "Purchase Receipt",
-          text: `Farmer ERP Receipt - ${receipt.slipId}`,
+          text: `Farmer ERP Receipt - ${firstReceipt.slipId}`,
         };
 
         if (navigator.canShare && navigator.canShare(shareData)) {
@@ -95,7 +107,7 @@ export default function PurchaseSlip({ receipt, onClose }: Props) {
     }
 
     const originalTitle = document.title;
-    document.title = `Receipt_${receipt.farmerName.replace(/\s+/g, "_")}_${receipt.slipId}`;
+    document.title = `Receipt_${firstReceipt.farmerName.replace(/\s+/g, "_")}_${firstReceipt.slipId}`;
     window.print();
     document.title = originalTitle;
   }
@@ -134,13 +146,13 @@ export default function PurchaseSlip({ receipt, onClose }: Props) {
               <div className="relative z-10 text-left">
                 <span className="text-xs text-slate-400 print:text-black">Authorized Agent</span>
                 <span className="block text-sm font-semibold text-slate-800 print:text-black">
-                  {receipt.agentName || "Agent"}
+                  {firstReceipt.agentName || "Agent"}
                 </span>
               </div>
               <div className="text-right">
                 <p className="text-xs text-slate-400 print:text-black">Slip ID</p>
                 <p className="text-sm font-mono font-bold text-slate-800 print:text-black">
-                  {receipt.slipId}
+                  {firstReceipt.slipId}
                 </p>
               </div>
             </div>
@@ -160,15 +172,15 @@ export default function PurchaseSlip({ receipt, onClose }: Props) {
                 <div className="grid grid-cols-2 gap-y-3 gap-x-2">
                   <div>
                     <span className="block text-[10px] text-slate-400 print:text-black">Name</span>
-                    <span className="block text-xs font-semibold text-slate-800 print:text-black">{receipt.farmerName}</span>
+                    <span className="block text-xs font-semibold text-slate-800 print:text-black">{firstReceipt.farmerName}</span>
                   </div>
                   <div className="text-right">
                     <span className="block text-[10px] text-slate-400 print:text-black">Father</span>
-                    <span className="block text-xs font-medium text-slate-700 print:text-black">{receipt.fatherName || "N/A"}</span>
+                    <span className="block text-xs font-medium text-slate-700 print:text-black">{firstReceipt.fatherName || "N/A"}</span>
                   </div>
                   <div>
                     <span className="block text-[10px] text-slate-400 print:text-black">Code</span>
-                    <span className="block text-xs font-mono font-medium text-slate-700 print:text-black">{receipt.farmerCode || "N/A"}</span>
+                    <span className="block text-xs font-mono font-medium text-slate-700 print:text-black">{firstReceipt.farmerCode || "N/A"}</span>
                   </div>
                   <div className="text-right">
                     <span className="block text-[10px] text-slate-400 print:text-black">Phone</span>
@@ -177,7 +189,7 @@ export default function PurchaseSlip({ receipt, onClose }: Props) {
                   <div className="col-span-2 border-t border-slate-50 pt-2 print:border-black/10 mt-1">
                     <span className="block text-[10px] text-slate-400 print:text-black">Location</span>
                     <span className="block text-xs font-medium text-slate-700 print:text-black">
-                      {receipt.village || "N/A"}
+                      {firstReceipt.village || "N/A"}
                     </span>
                   </div>
                 </div>
@@ -187,56 +199,70 @@ export default function PurchaseSlip({ receipt, onClose }: Props) {
 
               {/* Data Table */}
               <div className="pt-2 text-slate-800 print:text-black">
-                <table className="w-full text-xs sm:text-sm border-collapse border border-slate-400 print:border-black table-fixed">
-                  <tbody>
-                    <tr>
-                      <td className="border border-slate-400 print:border-black p-2 w-1/2">
-                        Crop: <span className="font-semibold ml-1">{receipt.crop}</span>
-                      </td>
-                      <td className="border border-slate-400 print:border-black p-2 w-1/2">
-                        Variety: <span className="font-semibold ml-1">{receipt.variety || "-"}</span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="border border-slate-400 print:border-black p-2">
-                        No. of Bags: <span className="font-semibold ml-1">{receipt.bags}</span>
-                      </td>
-                      <td className="border border-slate-400 print:border-black p-2">
-                        Packing Size: <span className="font-semibold ml-1">{receipt.packingSize}</span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="border border-slate-400 print:border-black p-2">
-                        Weight Qtl.: <span className="font-semibold ml-1">{receipt.grossQuantity}</span>
-                      </td>
-                      <td className="border border-slate-400 print:border-black p-2">
-                        Deduction Qtl./Bag: <span className="font-semibold ml-1">{receipt.deduction}</span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="border border-slate-400 print:border-black p-2">
-                        RATE PER QUINTAL: <span className="font-semibold ml-1">{receipt.rate}</span>
-                      </td>
-                      <td className="border border-slate-400 print:border-black p-2">
-                        Bones: <span className="font-semibold ml-1">{receipt.bones}</span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="border border-slate-400 print:border-black p-2">
-                        Adtiya Name: <span className="font-semibold ml-1">{receipt.adtiyaName || "-"}</span>
-                      </td>
-                      <td className="border border-slate-400 print:border-black p-2">
-                        Lot no.: <span className="font-semibold ml-1">{receipt.lotNo || "-"}</span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td colSpan={2} className="border border-slate-400 print:border-black p-2">
-                        <span className="font-semibold">Total Payout: </span>
-                        <span className="font-bold text-base ml-2">₹{receipt.total.toLocaleString("en-IN")}</span>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+                {receipts.map((receipt, index) => (
+                  <div key={index} className="mb-4">
+                    <p className="text-[10px] font-bold text-forest-600 uppercase tracking-wider mb-1 print:text-black">
+                      {receipts.length > 1 ? `Item ${index + 1}: ${receipt.crop}` : "Item Details"}
+                    </p>
+                    <table className="w-full text-xs sm:text-sm border-collapse border border-slate-400 print:border-black table-fixed">
+                      <tbody>
+                        <tr>
+                          <td className="border border-slate-400 print:border-black p-2 w-1/2">
+                            Crop: <span className="font-semibold ml-1">{receipt.crop}</span>
+                          </td>
+                          <td className="border border-slate-400 print:border-black p-2 w-1/2">
+                            Variety: <span className="font-semibold ml-1">{receipt.variety || "-"}</span>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td className="border border-slate-400 print:border-black p-2">
+                            No. of Bags: <span className="font-semibold ml-1">{receipt.bags}</span>
+                          </td>
+                          <td className="border border-slate-400 print:border-black p-2">
+                            Packing Size: <span className="font-semibold ml-1">{receipt.packingSize}</span>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td className="border border-slate-400 print:border-black p-2">
+                            Weight Qtl.: <span className="font-semibold ml-1">{receipt.grossQuantity}</span>
+                          </td>
+                          <td className="border border-slate-400 print:border-black p-2">
+                            Deduction Qtl./Bag: <span className="font-semibold ml-1">{receipt.deduction}</span>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td className="border border-slate-400 print:border-black p-2">
+                            RATE PER QUINTAL: <span className="font-semibold ml-1">{receipt.rate}</span>
+                          </td>
+                          <td className="border border-slate-400 print:border-black p-2">
+                            Bones: <span className="font-semibold ml-1">{receipt.bones}</span>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td className="border border-slate-400 print:border-black p-2">
+                            Adtiya Name: <span className="font-semibold ml-1">{receipt.adtiyaName || "-"}</span>
+                          </td>
+                          <td className="border border-slate-400 print:border-black p-2">
+                            Lot no.: <span className="font-semibold ml-1">{receipt.lotNo || "-"}</span>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td colSpan={2} className="border border-slate-400 print:border-black p-2 bg-slate-50 print:bg-transparent">
+                            <span className="font-semibold">Item Total: </span>
+                            <span className="font-bold text-base ml-2">₹{receipt.total.toLocaleString("en-IN")}</span>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                ))}
+                
+                {receipts.length > 1 && (
+                  <div className="border-t-2 border-slate-800 print:border-black pt-2 mt-2 flex justify-between items-center px-2">
+                    <span className="font-bold text-sm uppercase">Grand Total:</span>
+                    <span className="font-black text-lg">₹{receipts.reduce((sum, r) => sum + r.total, 0).toLocaleString("en-IN")}</span>
+                  </div>
+                )}
               </div>
 
               {/* Caption and Timestamp of Generation */}
@@ -286,6 +312,19 @@ export default function PurchaseSlip({ receipt, onClose }: Props) {
               <X size={18} />
             </button>
           </div>
+
+          {/* Make PO Button for L3/L4 users */}
+          {canMakePO && (
+            <div className="px-6 pb-6 print:hidden">
+              <button
+                onClick={() => router.push(`/dashboard/po-maker?slipId=${firstReceipt.slipId}`)}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-forest-600 text-white text-sm font-semibold hover:bg-forest-700 transition-colors shadow-sm"
+              >
+                <FileText size={16} />
+                Make a PO
+              </button>
+            </div>
+          )}
         </div>
       </div>
       <style dangerouslySetInnerHTML={{__html: `
