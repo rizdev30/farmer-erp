@@ -15,6 +15,7 @@ import {
   Sprout,
   ChevronRight,
   Settings as SettingsIcon,
+  FileText,
 } from "lucide-react";
 
 const navItems = [
@@ -38,7 +39,15 @@ export default function DashboardLayout({
   const { data: session } = useSession();
   const isSuperAdmin = (session?.user as any)?.isSuperAdmin === true;
   const isL4Admin = (session?.user as any)?.roles?.includes("L4_ADMIN") === true;
-  const allNavItems = (isSuperAdmin || isL4Admin) ? [...navItems, ...adminItems] : navItems;
+  const isL3Maker = (session?.user as any)?.roles?.includes("L3_PO_MAKER") === true;
+  
+  const allNavItems = [...navItems];
+  if (isL3Maker || isL4Admin || isSuperAdmin) {
+    allNavItems.push({ href: "/dashboard/po-records", label: "PO Maker", icon: FileText });
+  }
+  if (isL4Admin || isSuperAdmin) {
+    allNavItems.push(...adminItems);
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">

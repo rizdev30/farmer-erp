@@ -287,10 +287,10 @@ function POMakerForm() {
   };
 
   return (
-    <div className="max-w-[100vw] mx-auto min-h-screen flex flex-col xl:flex-row pb-20 xl:pb-0 overflow-hidden">
+    <div className="max-w-[100vw] mx-auto min-h-screen flex flex-col xl:flex-row pb-24 xl:pb-0 overflow-hidden">
       
       {/* LEFT SIDE: CONTROLS */}
-      <div className="w-full xl:w-[45%] h-full xl:max-h-screen xl:overflow-y-auto p-4 md:p-6 space-y-6 bg-slate-50 border-r border-slate-200 print:hidden">
+      <div className="w-full xl:w-[45%] h-full xl:max-h-screen xl:overflow-y-auto p-4 md:p-6 space-y-6 bg-slate-50 border-r border-slate-200 print:hidden pb-32 xl:pb-6">
         <div className="flex items-center gap-3">
           <button
             onClick={() => router.back()}
@@ -399,34 +399,34 @@ function POMakerForm() {
             {originalProcurement && (
               <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Item Details & Pricing</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-y-4 gap-x-3">
                   <div>
                     <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">HSN Code</label>
-                    <input type="text" value={hsnCode} onChange={(e) => setHsnCode(e.target.value)} className="w-full text-xs font-bold text-slate-800 border-b border-slate-200 py-1 focus:border-forest-500 focus:outline-none" />
+                    <input type="text" value={hsnCode} onChange={(e) => setHsnCode(e.target.value)} className="w-full text-sm font-bold text-slate-800 border-b border-slate-200 py-1.5 focus:border-forest-500 focus:outline-none" />
                   </div>
                   <div>
                     <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">Packing (kg)</label>
-                    <input type="number" value={packingSize || ""} onChange={(e) => setPackingSize(Number(e.target.value) || 0)} placeholder="50" className="w-full text-xs font-bold text-slate-800 border-b border-slate-200 py-1 focus:border-forest-500 focus:outline-none" />
+                    <input type="number" value={packingSize || ""} onChange={(e) => setPackingSize(Number(e.target.value) || 0)} placeholder="50" className="w-full text-sm font-bold text-slate-800 border-b border-slate-200 py-1.5 focus:border-forest-500 focus:outline-none" />
                   </div>
                   <div>
                     <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">GST %</label>
-                    <input type="number" value={gstPercent || ""} onChange={(e) => setGstPercent(Number(e.target.value) || 0)} placeholder="0" className="w-full text-xs font-bold text-slate-800 border-b border-slate-200 py-1 focus:border-forest-500 focus:outline-none" />
+                    <input type="number" value={gstPercent || ""} onChange={(e) => setGstPercent(Number(e.target.value) || 0)} placeholder="0" className="w-full text-sm font-bold text-slate-800 border-b border-slate-200 py-1.5 focus:border-forest-500 focus:outline-none" />
                   </div>
-                  <div>
+                  <div className="col-span-2 sm:col-span-1">
                     <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">Crop Name</label>
-                    <input type="text" value={manualCrop} onChange={(e) => setManualCrop(e.target.value)} className="w-full text-xs font-bold text-slate-800 border-b border-slate-200 py-1 focus:border-forest-500 focus:outline-none" />
+                    <input type="text" value={manualCrop} onChange={(e) => setManualCrop(e.target.value)} className="w-full text-sm font-bold text-slate-800 border-b border-slate-200 py-1.5 focus:border-forest-500 focus:outline-none" />
                   </div>
                   <div className="col-span-2">
                     <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">Crop Variety (Compliance)</label>
-                    <input type="text" value={manualVariety} onChange={(e) => setManualVariety(e.target.value)} className="w-full text-xs font-bold text-slate-800 border-b border-slate-200 py-1 focus:border-forest-500 focus:outline-none" />
+                    <input type="text" value={manualVariety} onChange={(e) => setManualVariety(e.target.value)} className="w-full text-sm font-bold text-slate-800 border-b border-slate-200 py-1.5 focus:border-forest-500 focus:outline-none" />
                   </div>
-                  <div className="col-span-1">
+                  <div className="col-span-2 sm:col-span-1">
                     <label className="text-[10px] font-bold text-blue-600 block mb-1 uppercase">Rate Override (₹)</label>
-                    <input type="number" placeholder="Auto" value={manualRate} onChange={(e) => setManualRate(e.target.value === "" ? "" : Number(e.target.value))} className="w-full text-xs font-bold text-slate-800 border-b border-slate-200 py-1 focus:border-blue-500 focus:outline-none" />
+                    <input type="number" placeholder="Auto" value={manualRate} onChange={(e) => setManualRate(e.target.value === "" ? "" : Number(e.target.value))} className="w-full text-sm font-bold text-slate-800 border-b border-slate-200 py-1.5 focus:border-blue-500 focus:outline-none" />
                   </div>
                   <div className="col-span-2">
                     <label className="text-[10px] font-bold text-blue-600 block mb-1 uppercase">Net Qty Override (Qtl)</label>
-                    <input type="number" placeholder="Auto (Leaves it to Bag Calculation)" value={manualNetQty} onChange={(e) => setManualNetQty(e.target.value === "" ? "" : Number(e.target.value))} className="w-full text-xs font-bold text-slate-800 border-b border-slate-200 py-1 focus:border-blue-500 focus:outline-none" />
+                    <input type="number" placeholder="Auto (Leaves it to Bag Calculation)" value={manualNetQty} onChange={(e) => setManualNetQty(e.target.value === "" ? "" : Number(e.target.value))} className="w-full text-sm font-bold text-slate-800 border-b border-slate-200 py-1.5 focus:border-blue-500 focus:outline-none" />
                   </div>
                 </div>
               </div>
@@ -476,14 +476,14 @@ function POMakerForm() {
               </div>
             </div>
 
-            {/* Footer Actions (Control Panel) */}
-            <div className="pt-4 pb-12 flex justify-end gap-3 print:hidden">
-              <button onClick={handlePrint} className="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-semibold flex items-center gap-2 hover:bg-slate-100 active:bg-slate-200 transition-all bg-white shadow-sm">
-                <Printer size={16} /> Print Final PO
+            {/* Footer Actions (Sticky on Mobile, Regular on Desktop) */}
+            <div className="fixed bottom-16 left-0 right-0 p-4 bg-white/90 backdrop-blur-md border-t border-slate-200 shadow-[0_-4px_10px_-1px_rgba(0,0,0,0.1)] z-40 flex justify-between gap-3 print:hidden xl:static xl:bottom-auto xl:left-auto xl:right-auto xl:p-0 xl:bg-transparent xl:border-none xl:shadow-none xl:z-auto xl:pt-4 xl:pb-12 xl:justify-end xl:backdrop-blur-none">
+              <button onClick={handlePrint} className="flex-1 xl:flex-none justify-center px-4 xl:px-5 py-3 xl:py-2.5 rounded-xl border border-slate-300 text-slate-700 font-semibold flex items-center gap-2 hover:bg-slate-100 active:bg-slate-200 transition-all bg-white shadow-sm">
+                <Printer size={18} className="xl:w-4 xl:h-4" /> <span className="hidden sm:inline xl:inline">Print Final PO</span><span className="sm:hidden">Print</span>
               </button>
-              <button onClick={handleSave} disabled={saving} className="px-6 py-2.5 bg-forest-600 text-white font-semibold rounded-xl hover:bg-forest-700 active:bg-forest-800 transition-all disabled:opacity-50 flex items-center gap-2 shadow-md">
-                {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} 
-                {saving ? "Saving..." : "Save PO to DB"}
+              <button onClick={handleSave} disabled={saving} className="flex-1 xl:flex-none justify-center px-4 xl:px-6 py-3 xl:py-2.5 bg-forest-600 text-white font-semibold rounded-xl hover:bg-forest-700 active:bg-forest-800 transition-all disabled:opacity-50 flex items-center gap-2 shadow-md">
+                {saving ? <Loader2 size={18} className="animate-spin xl:w-4 xl:h-4" /> : <Save size={18} className="xl:w-4 xl:h-4" />} 
+                {saving ? "Saving..." : <><span className="hidden sm:inline xl:inline">Save PO to DB</span><span className="sm:hidden">Save PO</span></>}
               </button>
             </div>
             
@@ -492,10 +492,10 @@ function POMakerForm() {
       </div>
 
       {/* RIGHT SIDE: LIVE PREVIEW */}
-      <div className="w-full xl:w-[55%] h-full xl:max-h-screen xl:overflow-y-auto bg-slate-200/50 flex flex-col items-center py-8 print:p-0 print:bg-white print:w-full print:block">
+      <div className="w-full xl:w-[55%] h-full xl:max-h-screen xl:overflow-y-auto overflow-x-auto bg-slate-200/50 flex flex-col py-8 print:p-0 print:bg-white print:w-full print:block">
         
         {poData ? (
-          <div className="w-full max-w-[210mm] mx-auto bg-white text-black shadow-2xl print:shadow-none p-4 sm:p-6 md:p-8 print:p-0 text-[10px] sm:text-[11px] print:text-[9.5px] font-sans leading-tight transform origin-top xl:scale-[0.85] 2xl:scale-100 transition-transform">
+          <div className="w-[210mm] min-w-[210mm] mx-auto bg-white text-black shadow-2xl print:shadow-none p-4 sm:p-6 md:p-8 print:p-0 text-[10px] sm:text-[11px] print:text-[9.5px] font-sans leading-tight transform origin-top xl:scale-[0.85] 2xl:scale-100 transition-transform">
             
             <style>{`
               @media print {
