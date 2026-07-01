@@ -492,10 +492,10 @@ function POMakerForm() {
       </div>
 
       {/* RIGHT SIDE: LIVE PREVIEW */}
-      <div className="w-full xl:w-[55%] h-full xl:max-h-screen xl:overflow-y-auto overflow-x-auto bg-slate-200/50 flex flex-col py-8 print:p-0 print:bg-white print:w-full print:block">
+      <div className="w-full xl:w-[55%] h-full xl:max-h-screen xl:overflow-y-auto overflow-x-auto print:overflow-visible bg-slate-200/50 flex flex-col xl:items-center py-8 print:p-0 print:bg-white print:w-full print:block">
         
         {poData ? (
-          <div className="w-[210mm] min-w-[210mm] mx-auto bg-white text-black shadow-2xl print:shadow-none p-4 sm:p-6 md:p-8 print:p-0 text-[10px] sm:text-[11px] print:text-[9.5px] font-sans leading-tight transform origin-top xl:scale-[0.85] 2xl:scale-100 transition-transform">
+          <div className="w-[210mm] xl:w-full min-w-[210mm] xl:min-w-0 max-w-[210mm] mx-auto bg-white text-black shadow-2xl print:shadow-none p-4 sm:p-6 md:p-8 print:p-0 text-[10px] sm:text-[11px] print:text-[9.5px] font-sans leading-tight transform origin-top xl:scale-[0.85] 2xl:scale-100 transition-transform">
             
             <style>{`
               @media print {
