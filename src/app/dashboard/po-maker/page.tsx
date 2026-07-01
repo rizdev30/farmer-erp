@@ -499,21 +499,23 @@ function POMakerForm() {
             
             <style>{`
               @media print {
-                @page { size: A4 portrait; margin: 10mm; }
-                body { -webkit-print-color-adjust: exact; print-color-adjust: exact; margin: 0; background: white !important; }
+                @page { size: A4 portrait; margin: 0mm; }
+                body { -webkit-print-color-adjust: exact; print-color-adjust: exact; margin: 0; padding: 0; background: white !important; }
                 body * { visibility: hidden; }
                 #printable-po, #printable-po * { visibility: visible; }
                 #printable-po {
                   position: absolute !important;
                   left: 0 !important;
                   top: 0 !important;
-                  width: 100% !important;
-                  max-width: 100% !important;
+                  width: 210mm !important;
+                  min-height: 297mm !important;
+                  padding: 10mm !important;
+                  box-sizing: border-box !important;
                   margin: 0 !important;
-                  padding: 0 !important;
                   transform: none !important;
                   box-shadow: none !important;
                   border: none !important;
+                  background: white !important;
                 }
                 .print-exact-a4 { width: 100% !important; max-width: none !important; }
               }
