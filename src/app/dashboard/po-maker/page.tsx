@@ -495,13 +495,26 @@ function POMakerForm() {
       <div className="w-full xl:w-[55%] h-full xl:max-h-screen xl:overflow-y-auto overflow-x-auto print:overflow-visible print:h-auto print:max-h-none bg-slate-200/50 flex flex-col xl:items-center py-8 print:p-0 print:bg-white print:w-full print:block">
         
         {poData ? (
-          <div className="w-[210mm] xl:w-full min-w-[210mm] xl:min-w-0 max-w-[210mm] mx-auto bg-white text-black shadow-2xl print:shadow-none p-4 sm:p-6 md:p-8 print:p-0 text-[10px] sm:text-[11px] print:text-[9.5px] font-sans leading-tight transform origin-top xl:scale-[0.85] 2xl:scale-100 print:scale-100 print:transform-none transition-transform">
+          <div id="printable-po" className="w-[210mm] xl:w-full min-w-[210mm] xl:min-w-0 max-w-[210mm] mx-auto bg-white text-black shadow-2xl print:shadow-none p-4 sm:p-6 md:p-8 print:p-0 text-[10px] sm:text-[11px] print:text-[9.5px] font-sans leading-tight transform origin-top xl:scale-[0.85] 2xl:scale-100 print:scale-100 print:transform-none transition-transform">
             
             <style>{`
               @media print {
                 @page { size: A4 portrait; margin: 10mm; }
-                body { -webkit-print-color-adjust: exact; print-color-adjust: exact; margin: 0; }
-                html, body { height: 100%; }
+                body { -webkit-print-color-adjust: exact; print-color-adjust: exact; margin: 0; background: white !important; }
+                body * { visibility: hidden; }
+                #printable-po, #printable-po * { visibility: visible; }
+                #printable-po {
+                  position: absolute !important;
+                  left: 0 !important;
+                  top: 0 !important;
+                  width: 100% !important;
+                  max-width: 100% !important;
+                  margin: 0 !important;
+                  padding: 0 !important;
+                  transform: none !important;
+                  box-shadow: none !important;
+                  border: none !important;
+                }
                 .print-exact-a4 { width: 100% !important; max-width: none !important; }
               }
             `}</style>
