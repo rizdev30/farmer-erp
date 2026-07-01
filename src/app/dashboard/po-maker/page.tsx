@@ -18,6 +18,7 @@ function POMakerForm() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [poData, setPoData] = useState<any>(null);
+  const [mobileTab, setMobileTab] = useState<"edit" | "preview">("edit");
 
   // Form states
   const [companyName, setCompanyName] = useState("Farmer ERP");
@@ -289,8 +290,26 @@ function POMakerForm() {
   return (
     <div className="max-w-[100vw] mx-auto min-h-screen flex flex-col xl:flex-row pb-24 xl:pb-0 overflow-hidden print:overflow-visible print:h-auto print:block">
       
+      {/* MOBILE TAB TOGGLE */}
+      {poData && (
+        <div className="xl:hidden flex items-center p-1.5 bg-slate-200 m-4 rounded-xl print:hidden sticky top-4 z-40">
+          <button 
+            onClick={() => setMobileTab('edit')} 
+            className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all ${mobileTab === 'edit' ? 'bg-white shadow-sm text-forest-700' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            Editor
+          </button>
+          <button 
+            onClick={() => setMobileTab('preview')} 
+            className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all ${mobileTab === 'preview' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            Preview
+          </button>
+        </div>
+      )}
+
       {/* LEFT SIDE: CONTROLS */}
-      <div className="w-full xl:w-[45%] h-full xl:max-h-screen xl:overflow-y-auto p-4 md:p-6 space-y-6 bg-slate-50 border-r border-slate-200 print:hidden pb-32 xl:pb-6">
+      <div className={`w-full xl:w-[45%] h-full xl:max-h-screen xl:overflow-y-auto p-4 md:p-6 space-y-6 bg-slate-50 border-r border-slate-200 print:hidden pb-32 xl:pb-6 ${poData && mobileTab === 'preview' ? 'hidden xl:block' : 'block'}`}>
         <div className="flex items-center gap-3">
           <button
             onClick={() => router.back()}
@@ -476,14 +495,14 @@ function POMakerForm() {
               </div>
             </div>
 
-            {/* Footer Actions (Sticky on Mobile, Regular on Desktop) */}
-            <div className="fixed bottom-16 left-0 right-0 p-4 bg-white/90 backdrop-blur-md border-t border-slate-200 shadow-[0_-4px_10px_-1px_rgba(0,0,0,0.1)] z-40 flex justify-between gap-3 print:hidden xl:static xl:bottom-auto xl:left-auto xl:right-auto xl:p-0 xl:bg-transparent xl:border-none xl:shadow-none xl:z-auto xl:pt-4 xl:pb-12 xl:justify-end xl:backdrop-blur-none">
-              <button onClick={handlePrint} className="flex-1 xl:flex-none justify-center px-4 xl:px-5 py-3 xl:py-2.5 rounded-xl border border-slate-300 text-slate-700 font-semibold flex items-center gap-2 hover:bg-slate-100 active:bg-slate-200 transition-all bg-white shadow-sm">
-                <Printer size={18} className="xl:w-4 xl:h-4" /> <span className="hidden sm:inline xl:inline">Print Final PO</span><span className="sm:hidden">Print</span>
+            {/* Desktop Action Buttons (Hidden on Mobile) */}
+            <div className="hidden xl:flex pt-4 pb-12 justify-end gap-3">
+              <button onClick={handlePrint} className="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-semibold flex items-center gap-2 hover:bg-slate-100 active:bg-slate-200 transition-all bg-white shadow-sm">
+                <Printer size={18} /> Print Final PO
               </button>
-              <button onClick={handleSave} disabled={saving} className="flex-1 xl:flex-none justify-center px-4 xl:px-6 py-3 xl:py-2.5 bg-forest-600 text-white font-semibold rounded-xl hover:bg-forest-700 active:bg-forest-800 transition-all disabled:opacity-50 flex items-center gap-2 shadow-md">
-                {saving ? <Loader2 size={18} className="animate-spin xl:w-4 xl:h-4" /> : <Save size={18} className="xl:w-4 xl:h-4" />} 
-                {saving ? "Saving..." : <><span className="hidden sm:inline xl:inline">Save PO to DB</span><span className="sm:hidden">Save PO</span></>}
+              <button onClick={handleSave} disabled={saving} className="px-6 py-2.5 bg-forest-600 text-white font-semibold rounded-xl hover:bg-forest-700 active:bg-forest-800 transition-all disabled:opacity-50 flex items-center gap-2 shadow-md">
+                {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />} 
+                {saving ? "Saving..." : "Save PO to DB"}
               </button>
             </div>
             
@@ -492,7 +511,7 @@ function POMakerForm() {
       </div>
 
       {/* RIGHT SIDE: LIVE PREVIEW */}
-      <div className="w-full xl:w-[55%] h-full xl:max-h-screen xl:overflow-y-auto overflow-x-auto print:overflow-visible print:h-auto print:max-h-none bg-slate-200/50 flex flex-col xl:items-center py-8 print:p-0 print:bg-white print:w-full print:block">
+      <div className={`w-full xl:w-[55%] h-full xl:max-h-screen xl:overflow-y-auto overflow-x-auto print:overflow-visible print:h-auto print:max-h-none bg-slate-200/50 flex flex-col xl:items-center py-8 print:p-0 print:bg-white print:w-full print:block pb-40 xl:pb-8 ${mobileTab === 'edit' ? 'hidden xl:flex' : 'flex'}`}>
         
         {poData ? (
           <div id="printable-po" className="w-[210mm] xl:w-full min-w-[210mm] xl:min-w-0 max-w-[210mm] mx-auto bg-white text-black shadow-2xl print:shadow-none p-4 sm:p-6 md:p-8 print:p-0 text-[10px] sm:text-[11px] font-sans leading-tight transform origin-top xl:scale-[0.85] 2xl:scale-100 print:scale-100 print:transform-none transition-transform">
@@ -783,6 +802,19 @@ function POMakerForm() {
           </div>
         )}
       </div>
+
+      {/* MOBILE STICKY ACTION BAR - GLOBAL */}
+      {poData && (
+        <div className="xl:hidden fixed bottom-[52px] left-0 right-0 p-4 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-[0_-4px_10px_-1px_rgba(0,0,0,0.1)] z-50 flex justify-between gap-3 print:hidden">
+          <button onClick={handlePrint} className="flex-1 justify-center px-4 py-3 rounded-xl border border-slate-300 text-slate-700 font-semibold flex items-center justify-center gap-2 hover:bg-slate-100 active:bg-slate-200 transition-all bg-white shadow-sm">
+            <Printer size={18} /> Print PO
+          </button>
+          <button onClick={handleSave} disabled={saving} className="flex-1 justify-center px-4 py-3 bg-forest-600 text-white font-semibold rounded-xl hover:bg-forest-700 active:bg-forest-800 transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-md">
+            {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />} 
+            {saving ? "Saving..." : "Save PO"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
