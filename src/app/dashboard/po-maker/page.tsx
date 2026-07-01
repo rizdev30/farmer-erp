@@ -519,7 +519,7 @@ function POMakerForm() {
               }
             `}</style>
 
-            <div className="border-[1.5px] border-black print-exact-a4">
+            <div className="border-[1.5px] border-black print-exact-a4 flex flex-col min-h-[277mm]">
               {/* Header */}
               <div className="flex items-center border-b-[1.5px] border-black p-1.5 h-14">
                 <div className="w-[20%]">
@@ -754,7 +754,7 @@ function POMakerForm() {
               </div>
 
               {/* Footer Signature Block */}
-              <div className="flex justify-between p-1.5 border-t-[1.5px] border-black">
+              <div className="flex justify-between p-1.5 border-t-[1.5px] border-black mt-auto bg-white">
                 <div className="w-[60%] text-[7px] print:text-[6.5px] text-justify space-y-0.5 pr-4">
                   <p className="font-bold uppercase">SANCTIONS COMPLIANCE</p>
                   <p>The Buyer has adopted a procedure, which can be consulted on the website www.sharsid.com, by which it has undertaken to comply with the laws on Sanctions imposed by national and international Governments and Bodies, applicable to its business activities, therefore the Seller is required, during the performance of this purchase contract, to undertake to comply with all applicable laws and regulations on economic and trade Sanctions imposed by any relevant governmental authority, including, but not limited to, Sanctions imposed by the United States, the European Union, the United Kingdom, the United Nations and any other relevant Governmental Body.</p>
