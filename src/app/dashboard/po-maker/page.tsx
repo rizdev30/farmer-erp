@@ -495,7 +495,7 @@ function POMakerForm() {
       <div className="w-full xl:w-[55%] h-full xl:max-h-screen xl:overflow-y-auto overflow-x-auto print:overflow-visible print:h-auto print:max-h-none bg-slate-200/50 flex flex-col xl:items-center py-8 print:p-0 print:bg-white print:w-full print:block">
         
         {poData ? (
-          <div id="printable-po" className="w-[210mm] xl:w-full min-w-[210mm] xl:min-w-0 max-w-[210mm] mx-auto bg-white text-black shadow-2xl print:shadow-none p-4 sm:p-6 md:p-8 print:p-0 text-[10px] sm:text-[11px] print:text-[9.5px] font-sans leading-tight transform origin-top xl:scale-[0.85] 2xl:scale-100 print:scale-100 print:transform-none transition-transform">
+          <div id="printable-po" className="w-[210mm] xl:w-full min-w-[210mm] xl:min-w-0 max-w-[210mm] mx-auto bg-white text-black shadow-2xl print:shadow-none p-4 sm:p-6 md:p-8 print:p-0 text-[10px] sm:text-[11px] font-sans leading-tight transform origin-top xl:scale-[0.85] 2xl:scale-100 print:scale-100 print:transform-none transition-transform">
             
             <style>{`
               @media print {
@@ -651,7 +651,7 @@ function POMakerForm() {
               </table>
 
               {/* Terms & Conditions */}
-              <div className="p-1.5 pb-2 text-[9px] sm:text-[10px] print:text-[8.5px]">
+              <div className="p-1.5 pb-2 text-[9px] sm:text-[10px]">
                 <p className="font-bold mb-0.5">Terms & Conditions :</p>
                 <p className="mb-1.5 leading-tight uppercase">THE INSTRUMENT CONTAINS ALL THE TERMS AND CONDITIONS WITH RESPECT TO PURCHASE OF THE MATERIAL OR SERVICES NAMED HEREIN.<br/>NO MODIFICATION OR AMENDMENT TO SHALL HAVE ANY FORCE OR EFFECT UNLESS CONFIRMED BY BUYERS IN WRITING.</p>
                 
@@ -757,7 +757,7 @@ function POMakerForm() {
 
               {/* Footer Signature Block */}
               <div className="flex justify-between p-1.5 border-t-[1.5px] border-black mt-auto bg-white">
-                <div className="w-[60%] text-[7px] print:text-[6.5px] text-justify space-y-0.5 pr-4">
+                <div className="w-[60%] text-[7px] text-justify space-y-0.5 pr-4">
                   <p className="font-bold uppercase">SANCTIONS COMPLIANCE</p>
                   <p>The Buyer has adopted a procedure, which can be consulted on the website www.sharsid.com, by which it has undertaken to comply with the laws on Sanctions imposed by national and international Governments and Bodies, applicable to its business activities, therefore the Seller is required, during the performance of this purchase contract, to undertake to comply with all applicable laws and regulations on economic and trade Sanctions imposed by any relevant governmental authority, including, but not limited to, Sanctions imposed by the United States, the European Union, the United Kingdom, the United Nations and any other relevant Governmental Body.</p>
                   <p>In the event of any violation of Sanction laws or subjection to Sanctions, the Buyer shall have the right to immediately terminate this purchase contract without any additional liability, without prejudice to the right to claim damages.</p>
