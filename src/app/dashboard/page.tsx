@@ -611,8 +611,8 @@ export default function DashboardPage() {
                 <FileText size={22} className="text-white" />
               </div>
               <div>
-                <h3 className="font-semibold text-slate-800 group-hover:text-indigo-700 transition-colors">PO Records Hub</h3>
-                <p className="text-sm text-slate-500">View, create and edit Purchase Orders</p>
+                <h3 className="font-semibold text-slate-800 group-hover:text-indigo-700 transition-colors">PO Maker & Records</h3>
+                <p className="text-sm text-slate-500">Create, view, and edit Purchase Orders</p>
               </div>
             </div>
           </Link>
