@@ -9,7 +9,10 @@ import {
   CheckCircle2,
   Sprout,
   Loader2,
+  FileText
 } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
 // Narrow the type to the success case of the ProcurementReceipt union
 type SuccessReceipt = Extract<ProcurementReceipt, { success: true }>;
@@ -21,6 +24,11 @@ interface Props {
 
 export default function PurchaseSlip({ receipts, onClose }: Props) {
   const [isSharing, setIsSharing] = useState(false);
+  const { data: session } = useSession();
+  const router = useRouter();
+
+  const userRoles = (session?.user as any)?.roles || [];
+  const canMakePO = userRoles.includes("L3_PO_MAKER") || userRoles.includes("L4_ADMIN") || (session?.user as any)?.isSuperAdmin;
 
   // Computed immediately on render
   const currentTime = new Date().toLocaleString("en-IN", {
@@ -304,6 +312,19 @@ export default function PurchaseSlip({ receipts, onClose }: Props) {
               <X size={18} />
             </button>
           </div>
+
+          {/* Make PO Button for L3/L4 users */}
+          {canMakePO && (
+            <div className="px-6 pb-6 print:hidden">
+              <button
+                onClick={() => router.push(`/dashboard/po-maker?slipId=${firstReceipt.slipId}`)}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-forest-600 text-white text-sm font-semibold hover:bg-forest-700 transition-colors shadow-sm"
+              >
+                <FileText size={16} />
+                Make a PO
+              </button>
+            </div>
+          )}
         </div>
       </div>
       <style dangerouslySetInnerHTML={{__html: `

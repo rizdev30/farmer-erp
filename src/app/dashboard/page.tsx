@@ -604,6 +604,20 @@ export default function DashboardPage() {
           </div>
         </Link>
 
+        {(session?.user as any)?.roles?.includes("L3_PO_MAKER") || (session?.user as any)?.roles?.includes("L4_ADMIN") || (session?.user as any)?.isSuperAdmin ? (
+          <Link href="/dashboard/po-records" className="glass-card rounded-2xl p-6 group">
+            <div className="flex items-center gap-4">
+              <div className="shrink-0 w-12 h-12 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
+                <FileText size={22} className="text-white" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-slate-800 group-hover:text-indigo-700 transition-colors">PO Records Hub</h3>
+                <p className="text-sm text-slate-500">View, create and edit Purchase Orders</p>
+              </div>
+            </div>
+          </Link>
+        ) : null}
+
         {(session?.user as any)?.isSuperAdmin || (session?.user as any)?.roles?.includes("L4_ADMIN") ? (
           <Link href="/dashboard/agents" className="glass-card rounded-2xl p-6 group">
             <div className="flex items-center gap-4">

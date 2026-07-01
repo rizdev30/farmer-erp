@@ -137,6 +137,8 @@ model Procurement {
   validated     Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  
+  purchaseOrder PurchaseOrder?
 
   @@map("procurements")
 }
@@ -149,5 +151,35 @@ model Mandi {
 
   @@unique([state, district, mandiName])
   @@map("mandis")
+}
+
+model PurchaseOrder {
+  id               Int      @id @default(autoincrement())
+  poNumber         String   @unique
+  slipId           String   @unique
+  procurement      Procurement @relation(fields: [slipId], references: [slipId])
+  
+  // Supplier Info (Auto-fetched)
+  supplierName     String   @default("")
+  supplierLocation String   @default("")
+  
+  // Company Info
+  companyName      String   @default("Farmer ERP")
+  companyAddress   String   @default("123 Sample Address, Sample City, State 123456")
+  
+  // Dynamic Items / Columns Fill (e.g., Cash Discount)
+  // Store as JSON to allow dynamic adding/removing of fields
+  items            Json     @default("[]")
+  
+  // Payment terms
+  paymentDuration  Int      @default(0) // 10, 20, 30 days
+  paymentDate      DateTime?
+  
+  // Meta
+  createdById      String   @default("")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("purchase_orders")
 }
 

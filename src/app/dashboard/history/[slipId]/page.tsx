@@ -456,6 +456,19 @@ export default function ReceiptPage() {
             Print / PDF
           </button>
         </div>
+
+        {/* Make PO Button for L3/L4 users */}
+        {(roles.includes("L3_PO_MAKER") || roles.includes("L4_ADMIN") || (session?.user as any)?.isSuperAdmin) && (
+          <div className="px-6 pb-6 print:hidden">
+            <button
+              onClick={() => router.push(`/dashboard/po-maker?slipId=${record.slipId}`)}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-forest-600 text-white text-sm font-semibold hover:bg-forest-700 transition-colors shadow-sm"
+            >
+              <FileText size={16} />
+              Make a PO
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Global Print Styles to make background white and remove shadows */}
