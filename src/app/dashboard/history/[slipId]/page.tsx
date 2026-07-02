@@ -134,7 +134,7 @@ export default function ReceiptPage() {
     if (!window.confirm("Are you sure you want to " + action.split("_")[1].toLowerCase() + " this record?")) return;
     setIsUpdating(true);
     try {
-      const updates = (action === "L2_APPROVE" || action === "L3_APPROVE") ? { 
+      const updates = (action === "L2_APPROVE") ? { 
         rate: Number(editRate), 
         deduction: Number(editDeduction) 
       } : undefined;
@@ -186,18 +186,20 @@ export default function ReceiptPage() {
         {/* Slip Content */}
         <div className="px-6 py-6 relative bg-white" id="purchase-slip">
           {/* Watermark for anti-copy */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden opacity-30 print:opacity-[0.15]">
-            <div className={`transform -rotate-45 text-4xl sm:text-6xl font-black tracking-widest whitespace-nowrap ${record.status === "APPROVED" ? "text-slate-300" : "text-amber-200"}`}>
-              {record.status === "APPROVED" ? "OFFICIAL RECEIPT" : "UNOFFICIAL SLIP"}
-            </div>
+          <div className="absolute inset-0 flex flex-col items-center justify-evenly pointer-events-none z-0 overflow-hidden opacity-30 print:opacity-[0.15]">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className={`transform -rotate-45 text-4xl sm:text-6xl print:text-[24px] font-black tracking-widest whitespace-nowrap print:text-black ${(record.status === "PENDING_L3" || record.status === "APPROVED") ? "text-slate-300" : "text-amber-200"}`}>
+                {(record.status === "PENDING_L3" || record.status === "APPROVED") ? "OFFICIAL RECEIPT" : "UNOFFICIAL SLIP"}
+              </div>
+            ))}
           </div>
 
           {/* Official Header */}
           <div className="text-center mb-5 pb-4 border-b-2 border-slate-800 print:border-black relative z-10">
             <h2 className="text-xl font-black uppercase tracking-widest text-forest-900 print:text-black">Purchase Slip</h2>
             <p className="text-sm font-semibold text-slate-500 print:text-black mt-1">FARMER ERP PVT. LTD.</p>
-            <p className={`text-[10px] font-bold mt-1 print:text-black ${record.status === "APPROVED" ? "text-emerald-600" : "text-amber-600"}`}>
-              {record.status === "APPROVED" ? "✓ Official Receipt" : "⏳ " + record.status.replace(/_/g, " ")}
+            <p className={`text-[10px] font-bold mt-1 print:text-black ${(record.status === "PENDING_L3" || record.status === "APPROVED") ? "text-emerald-600" : "text-amber-600"}`}>
+              {(record.status === "PENDING_L3" || record.status === "APPROVED") ? "✓ Official Receipt" : "⏳ " + (record.status || "PENDING_L2").replace(/_/g, " ")}
             </p>
           </div>
 
@@ -327,7 +329,7 @@ export default function ReceiptPage() {
                   </div>
                   <div className="flex justify-between text-xs">
                     <span className="text-slate-500 print:text-black">RATE/Qtl.</span>
-                    {(isL2Pending || isL3Pending) ? (
+                    {isL2Pending ? (
                       <input type="number" value={editRate} onChange={(e) => setEditRate(e.target.value === "" ? "" : Number(e.target.value))} className="w-20 border rounded text-right p-1 text-slate-700" />
                     ) : (
                       <span className="font-bold text-slate-800 print:text-black whitespace-nowrap">{record.rate?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
@@ -335,7 +337,7 @@ export default function ReceiptPage() {
                   </div>
                   <div className="flex justify-between items-center text-xs print:text-black">
                     <span className="text-slate-500">Deduction/Qtl (in kg)</span>
-                    {(isL2Pending || isL3Pending) ? (
+                    {isL2Pending ? (
                       <input type="number" value={editDeduction} onChange={(e) => setEditDeduction(e.target.value === "" ? "" : Number(e.target.value))} className="w-16 border rounded text-right p-1" />
                     ) : (
                       <span className="font-bold text-slate-800 whitespace-nowrap">{record.deduction}</span>

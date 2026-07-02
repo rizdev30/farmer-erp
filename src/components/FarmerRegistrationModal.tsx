@@ -803,7 +803,7 @@ export default function FarmerRegistrationModal({
               {!showBankDetails ? (
                   <button
                     onClick={() => setShowBankDetails(true)}
-                    className={`w-full py-3 mt-4 rounded-xl border-2 border-dashed border-slate-200 text-sm font-semibold text-slate-500 hover:text-slate-700 hover:border-slate-300 hover:bg-slate-50 transition-all flex items-center justify-center gap-2`}
+                    className={`w-full py-3 mt-4 rounded-xl border-2 border-dashed border-purple-300 bg-purple-50/80 text-sm font-bold text-purple-700 hover:text-purple-800 hover:border-purple-400 hover:bg-purple-100 transition-all flex items-center justify-center gap-2 shadow-sm`}
                   >
                     <Shield size={16} />
                     Add {isTrader ? "Trader" : "Farmer"} Bank Account (Optional)

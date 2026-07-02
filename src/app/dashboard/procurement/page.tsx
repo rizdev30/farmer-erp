@@ -258,6 +258,7 @@ export default function ProcurementPage() {
           bones: payload.bones, adtiyaName: payload.adtiyaName, lotNo: payload.lotNo,
           total: itemTotal, timestamp: new Date().toISOString(),
           agentName: session?.user?.name || "Agent",
+          status: "PENDING_L2",
         };
         try {
           await addToSyncQueue("procurement", payload, offlineReceipt);
@@ -699,6 +700,11 @@ export default function ProcurementPage() {
                       onChange={(e) => {
                         const newItems = [...cropItems];
                         newItems[index].bags = e.target.value;
+                        const bags = Number(e.target.value) || 0;
+                        const packing = Number(item.packingSize) || 0;
+                        if (bags > 0 && packing > 0) {
+                          newItems[index].grossQuantity = ((bags * packing) / 100).toFixed(2);
+                        }
                         setCropItems(newItems);
                       }}
                       placeholder="0"
@@ -710,13 +716,18 @@ export default function ProcurementPage() {
                   </div>
                   {/* Packing Size */}
                   <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-1.5">Packing Size</label>
+                    <label className="block text-xs font-medium text-slate-500 mb-1.5">Packing Size (kg)</label>
                     <input
                       type="number"
                       value={item.packingSize}
                       onChange={(e) => {
                         const newItems = [...cropItems];
                         newItems[index].packingSize = e.target.value;
+                        const packing = Number(e.target.value) || 0;
+                        const bags = Number(item.bags) || 0;
+                        if (bags > 0 && packing > 0) {
+                          newItems[index].grossQuantity = ((bags * packing) / 100).toFixed(2);
+                        }
                         setCropItems(newItems);
                       }}
                       placeholder="0"

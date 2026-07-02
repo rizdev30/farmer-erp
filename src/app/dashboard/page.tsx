@@ -618,7 +618,7 @@ export default function DashboardPage() {
           </Link>
         ) : null}
 
-        {(session?.user as any)?.isSuperAdmin || (session?.user as any)?.roles?.includes("L4_ADMIN") ? (
+        {(session?.user as any)?.isSuperAdmin ? (
           <Link href="/dashboard/agents" className="glass-card rounded-2xl p-6 group">
             <div className="flex items-center gap-4">
               <div className="shrink-0 w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">

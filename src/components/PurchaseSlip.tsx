@@ -132,7 +132,7 @@ export default function PurchaseSlip({ receipts, onClose }: Props) {
         onClick={onClose}
       />
 
-      <div className="relative w-full max-w-md modal-spring my-auto">
+      <div className="relative w-full max-w-md modal-spring my-4 md:my-8">
         <div className="bg-white rounded-3xl shadow-2xl shadow-black/15 overflow-hidden print:shadow-none print:w-full print:max-w-full print:rounded-none">
           {/* Success Banner - Hidden on print */}
           <div className="bg-gradient-to-r from-forest-800 to-forest-700 px-6 py-5 text-center print:hidden">
@@ -149,159 +149,170 @@ export default function PurchaseSlip({ receipts, onClose }: Props) {
           {/* ========================================= */}
           <div className="px-6 py-6 relative bg-white print:px-2 print:py-2" id="purchase-slip">
 
-            {/* ======= ON-SCREEN COLORED VERSION ======= */}
-            <div className="print:hidden">
-              {/* Header */}
-              <div className="text-center mb-5 pb-4 border-b-2 border-slate-800">
-                <h2 className="text-xl font-black uppercase tracking-widest text-forest-900">Purchase Slip</h2>
-                <p className="text-sm font-semibold text-slate-500 mt-1">FARMER ERP PVT. LTD.</p>
-              </div>
+            {/* Watermark for anti-copy */}
+            <div className="absolute inset-0 flex flex-col items-center justify-evenly pointer-events-none z-0 overflow-hidden opacity-30 print:opacity-[0.15]">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="transform -rotate-45 text-4xl sm:text-6xl print:text-[24px] font-black tracking-widest whitespace-nowrap text-amber-200 print:text-black">
+                  UNOFFICIAL SLIP
+                </div>
+              ))}
+            </div>
 
-              {/* Slip Info */}
-              <div className="flex items-center justify-between mb-4 pb-3 border-b border-dashed border-slate-200">
-                <div>
-                  <span className="text-[10px] text-slate-400 uppercase tracking-wider">Slip No.</span>
-                  <span className="block text-sm font-mono font-bold text-slate-800">{firstReceipt.slipId}</span>
-                </div>
-                <div className="text-right">
-                  <span className="text-[10px] text-slate-400 uppercase tracking-wider">Date & Time</span>
-                  <span className="block text-xs font-medium text-slate-700">{formattedDate}</span>
-                </div>
+            {/* Official Header */}
+            <div className="text-center mb-5 pb-4 border-b-2 border-slate-800 print:border-black relative z-10">
+              <h2 className="text-xl font-black uppercase tracking-widest text-forest-900 print:text-black">Purchase Slip</h2>
+              <p className="text-sm font-semibold text-slate-500 print:text-black mt-1">FARMER ERP PVT. LTD.</p>
+              <p className="text-[10px] font-bold mt-1 text-amber-600 print:text-black">⏳ Approval is Pending</p>
+            </div>
+
+            {/* Slip Info */}
+            <div className="flex items-center justify-between mb-4 pb-3 border-b border-dashed border-slate-200 print:border-black relative z-10">
+              <div className="max-w-[50%]">
+                <span className="text-[10px] text-slate-400 print:text-black uppercase tracking-wider">Slip No.</span>
+                <span className="block text-sm font-mono font-bold text-slate-800 print:text-black break-words">{firstReceipt.slipId}</span>
               </div>
+              <div className="text-right max-w-[50%]">
+                <span className="text-[10px] text-slate-400 print:text-black uppercase tracking-wider">Date & Time</span>
+                <span className="block text-xs font-medium text-slate-700 print:text-black">{formattedDate}</span>
+              </div>
+            </div>
+
+            {/* Details */}
+            <div className="space-y-3.5 relative z-10">
 
               {/* Project & Mandi */}
-              <div className="flex justify-between mb-3 pb-3 border-b border-slate-100">
+              <div className="flex justify-between pb-3 border-b border-slate-100 print:border-black/20">
                 <div>
-                  <span className="text-[10px] text-slate-400">Project Name</span>
-                  <span className="block text-xs font-medium text-slate-700">—</span>
+                  <span className="block text-[10px] text-slate-400 print:text-black">Project Name</span>
+                  <span className="block text-xs font-medium text-slate-700 print:text-black">—</span>
                 </div>
                 <div className="text-right">
-                  <span className="text-[10px] text-slate-400">Mandi</span>
-                  <span className="block text-xs font-medium text-slate-700">{firstReceipt.village || "—"}</span>
+                  <span className="block text-[10px] text-slate-400 print:text-black">Mandi</span>
+                  <span className="block text-xs font-medium text-slate-700 print:text-black">{firstReceipt.village || "—"}</span>
                 </div>
               </div>
 
               {/* Farmer / Trader Section */}
               {firstReceipt.category === "TRADER" ? (
-                <div className="mb-4 pb-3 border-b border-slate-100">
-                  <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-2">Trader Details</p>
+                <div className="pb-3 border-b border-slate-100 print:border-black/20">
+                  <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-2 print:text-black">Trader Details</p>
                   <div className="space-y-1.5">
                     <div className="flex justify-between">
-                      <span className="text-[10px] text-slate-400">Trader Code</span>
-                      <span className="text-xs font-mono font-bold text-blue-700">{firstReceipt.farmerCode || "N/A"}</span>
+                      <span className="text-[10px] text-slate-400 print:text-black">Trader Code</span>
+                      <span className="text-xs font-mono font-bold text-blue-700 print:text-black">{firstReceipt.farmerCode || "N/A"}</span>
                     </div>
                     {firstReceipt.company && (
                       <div className="flex justify-between">
-                        <span className="text-[10px] text-slate-400">Company</span>
-                        <span className="text-xs font-semibold text-slate-800">{firstReceipt.company}</span>
+                        <span className="text-[10px] text-slate-400 print:text-black">Company</span>
+                        <span className="text-xs font-semibold text-slate-800 print:text-black">{firstReceipt.company}</span>
                       </div>
                     )}
                     <div className="flex justify-between">
-                      <span className="text-[10px] text-slate-400">Promoter Name</span>
-                      <span className="text-xs font-semibold text-slate-800">{firstReceipt.promoterName || firstReceipt.farmerName}</span>
+                      <span className="text-[10px] text-slate-400 print:text-black">Promoter Name</span>
+                      <span className="text-xs font-semibold text-slate-800 print:text-black">{firstReceipt.promoterName || firstReceipt.farmerName}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-[10px] text-slate-400">Address</span>
-                      <span className="text-xs font-medium text-slate-700 text-right max-w-[55%]">{firstReceipt.village || "N/A"}</span>
+                      <span className="text-[10px] text-slate-400 print:text-black">Address</span>
+                      <span className="text-xs font-medium text-slate-700 print:text-black text-right max-w-[55%]">{firstReceipt.village || "N/A"}</span>
                     </div>
                     {firstReceipt.panGst && (
                       <div className="flex justify-between">
-                        <span className="text-[10px] text-slate-400">PAN/GST</span>
-                        <span className="text-xs font-medium text-slate-700">{firstReceipt.panGst}</span>
+                        <span className="text-[10px] text-slate-400 print:text-black">PAN/GST</span>
+                        <span className="text-xs font-medium text-slate-700 print:text-black">{firstReceipt.panGst}</span>
                       </div>
                     )}
                   </div>
                 </div>
               ) : (
-                <div className="mb-4 pb-3 border-b border-slate-100">
-                  <p className="text-[10px] font-bold text-forest-600 uppercase tracking-wider mb-2">Farmer Details</p>
+                <div className="pb-3 border-b border-slate-100 print:border-black/20">
+                  <p className="text-[10px] font-bold text-forest-600 uppercase tracking-wider mb-2 print:text-black">Farmer Details</p>
                   <div className="space-y-1.5">
                     <div className="flex justify-between">
-                      <span className="text-[10px] text-slate-400">Farmer Code</span>
-                      <span className="text-xs font-mono font-bold text-forest-700">{firstReceipt.farmerCode || "N/A"}</span>
+                      <span className="text-[10px] text-slate-400 print:text-black">Farmer Code</span>
+                      <span className="text-xs font-mono font-bold text-forest-700 print:text-black">{firstReceipt.farmerCode || "N/A"}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-[10px] text-slate-400">Name</span>
-                      <span className="text-xs font-semibold text-slate-800">{firstReceipt.farmerName}</span>
+                      <span className="text-[10px] text-slate-400 print:text-black">Name</span>
+                      <span className="text-xs font-semibold text-slate-800 print:text-black">{firstReceipt.farmerName}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-[10px] text-slate-400">Father Name</span>
-                      <span className="text-xs font-medium text-slate-700">{firstReceipt.fatherName || "N/A"}</span>
+                      <span className="text-[10px] text-slate-400 print:text-black">Father Name</span>
+                      <span className="text-xs font-medium text-slate-700 print:text-black">{firstReceipt.fatherName || "N/A"}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-[10px] text-slate-400">Address</span>
-                      <span className="text-xs font-medium text-slate-700 text-right max-w-[55%]">{firstReceipt.village || "N/A"}</span>
+                      <span className="text-[10px] text-slate-400 print:text-black">Address</span>
+                      <span className="text-xs font-medium text-slate-700 print:text-black text-right max-w-[55%]">{firstReceipt.village || "N/A"}</span>
                     </div>
                   </div>
                 </div>
               )}
 
               {/* Additional Details */}
-              <div className="mb-4 pb-3 border-b border-slate-100">
+              <div className="pb-3 border-b border-slate-100 print:border-black/20">
                 <div className="space-y-1.5">
                   <div className="flex justify-between">
-                    <span className="text-[10px] text-slate-400">Adtiya Name</span>
-                    <span className="text-xs font-semibold text-slate-800">{firstReceipt.adtiyaName || "—"}</span>
+                    <span className="text-[10px] text-slate-400 print:text-black">Adtiya Name</span>
+                    <span className="text-xs font-semibold text-slate-800 print:text-black">{firstReceipt.adtiyaName || "—"}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-[10px] text-slate-400">Lot No.</span>
-                    <span className="text-xs font-semibold text-slate-800">{firstReceipt.lotNo || "—"}</span>
+                    <span className="text-[10px] text-slate-400 print:text-black">Lot No.</span>
+                    <span className="text-xs font-semibold text-slate-800 print:text-black">{firstReceipt.lotNo || "—"}</span>
                   </div>
                 </div>
               </div>
 
               {/* Transaction Details */}
               {receipts.map((receipt, index) => (
-                <div key={index} className="mb-4 pb-3 border-b border-slate-100">
-                  <p className="text-[10px] font-bold text-forest-600 uppercase tracking-wider mb-2">
+                <div key={index} className="pb-3 border-b border-slate-100 print:border-black/20 mt-4">
+                  <p className="text-[10px] font-bold text-forest-600 uppercase tracking-wider mb-2 print:text-black">
                     {receipts.length > 1 ? `Transaction ${index + 1}` : "Transaction Details"}
                   </p>
                   <div className="space-y-1.5">
-                    <div className="flex justify-between">
-                      <span className="text-[10px] text-slate-400">Crop</span>
-                      <span className="text-xs font-bold text-slate-800">{receipt.crop}</span>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-500 print:text-black">Crop</span>
+                      <span className="font-bold text-slate-800 print:text-black">{receipt.crop}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-[10px] text-slate-400">Variety</span>
-                      <span className="text-xs font-bold text-slate-700">{receipt.variety || "—"}</span>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-500 print:text-black">Variety</span>
+                      <span className="font-bold text-slate-700 print:text-black">{receipt.variety || "—"}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-[10px] text-slate-400">No. of Bags</span>
-                      <span className="text-xs font-bold text-slate-800">{receipt.bags.toLocaleString("en-IN")}</span>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-500 print:text-black">No. of Bags</span>
+                      <span className="font-bold text-slate-800 print:text-black">{receipt.bags.toLocaleString("en-IN")}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-[10px] text-slate-400">Packing Unit</span>
-                      <span className="text-xs font-bold text-slate-700">{receipt.packingSize} kg</span>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-500 print:text-black">Packing Unit</span>
+                      <span className="font-bold text-slate-700 print:text-black">{receipt.packingSize} kg</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-[10px] text-slate-400">Weight Qtl.</span>
-                      <span className="text-xs font-bold text-slate-800">{receipt.grossQuantity.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-500 print:text-black">Weight Qtl.</span>
+                      <span className="font-bold text-slate-800 print:text-black">{receipt.grossQuantity.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-[10px] text-slate-400">RATE/Qtl.</span>
-                      <span className="text-xs font-bold text-slate-800 whitespace-nowrap">{receipt.rate.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-500 print:text-black">RATE/Qtl.</span>
+                      <span className="font-bold text-slate-800 print:text-black whitespace-nowrap">{receipt.rate.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-[10px] text-slate-400">Deduction/Qtl (in kg)</span>
-                      <span className="text-xs font-bold text-slate-800 whitespace-nowrap">{receipt.deduction}</span>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-500 print:text-black">Deduction/Qtl (in kg)</span>
+                      <span className="font-bold text-slate-800 print:text-black whitespace-nowrap">{receipt.deduction}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-[10px] text-slate-400">Bones/Qtl</span>
-                      <span className="text-xs font-bold text-slate-800 whitespace-nowrap">{receipt.bones.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-500 print:text-black">Bones/Qtl</span>
+                      <span className="font-bold text-slate-800 print:text-black whitespace-nowrap">{receipt.bones.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
                     </div>
                   </div>
 
                   {/* Item subtotal */}
-                  <div className="mt-3 pt-2 border-t border-dashed border-slate-100 space-y-1">
+                  <div className="mt-3 pt-2 border-t border-dashed border-slate-100 print:border-black/20 space-y-1.5">
                     <div className="flex justify-between text-xs">
-                      <span className="text-slate-500 font-medium">Total Amount</span>
-                      <span className="font-bold text-slate-800 whitespace-nowrap">{(receipt.grossQuantity * receipt.rate).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                      <span className="text-slate-500 font-medium print:text-black">Total Amount</span>
+                      <span className="font-bold text-slate-800 print:text-black whitespace-nowrap">{(receipt.grossQuantity * receipt.rate).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
                     </div>
                     <div className="flex justify-between text-xs">
-                      <span className="text-slate-500 font-medium">Total Bones</span>
-                      <span className="font-bold text-slate-800 whitespace-nowrap">{(receipt.grossQuantity * receipt.bones).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                      <span className="text-slate-500 font-medium print:text-black">Total Bones</span>
+                      <span className="font-bold text-slate-800 print:text-black whitespace-nowrap">{(receipt.grossQuantity * receipt.bones).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
                     </div>
-                    <div className="flex justify-between text-xs text-red-600">
+                    <div className="flex justify-between text-xs text-red-600 print:text-black">
                       <span className="font-medium">Total Deduction</span>
                       <span className="font-bold whitespace-nowrap">- {((receipt.grossQuantity * receipt.deduction / 100) * receipt.rate).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
                     </div>
@@ -310,140 +321,45 @@ export default function PurchaseSlip({ receipts, onClose }: Props) {
               ))}
 
               {/* Grand Total Payout */}
-              <div className="bg-forest-50 rounded-xl p-4 mb-4 text-center border border-forest-100">
-                <p className="text-[10px] text-forest-600 font-bold uppercase tracking-wider mb-1">Total Payout</p>
+              <div className="bg-forest-50 rounded-xl p-3 mb-4 text-center border border-forest-100 print:bg-transparent print:border-black">
+                <p className="text-[10px] text-forest-600 font-bold uppercase tracking-wider mb-1 print:text-black">Total Payout</p>
                 <p className="text-lg sm:text-xl print:text-[14px] font-black text-forest-800 print:text-black tracking-tighter whitespace-nowrap">
                   ₹{(grandTotal + grandBones).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </p>
               </div>
 
+              <div className="h-px bg-slate-100 print:bg-black mb-3" />
+
               {/* Purchase / Approved By */}
-              <div className="flex justify-between mb-3 pb-3 border-b border-slate-100">
+              <div className="flex justify-between mb-3 pb-3 border-b border-slate-100 print:border-black/20">
                 <div>
-                  <span className="text-[10px] text-slate-400">Purchase by</span>
-                  <span className="block text-xs font-bold text-slate-800">{firstReceipt.agentName || "Agent"}</span>
+                  <span className="block text-[10px] text-slate-400 print:text-black">Purchase by</span>
+                  <span className="block text-xs font-bold text-slate-800 print:text-black">{firstReceipt.agentName || "Agent"}</span>
                 </div>
                 <div className="text-right">
-                  <span className="text-[10px] text-slate-400">Approved by</span>
-                  <span className="block text-xs font-bold text-slate-700">Pending</span>
+                  <span className="block text-[10px] text-slate-400 print:text-black">Approved by</span>
+                  <span className="block text-xs font-bold text-slate-700 print:text-black">Pending</span>
                 </div>
               </div>
 
               {/* Farmer Signature */}
-              <div className="pt-1 pb-3 border-b border-slate-100">
-                <span className="text-[10px] text-slate-400">{firstReceipt.category === "TRADER" ? "Trader Signature" : "Farmer Signature"}</span>
-                <div className="h-8 border-b border-dotted border-slate-300 mt-1"></div>
+              <div className="pt-1 pb-3 border-b border-slate-100 print:border-black/20">
+                <span className="text-[10px] text-slate-400 print:text-black">{firstReceipt.category === "TRADER" ? "Trader Signature" : "Farmer Signature"}</span>
+                <div className="h-8 border-b border-dotted border-slate-300 mt-1 print:border-black"></div>
               </div>
 
-              {/* Note */}
-              <div className="mb-2">
-                <span className="text-[10px] text-slate-400">Note:</span>
-                <p className="text-[10px] text-amber-600 font-semibold mt-1 leading-tight">
-                  * This slip is going for approval. This is not an official receipt. Official receipt will be available after final approval.
+              {/* Caption */}
+              <div className="mt-2 text-center">
+                <p className="text-[10px] text-amber-600 print:text-black font-semibold mb-2 max-w-sm mx-auto leading-tight">
+                  * This slip is going for approval. This is not an official receipt.
                 </p>
               </div>
 
               {/* Timestamp */}
               <div className="text-center mt-3">
-                <p id="timestamp-text" className="text-[10px] text-slate-400 font-mono">
+                <p id="timestamp-text" className="text-[10px] text-slate-400 print:text-black font-mono">
                   Downloaded / Printed on: {currentTime}
                 </p>
-              </div>
-            </div>
-
-            {/* ======= PRINT-ONLY: 2-inch THERMAL RECEIPT FORMAT ======= */}
-            <div className="hidden print:block" style={{ width: '48mm', fontFamily: 'monospace, Courier, "Courier New"', fontSize: '10px', lineHeight: '1.35', color: '#000' }}>
-
-              {/* Header */}
-              <div style={{ textAlign: 'center', borderBottom: '1px dashed #000', paddingBottom: '4px', marginBottom: '4px' }}>
-                <div style={{ fontWeight: 900, fontSize: '13px', letterSpacing: '1px' }}>Purchase Slip</div>
-                <div style={{ fontSize: '9px', fontWeight: 700 }}>FARMER ERP PVT. LTD.</div>
-              </div>
-
-              {/* Slip & Date */}
-              <div style={{ borderBottom: '1px dashed #000', paddingBottom: '3px', marginBottom: '3px' }}>
-                <div><strong>Slip No.:</strong> {firstReceipt.slipId}</div>
-                <div>Date & Time: {formattedDateShort}</div>
-              </div>
-
-              {/* Project & Mandi */}
-              <div style={{ borderBottom: '1px dashed #000', paddingBottom: '3px', marginBottom: '3px' }}>
-                <div>Project Name: —</div>
-                <div>Mandi: {firstReceipt.village || "—"}</div>
-              </div>
-
-              {/* Farmer / Trader */}
-              {firstReceipt.category === "TRADER" ? (
-                <div style={{ borderBottom: '1px dashed #000', paddingBottom: '3px', marginBottom: '3px' }}>
-                  <div><strong>Trader Code: {firstReceipt.farmerCode || "N/A"}</strong></div>
-                  {firstReceipt.company && <div><strong>Company:</strong> {firstReceipt.company}</div>}
-                  <div><strong>Promoter Name:</strong> {firstReceipt.promoterName || firstReceipt.farmerName}</div>
-                  <div><strong>Address:</strong> {firstReceipt.village || "N/A"}</div>
-                  {firstReceipt.panGst && <div>PAN/GST: {firstReceipt.panGst}</div>}
-                </div>
-              ) : (
-                <div style={{ borderBottom: '1px dashed #000', paddingBottom: '3px', marginBottom: '3px' }}>
-                  <div><strong>Farmer Code: {firstReceipt.farmerCode || "N/A"}</strong></div>
-                  <div><strong>Name:</strong> {firstReceipt.farmerName}</div>
-                  <div><strong>Father</strong> Name: {firstReceipt.fatherName || "N/A"}</div>
-                  <div><strong>Address:</strong> {firstReceipt.village || "N/A"}</div>
-                </div>
-              )}
-
-              {/* Additional Details */}
-              <div style={{ borderBottom: '1px dashed #000', paddingBottom: '3px', marginBottom: '3px' }}>
-                <div>Adtiya Name: <strong>{firstReceipt.adtiyaName || "—"}</strong></div>
-                <div>Lot No.: <strong>{firstReceipt.lotNo || "—"}</strong></div>
-              </div>
-
-              {/* Transaction Details */}
-              {receipts.map((receipt, index) => (
-                <div key={index} style={{ borderBottom: '1px dashed #000', paddingBottom: '3px', marginBottom: '3px' }}>
-                  <div style={{ textAlign: 'center', fontWeight: 700, textDecoration: 'underline', marginBottom: '2px' }}>
-                    {receipts.length > 1 ? `Transaction ${index + 1}:` : "Transaction Details:"}
-                  </div>
-                  <div>Crop: <strong>{receipt.crop}</strong></div>
-                  <div>Variety: <strong>{receipt.variety || "—"}</strong></div>
-                  <div>No. of Bags: <strong>{receipt.bags.toLocaleString("en-IN")}</strong></div>
-                  <div>Packing Unit: <strong>{receipt.packingSize} kg</strong></div>
-                  <div>Weight Qtl.: <strong>{receipt.grossQuantity.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong></div>
-                  <div>RATE/Qtl.: <strong>{receipt.rate.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong></div>
-                  <div>Deduction/Qtl (in kg): <strong>{receipt.deduction}</strong></div>
-                  <div>Bones/Qtl: <strong>{receipt.bones.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong></div>
-                  <div style={{ borderTop: '1px dotted #000', marginTop: '2px', paddingTop: '2px' }}>
-                    <div>Total Amount: <strong>{(receipt.grossQuantity * receipt.rate).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong></div>
-                    <div>Total Bones: <strong>{(receipt.bones * receipt.grossQuantity).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong></div>
-                    <div>Total Deduction: <strong>-{((receipt.grossQuantity * receipt.deduction / 100) * receipt.rate).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong></div>
-                  </div>
-                </div>
-              ))}
-
-              {/* Total Payout */}
-              <div style={{ textAlign: 'center', borderBottom: '1px dashed #000', paddingBottom: '4px', marginBottom: '3px', paddingTop: '2px' }}>
-                <div style={{ fontWeight: 700, textDecoration: 'underline' }}>Total Payout:</div>
-                <div style={{ fontWeight: 900, fontSize: '11px', whiteSpace: 'nowrap', letterSpacing: '-0.5px' }}>
-                  ₹{(grandTotal + grandBones).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                </div>
-              </div>
-
-              {/* Purchase / Approved By */}
-              <div style={{ borderBottom: '1px dashed #000', paddingBottom: '3px', marginBottom: '3px' }}>
-                <div>Purchase by: <strong>{firstReceipt.agentName || "Agent"}</strong></div>
-                <div>Approved by: <strong>Pending</strong></div>
-              </div>
-
-              {/* Farmer Signature */}
-              <div style={{ borderBottom: '1px dashed #000', paddingBottom: '3px', marginBottom: '3px' }}>
-                <div>{firstReceipt.category === "TRADER" ? "Trader Signature" : "Farmer Signature"}:</div>
-                <div style={{ height: '20px', borderBottom: '1px dotted #000', marginTop: '2px' }}></div>
-              </div>
-
-              {/* Note */}
-              <div style={{ fontSize: '8px', textAlign: 'center', paddingTop: '2px' }}>
-                <div>Note:</div>
-                <div>This slip is going for</div>
-                <div>approval. Not an official</div>
-                <div>receipt.</div>
               </div>
             </div>
           </div>

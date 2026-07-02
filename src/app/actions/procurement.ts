@@ -292,6 +292,7 @@ export async function createProcurement(
       adtiyaName: data.adtiyaName,
       lotNo: data.lotNo,
       total,
+      status: procurement.status,
     };
   } catch (error: any) {
     console.error("Failed to create procurement:", error);

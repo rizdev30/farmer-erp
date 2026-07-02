@@ -45,7 +45,7 @@ export default function DashboardLayout({
   if (isL3Maker || isL4Admin || isSuperAdmin) {
     allNavItems.push({ href: "/dashboard/po-records", label: "PO Maker", icon: FileText });
   }
-  if (isL4Admin || isSuperAdmin) {
+  if (isSuperAdmin) {
     allNavItems.push(...adminItems);
   }
 
