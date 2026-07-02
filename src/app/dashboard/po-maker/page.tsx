@@ -328,7 +328,7 @@ function POMakerForm() {
             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Slip ID (e.g. FE-...)"
+              placeholder="Slip ID (e.g. UP-...)"
               value={slipIdInput}
               onChange={(e) => setSlipIdInput(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-forest-500/20 focus:border-forest-500 transition-all text-sm"

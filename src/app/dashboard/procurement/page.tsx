@@ -79,18 +79,28 @@ export default function ProcurementPage() {
   const netQuantities = useMemo(() => {
     return cropItems.map(item => {
       const gross = parseFloat(item.grossQuantity) || 0;
-      const ded = parseFloat(item.deduction) || 0;
-      const b = parseInt(item.bags) || 0;
-      return Math.max(0, Math.round((gross - ded * b) * 100) / 100);
+      const dedKgPerQtl = parseFloat(item.deduction) || 0;
+      // Deduction weight in Qtl
+      const dedWeightQtl = (gross * dedKgPerQtl) / 100;
+      return Math.max(0, Math.round((gross - dedWeightQtl) * 100) / 100);
     });
   }, [cropItems]);
 
   const total = useMemo(() => {
-    return cropItems.reduce((acc, item, index) => {
+    return cropItems.reduce((acc, item) => {
+      const gross = parseFloat(item.grossQuantity) || 0;
+      const dedKgPerQtl = parseFloat(item.deduction) || 0;
       const r = parseFloat(item.rate) || 0;
-      return acc + Math.round(netQuantities[index] * r * 100) / 100;
+      const b = parseFloat(item.bones) || 0;
+      
+      const totalAmount = gross * r;
+      const totalBones = gross * b;
+      const deductionWeightQtl = (gross * dedKgPerQtl) / 100;
+      const deductionAmount = deductionWeightQtl * r;
+      
+      return acc + Math.round((totalAmount + totalBones - deductionAmount) * 100) / 100;
     }, 0);
-  }, [netQuantities, cropItems]);
+  }, [cropItems]);
 
   const ringClass = categoryFilter === "TRADER" 
     ? "focus:ring-blue-500/30 focus:border-blue-500" 
@@ -215,6 +225,10 @@ export default function ProcurementPage() {
         fatherName: selectedFarmer.fatherName,
         farmerCode: selectedFarmer.farmerCode,
         village: selectedFarmer.village,
+        category: selectedFarmer.category,
+        company: selectedFarmer.company,
+        panGst: selectedFarmer.panGst,
+        promoterName: selectedFarmer.promoterName,
         crop: item.crop,
         variety: item.variety,
         bags: parseInt(item.bags) || 0,
@@ -225,11 +239,11 @@ export default function ProcurementPage() {
         bones: parseFloat(item.bones) || 0,
         adtiyaName,
         lotNo,
-
       };
       
       const itemNetQuantity = netQuantities[i];
-      const itemTotal = Math.round(itemNetQuantity * parseFloat(item.rate) * 100) / 100;
+      const dedWeightQtl = (payload.grossQuantity * payload.deduction) / 100;
+      const itemTotal = Math.round((payload.grossQuantity * payload.rate - dedWeightQtl * payload.rate) * 100) / 100;
 
       if (isOffline) {
         const offlineId = `OFF-${Date.now().toString().slice(-5)}-${i}`;
@@ -237,6 +251,7 @@ export default function ProcurementPage() {
           success: true, invoiceId: Date.now() + i, slipId: offlineId,
           farmerName: payload.farmerName, farmerCode: payload.farmerCode || "",
           fatherName: payload.fatherName || "", village: payload.village || "",
+          category: payload.category, company: payload.company, panGst: payload.panGst, promoterName: payload.promoterName,
           crop: payload.crop, variety: payload.variety, bags: payload.bags,
           packingSize: payload.packingSize, grossQuantity: payload.grossQuantity,
           deduction: payload.deduction, netQuantity: itemNetQuantity, rate: payload.rate,
@@ -270,6 +285,7 @@ export default function ProcurementPage() {
             success: true, invoiceId: Date.now() + i, slipId: offlineId,
             farmerName: payload.farmerName, farmerCode: payload.farmerCode || "",
             fatherName: payload.fatherName || "", village: payload.village || "",
+            category: payload.category, company: payload.company, panGst: payload.panGst, promoterName: payload.promoterName,
             crop: payload.crop, variety: payload.variety, bags: payload.bags,
             packingSize: payload.packingSize, grossQuantity: payload.grossQuantity,
             deduction: payload.deduction, netQuantity: itemNetQuantity, rate: payload.rate,
@@ -507,21 +523,49 @@ export default function ProcurementPage() {
           )}
         </div>
 
+        {/* Adtiya Name & Lot No */}
+        <div className="glass-card rounded-2xl p-5 relative z-40">
+          <label className="block text-sm font-semibold text-slate-700 mb-3">
+            2. Additional Details
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1.5">
+                Adtiya Name
+              </label>
+              <input
+                type="text"
+                value={adtiyaName}
+                onChange={(e) => setAdtiyaName(e.target.value)}
+                placeholder="Enter Adtiya Name"
+                className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                  text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
+                  transition-all text-base ${ringClass}`}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1.5">
+                Lot no.
+              </label>
+              <input
+                type="text"
+                value={lotNo}
+                onChange={(e) => setLotNo(e.target.value)}
+                placeholder="Enter Lot No."
+                className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                  text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
+                  transition-all text-base ${ringClass}`}
+              />
+            </div>
+          </div>
+        </div>
+
         {/* Crop + Quantity + Rate */}
         <div className="glass-card rounded-2xl p-5">
           <div className="flex justify-between items-center mb-3">
             <label className="block text-sm font-semibold text-slate-700">
-              2. Transaction Details
+              3. Transaction Details
             </label>
-            <button
-              type="button"
-              onClick={() => {
-                setCropItems([...cropItems, { id: Date.now().toString(), crop: "Rice", variety: "", bags: "", packingSize: "", grossQuantity: "", deduction: "", rate: "", bones: "" }]);
-              }}
-              className={`text-sm font-semibold px-4 py-2 rounded-xl border flex items-center gap-1 transition-colors shadow-sm active:scale-95 ${categoryFilter === 'TRADER' ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' : 'bg-forest-50 text-forest-700 border-forest-200 hover:bg-forest-100'}`}
-            >
-              + Add Crop
-            </button>
           </div>
 
           <div className="space-y-6">
@@ -703,7 +747,7 @@ export default function ProcurementPage() {
                   </div>
                   {/* Deduction Qtl/Bag */}
                   <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-1.5">Deduction Qtl./Bag</label>
+                    <label className="block text-xs font-medium text-slate-500 mb-1.5">Deduction/Qtl (in kg)</label>
                     <input
                       type="number"
                       value={item.deduction}
@@ -770,41 +814,18 @@ export default function ProcurementPage() {
               </div>
             ))}
             
-            <div className="grid grid-cols-2 gap-3 pt-4 border-t border-slate-100">
-              {/* Adtiya Name */}
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1.5">
-                  Adtiya Name
-                </label>
-                <input
-                  type="text"
-                  value={adtiyaName}
-                  onChange={(e) => setAdtiyaName(e.target.value)}
-                  placeholder=""
-                  className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-                    text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
-                    transition-all text-base ${ringClass}`}
-                />
-              </div>
-
-              {/* Lot no */}
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1.5">
-                  Lot no.
-                </label>
-                <input
-                  type="text"
-                  value={lotNo}
-                  onChange={(e) => setLotNo(e.target.value)}
-                  placeholder=""
-                  className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-                    text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
-                    transition-all text-base ${ringClass}`}
-                />
-              </div>
+            {/* Add Crop Button at Bottom */}
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setCropItems([...cropItems, { id: Date.now().toString(), crop: "Rice", variety: "", bags: "", packingSize: "", grossQuantity: "", deduction: "", rate: "", bones: "" }]);
+                }}
+                className={`w-full text-sm font-semibold px-4 py-3 rounded-xl border flex items-center justify-center gap-2 transition-colors shadow-sm active:scale-95 ${categoryFilter === 'TRADER' ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' : 'bg-forest-50 text-forest-700 border-forest-200 hover:bg-forest-100'}`}
+              >
+                + Add New Variety
+              </button>
             </div>
-
-
           </div>
         </div>
 

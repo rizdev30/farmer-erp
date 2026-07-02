@@ -3,11 +3,35 @@
 import prisma from "@/lib/prisma";
 import { auth } from "@/auth";
 
-function generateSlipId(): string {
+function generateSlipId(state?: string): string {
   const now = new Date();
   const date = now.toISOString().slice(0, 10).replace(/-/g, "");
   const rand = Math.floor(1000 + Math.random() * 9000);
-  return `FE-${date}-${rand}`;
+  
+  let prefix = "FE";
+  if (state) {
+    const stateMap: Record<string, string> = {
+      "UTTAR PRADESH": "UP", "MADHYA PRADESH": "MP", "ANDHRA PRADESH": "AP",
+      "ARUNACHAL PRADESH": "AR", "ASSAM": "AS", "BIHAR": "BR", "CHHATTISGARH": "CG",
+      "GOA": "GA", "GUJARAT": "GJ", "HARYANA": "HR", "HIMACHAL PRADESH": "HP",
+      "JHARKHAND": "JH", "KARNATAKA": "KA", "KERALA": "KL", "MAHARASHTRA": "MH",
+      "MANIPUR": "MN", "MEGHALAYA": "ML", "MIZORAM": "MZ", "NAGALAND": "NL",
+      "ODISHA": "OD", "PUNJAB": "PB", "RAJASTHAN": "RJ", "SIKKIM": "SK",
+      "TAMIL NADU": "TN", "TELANGANA": "TG", "TRIPURA": "TR", "UTTARAKHAND": "UK",
+      "WEST BENGAL": "WB", "ANDAMAN AND NICOBAR ISLANDS": "AN", "CHANDIGARH": "CH",
+      "DADRA AND NAGAR HAVELI AND DAMAN AND DIU": "DH", "DELHI": "DL",
+      "JAMMU AND KASHMIR": "JK", "JAMMU": "JK", "LADAKH": "LA", "LAKSHADWEEP": "LD",
+      "PUDUCHERRY": "PY"
+    };
+    const upper = state.trim().toUpperCase();
+    if (stateMap[upper]) {
+      prefix = stateMap[upper];
+    } else {
+      prefix = upper.slice(0, 2) || "FE";
+    }
+  }
+  
+  return `${prefix}-${date}-${rand}`;
 }
 
 function roundQuintal(value: number): number {
@@ -39,6 +63,10 @@ export interface ProcurementData {
   fatherName?: string;
   farmerCode?: string;
   village?: string;
+  category?: string;
+  company?: string;
+  panGst?: string;
+  promoterName?: string;
   crop: string;
   variety: string;
   bags: number;
@@ -62,6 +90,10 @@ export type ProcurementReceipt =
       fatherName?: string;
       farmerCode?: string;
       village?: string;
+      category?: string;
+      company?: string;
+      panGst?: string;
+      promoterName?: string;
       crop: string;
       variety: string;
       bags: number;
@@ -87,6 +119,10 @@ export type ProcurementReceipt =
       fatherName?: undefined;
       farmerCode?: undefined;
       village?: undefined;
+      category?: undefined;
+      company?: undefined;
+      panGst?: undefined;
+      promoterName?: undefined;
       crop?: undefined;
       variety?: undefined;
       bags?: undefined;
@@ -166,12 +202,15 @@ export async function createProcurement(
   }
 
   // Verify the farmer belongs to this agent (if not admin/approver)
+  const farmer = await prisma.farmer.findUnique({
+    where: { id: data.farmerId },
+    select: { registeredBy: true, state: true },
+  });
+  if (!farmer) {
+    return { success: false, error: "Farmer not found" };
+  }
   if (!user.roles.includes("L4_ADMIN") && !user.roles.includes("L2_APPROVAL")) {
-    const farmer = await prisma.farmer.findUnique({
-      where: { id: data.farmerId },
-      select: { registeredBy: true },
-    });
-    if (!farmer || farmer.registeredBy !== user.userId) {
+    if (farmer.registeredBy !== user.userId) {
       return { success: false, error: "You can only procure from farmers you registered" };
     }
   }
@@ -179,11 +218,24 @@ export async function createProcurement(
   try {
     const grossQuantity = roundQuintal(data.grossQuantity);
     const deduction = roundQuintal(data.deduction || 0);
-    const totalDeduction = roundQuintal(deduction * data.bags);
-    const netQuantity = roundQuintal(grossQuantity - totalDeduction);
+    // deduction is now kg per quintal.
     const rate = roundQuintal(data.rate);
-    const total = roundQuintal(netQuantity * rate);
-    const slipId = generateSlipId();
+    
+    // Net quantity is conceptually gross minus the deduction weight.
+    // Deduction weight in Qtl = (grossQuantity * deduction) / 100
+    const deductionWeightQtl = (grossQuantity * deduction) / 100;
+    const netQuantity = roundQuintal(grossQuantity - deductionWeightQtl);
+    
+    // Total Amount (Gross)
+    const totalAmount = roundQuintal(grossQuantity * rate);
+    
+    // Total Deduction Amount
+    const totalDeductionAmount = roundQuintal(deductionWeightQtl * rate);
+    
+    // We save the 'total' as the net amount for backend consistency if needed, 
+    // or as gross. Let's save it as grossAmount - deductionAmount.
+    const total = roundQuintal(totalAmount - totalDeductionAmount);
+    const slipId = generateSlipId(farmer.state);
 
     // Create procurement record in local DB
     const procurement = await prisma.procurement.create({
@@ -223,6 +275,10 @@ export async function createProcurement(
       fatherName: data.fatherName,
       farmerCode: data.farmerCode,
       village: data.village,
+      category: data.category,
+      company: data.company,
+      panGst: data.panGst,
+      promoterName: data.promoterName,
       agentName: user.userName,
       crop: data.crop,
       variety: data.variety,

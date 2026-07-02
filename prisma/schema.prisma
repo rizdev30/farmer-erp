@@ -157,7 +157,7 @@ model PurchaseOrder {
   id               Int      @id @default(autoincrement())
   poNumber         String   @unique
   slipId           String   @unique
-  procurement      Procurement @relation(fields: [slipId], references: [slipId])
+  procurement      Procurement @relation(fields: [slipId], references: [slipId], onUpdate: Cascade)
   
   // Supplier Info (Auto-fetched)
   supplierName     String   @default("")

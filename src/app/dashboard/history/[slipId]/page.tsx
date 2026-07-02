@@ -194,201 +194,226 @@ export default function ReceiptPage() {
 
           {/* Official Header */}
           <div className="text-center mb-5 pb-4 border-b-2 border-slate-800 print:border-black relative z-10">
-            <h2 className="text-xl font-black uppercase tracking-widest text-forest-900 print:text-black">FARMER ERP PVT. LTD.</h2>
-            <p className={`text-sm font-semibold mt-1 print:text-black ${record.status === "APPROVED" ? "text-slate-500" : "text-amber-600"}`}>
-              {record.status === "APPROVED" ? "Official Purchase Slip" : "Unofficial Purchase Slip (Pending)"}
+            <h2 className="text-xl font-black uppercase tracking-widest text-forest-900 print:text-black">Purchase Slip</h2>
+            <p className="text-sm font-semibold text-slate-500 print:text-black mt-1">FARMER ERP PVT. LTD.</p>
+            <p className={`text-[10px] font-bold mt-1 print:text-black ${record.status === "APPROVED" ? "text-emerald-600" : "text-amber-600"}`}>
+              {record.status === "APPROVED" ? "✓ Official Receipt" : "⏳ " + record.status.replace(/_/g, " ")}
             </p>
           </div>
 
-          {/* Slip ID & Approvals */}
-          <div className="flex items-start justify-between mb-5 pb-4 border-b border-dashed border-slate-200 print:border-black relative z-10">
-            <div className="relative z-10 text-left space-y-2">
-              <div>
-                <span className="text-[10px] text-slate-400 print:text-black uppercase tracking-wider">Agent (L1)</span>
-                <span className="block text-xs font-semibold text-slate-800 print:text-black">
-                  {record.agentName || "Unknown"}
-                </span>
-              </div>
-              {record.l2ApproverName && (
-                <div>
-                  <span className="text-[10px] text-slate-400 print:text-black uppercase tracking-wider">
-                    {record.l2Edited ? "Updated & Approved By (L2)" : "Approved By (L2)"}
-                  </span>
-                  <span className="block text-xs font-semibold text-slate-800 print:text-black">
-                    {record.l2ApproverName}
-                  </span>
-                </div>
-              )}
-              {record.l3ApproverName && (
-                <div>
-                  <span className="text-[10px] text-slate-400 print:text-black uppercase tracking-wider">
-                    {record.l3Edited ? "Updated & Final PO By (L3)" : "Final PO Maker (L3)"}
-                  </span>
-                  <span className="block text-xs font-semibold text-slate-800 print:text-black">
-                    {record.l3ApproverName}
-                  </span>
-                </div>
-              )}
+          {/* Slip Info */}
+          <div className="flex items-center justify-between mb-4 pb-3 border-b border-dashed border-slate-200 print:border-black relative z-10">
+            <div className="max-w-[50%]">
+              <span className="text-[10px] text-slate-400 print:text-black uppercase tracking-wider">Slip No.</span>
+              <span className="block text-sm font-mono font-bold text-slate-800 print:text-black break-words">{record.slipId}</span>
             </div>
-            <div className="text-right">
-              <p className="text-xs text-slate-400 print:text-black">Slip ID</p>
-              <p className="text-sm font-mono font-bold text-slate-800 print:text-black">
-                {record.slipId}
-              </p>
-              <div className="mt-2 text-right">
-                {record.status === "APPROVED" ? (
-                  <>
-                    <p className="text-[12px] font-black text-emerald-600 print:text-black">
-                      STATUS: APPROVED
-                    </p>
-                    {record.l3ApproverName && (
-                      <p className="text-[10px] font-bold text-slate-700 print:text-black uppercase mt-0.5">
-                        BY: {record.l3ApproverName}
-                      </p>
-                    )}
-                  </>
-                ) : (
-                  <p className="text-[10px] font-bold text-indigo-600 print:text-black mt-1 uppercase">
-                    STATUS: {record.status}
-                  </p>
-                )}
-              </div>
+            <div className="text-right max-w-[50%]">
+              <span className="text-[10px] text-slate-400 print:text-black uppercase tracking-wider">Date & Time</span>
+              <span className="block text-xs font-medium text-slate-700 print:text-black">{formattedDate}</span>
             </div>
           </div>
 
           {/* Details */}
           <div className="space-y-3.5 relative z-10">
-            <div className="flex justify-between items-center">
-              <span className="text-xs text-slate-500 print:text-black">Date & Time</span>
-              <span className="text-xs font-medium text-slate-700 print:text-black">
-                {formattedDate}
-              </span>
+
+            {/* Project & Mandi */}
+            <div className="flex justify-between pb-3 border-b border-slate-100 print:border-black/20">
+              <div>
+                <span className="block text-[10px] text-slate-400 print:text-black">Project Name</span>
+                <span className="block text-xs font-medium text-slate-700 print:text-black">{record.farmer?.projectName || "—"}</span>
+              </div>
+              <div className="text-right">
+                <span className="block text-[10px] text-slate-400 print:text-black">Mandi</span>
+                <span className="block text-xs font-medium text-slate-700 print:text-black">{record.farmer?.town || "—"}</span>
+              </div>
             </div>
 
-            {/* Farmer Section */}
-            <div className="pt-2">
-              <p className="text-[10px] font-bold text-forest-600 uppercase tracking-wider mb-2 print:text-black">Farmer Details</p>
-              <div className="grid grid-cols-2 gap-y-3 gap-x-2">
-                <div>
-                  <span className="block text-[10px] text-slate-400 print:text-black">Name</span>
-                  <span className="block text-xs font-semibold text-slate-800 print:text-black">{record.farmerName}</span>
+            {/* Farmer / Trader Section */}
+            {record.farmer?.category === "TRADER" ? (
+              <div className="pb-3 border-b border-slate-100 print:border-black/20">
+                <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-2 print:text-black">Trader Details</p>
+                <div className="space-y-1.5">
+                  <div className="flex justify-between">
+                    <span className="text-[10px] text-slate-400 print:text-black">Trader Code</span>
+                    <span className="text-xs font-mono font-bold text-blue-700 print:text-black">{record.farmerCode || "N/A"}</span>
+                  </div>
+                  {record.farmer?.company && (
+                    <div className="flex justify-between">
+                      <span className="text-[10px] text-slate-400 print:text-black">Company</span>
+                      <span className="text-xs font-semibold text-slate-800 print:text-black">{record.farmer.company}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-[10px] text-slate-400 print:text-black">Promoter Name</span>
+                    <span className="text-xs font-semibold text-slate-800 print:text-black">{record.farmer?.promoterName || record.farmerName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[10px] text-slate-400 print:text-black">Address</span>
+                    <span className="text-xs font-medium text-slate-700 print:text-black text-right max-w-[55%]">
+                      {[record.village, record.farmer?.block, record.farmer?.district, record.farmer?.pinCode].filter(Boolean).join(", ") || "N/A"}
+                    </span>
+                  </div>
+                  {record.farmer?.panGst && (
+                    <div className="flex justify-between">
+                      <span className="text-[10px] text-slate-400 print:text-black">PAN/GST</span>
+                      <span className="text-xs font-medium text-slate-700 print:text-black">{record.farmer.panGst}</span>
+                    </div>
+                  )}
                 </div>
-                <div className="text-right">
-                  <span className="block text-[10px] text-slate-400 print:text-black">Father</span>
-                  <span className="block text-xs font-medium text-slate-700 print:text-black">{record.fatherName || "N/A"}</span>
+              </div>
+            ) : (
+              <div className="pb-3 border-b border-slate-100 print:border-black/20">
+                <p className="text-[10px] font-bold text-forest-600 uppercase tracking-wider mb-2 print:text-black">Farmer Details</p>
+                <div className="space-y-1.5">
+                  <div className="flex justify-between">
+                    <span className="text-[10px] text-slate-400 print:text-black">Farmer Code</span>
+                    <span className="text-xs font-mono font-bold text-forest-700 print:text-black">{record.farmerCode || "N/A"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[10px] text-slate-400 print:text-black">Name</span>
+                    <span className="text-xs font-semibold text-slate-800 print:text-black">{record.farmerName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[10px] text-slate-400 print:text-black">Father Name</span>
+                    <span className="text-xs font-medium text-slate-700 print:text-black">{record.fatherName || "N/A"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[10px] text-slate-400 print:text-black">Address</span>
+                    <span className="text-xs font-medium text-slate-700 print:text-black text-right max-w-[55%]">
+                      {[record.village, record.farmer?.block, record.farmer?.district, record.farmer?.pinCode].filter(Boolean).join(", ") || "N/A"}
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <span className="block text-[10px] text-slate-400 print:text-black">Code</span>
-                  <span className="block text-xs font-mono font-medium text-slate-700 print:text-black">{record.farmerCode || "N/A"}</span>
+              </div>
+            )}
+
+            {/* Additional Details */}
+            <div className="pb-3 border-b border-slate-100 print:border-black/20">
+              <div className="space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-[10px] text-slate-400 print:text-black">Adtiya Name</span>
+                  <span className="text-xs font-semibold text-slate-800 print:text-black">{record.adtiyaName || "—"}</span>
                 </div>
-                <div className="text-right">
-                  <span className="block text-[10px] text-slate-400 print:text-black">Phone</span>
-                  <span className="block text-xs font-medium text-slate-700 print:text-black">{record.farmer?.phone || "N/A"}</span>
-                </div>
-                <div className="col-span-2 border-t border-slate-50 pt-2 print:border-black/10 mt-1">
-                  <span className="block text-[10px] text-slate-400 print:text-black">Full Location</span>
-                  <span className="block text-xs font-medium text-slate-700 print:text-black">
-                    {[record.village, record.farmer?.block, record.farmer?.district].filter(Boolean).join(", ") || "N/A"}
-                  </span>
+                <div className="flex justify-between">
+                  <span className="text-[10px] text-slate-400 print:text-black">Lot No.</span>
+                  <span className="text-xs font-semibold text-slate-800 print:text-black">{record.lotNo || "—"}</span>
                 </div>
               </div>
             </div>
 
-            <div className="h-px bg-slate-100 print:bg-black" />
-
-            {/* Crop Section */}
-            <div className="pt-2">
-              <p className="text-[10px] font-bold text-forest-600 uppercase tracking-wider mb-2 print:text-black">Crop Details</p>
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <span className="block text-[10px] text-slate-400 print:text-black">Crop</span>
-                  <span className="block text-xs font-medium text-slate-700 print:text-black">{record.crop}</span>
+            {/* Transaction Details */}
+            <div className="pb-3 border-b border-slate-100 print:border-black/20">
+              <p className="text-[10px] font-bold text-forest-600 uppercase tracking-wider mb-2 print:text-black">Transaction Details</p>
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-slate-500 print:text-black">Crop</span>
+                    <span className="font-bold text-slate-800 print:text-black">{record.crop}</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-slate-500 print:text-black">Variety</span>
+                    <span className="font-bold text-slate-700 print:text-black">{record.variety || "—"}</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-slate-500 print:text-black">No. of Bags</span>
+                    <span className="font-bold text-slate-800 print:text-black">{(record.bags || 0).toLocaleString("en-IN")}</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-slate-500 print:text-black">Packing Unit</span>
+                    <span className="font-bold text-slate-700 print:text-black">{record.packingSize || 0} kg</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-slate-500 print:text-black">Weight Qtl.</span>
+                    <span className="font-bold text-slate-800 print:text-black">{record.grossQuantity?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-slate-500 print:text-black">RATE/Qtl.</span>
+                    {(isL2Pending || isL3Pending) ? (
+                      <input type="number" value={editRate} onChange={(e) => setEditRate(e.target.value === "" ? "" : Number(e.target.value))} className="w-20 border rounded text-right p-1 text-slate-700" />
+                    ) : (
+                      <span className="font-bold text-slate-800 print:text-black whitespace-nowrap">{record.rate?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                    )}
+                  </div>
+                  <div className="flex justify-between items-center text-xs print:text-black">
+                    <span className="text-slate-500">Deduction/Qtl (in kg)</span>
+                    {(isL2Pending || isL3Pending) ? (
+                      <input type="number" value={editDeduction} onChange={(e) => setEditDeduction(e.target.value === "" ? "" : Number(e.target.value))} className="w-16 border rounded text-right p-1" />
+                    ) : (
+                      <span className="font-bold text-slate-800 whitespace-nowrap">{record.deduction}</span>
+                    )}
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-slate-500 print:text-black">Bones/Qtl</span>
+                    <span className="font-bold text-slate-800 print:text-black whitespace-nowrap">{record.bones?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                  </div>
                 </div>
-                <div className="text-center">
-                  <span className="block text-[10px] text-slate-400 print:text-black">Variety</span>
-                  <span className="block text-xs font-medium text-slate-700 print:text-black">{record.variety || "-"}</span>
-                </div>
-                <div className="text-right">
-                  <span className="block text-[10px] text-slate-400 print:text-black">Bags</span>
-                  <span className="block text-xs font-medium text-slate-700 print:text-black">{record.bags || 0}</span>
-                </div>
-              </div>
-            </div>
 
-            <div className="h-px bg-slate-100 print:bg-black" />
-
-            {/* Math Section */}
-            <div className="pt-2 space-y-1.5">
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-slate-500 print:text-black">Gross Quantity</span>
-                <span className="font-semibold text-slate-800 print:text-black">
-                  {record.grossQuantity} Qtl
+            {/* Totals */}
+            <div className="pb-3 border-b border-slate-100 print:border-black/20 space-y-1.5">
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-500 font-medium print:text-black">Total Amount</span>
+                <span className="font-bold text-slate-800 print:text-black whitespace-nowrap">
+                  {((isL2Pending || isL3Pending) && editRate !== "" ? 
+                    Math.round(record.grossQuantity * Number(editRate) * 100) / 100 
+                    : Math.round(record.grossQuantity * record.rate * 100) / 100)?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </span>
               </div>
-              <div className="flex justify-between items-center text-xs text-red-600 print:text-black">
-                <span className="opacity-80">Less: Deduction (per Bag)</span>
-                {(isL2Pending || isL3Pending) ? (
-                  <input 
-                    type="number"
-                    value={editDeduction}
-                    onChange={(e) => setEditDeduction(e.target.value === "" ? "" : Number(e.target.value))}
-                    className="w-16 border rounded text-right p-1"
-                  />
-                ) : (
-                  <span className="font-medium">
-                    - {record.deduction} Qtl
-                  </span>
-                )}
-              </div>
-              <div className="flex justify-between items-center text-xs pt-1 border-t border-slate-50 print:border-black">
-                <span className="text-slate-500 font-medium print:text-black">Net Quantity</span>
-                <span className="font-bold text-slate-800 print:text-black">
-                  {(isL2Pending || isL3Pending) && editDeduction !== "" ? 
-                    Math.round((record.grossQuantity - Number(editDeduction) * record.bags) * 100) / 100 
-                    : record.netQuantity} Qtl
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-500 font-medium print:text-black">Total Bones</span>
+                <span className="font-bold text-slate-800 print:text-black whitespace-nowrap">
+                  {(record.bones * record.grossQuantity)?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </span>
               </div>
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-slate-500 print:text-black">Rate</span>
-                {(isL2Pending || isL3Pending) ? (
-                  <input 
-                    type="number"
-                    value={editRate}
-                    onChange={(e) => setEditRate(e.target.value === "" ? "" : Number(e.target.value))}
-                    className="w-20 border rounded text-right p-1 text-slate-700"
-                  />
-                ) : (
-                  <span className="font-medium text-slate-700 print:text-black">
-                    ₹{record.rate.toLocaleString("en-IN")} / Qtl
-                  </span>
-                )}
+              <div className="flex justify-between text-xs text-red-600 print:text-black">
+                <span className="font-medium">Total Deduction</span>
+                <span className="font-bold whitespace-nowrap">
+                  -{((isL2Pending || isL3Pending) && editRate !== "" && editDeduction !== "" ? 
+                    Math.round(((record.grossQuantity * Number(editDeduction)) / 100) * Number(editRate) * 100) / 100 
+                    : Math.round(((record.grossQuantity * record.deduction) / 100) * record.rate * 100) / 100)?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                </span>
               </div>
             </div>
 
-            <div className="h-[2px] border-b-2 border-dashed border-slate-200 mt-3 mb-2 print:border-black" />
-
-            {/* Total */}
-            <div className="flex justify-between items-center pt-2">
-              <span className="text-base font-semibold text-slate-700 print:text-black">
-                Total Payout
-              </span>
-              <span className="text-2xl font-bold text-forest-700 print:text-black">
+            {/* Total Payout */}
+            <div className="bg-forest-50 rounded-xl p-3 text-center border border-forest-100 print:bg-transparent print:border-black">
+              <p className="text-[10px] text-forest-600 font-bold uppercase tracking-wider mb-1 print:text-black">Total Payout</p>
+              <p className="text-lg sm:text-xl print:text-[14px] font-black text-forest-800 print:text-black tracking-tighter whitespace-nowrap">
                 {(isL2Pending || isL3Pending) && editRate !== "" && editDeduction !== "" ? 
-                  "₹" + (Math.round((record.grossQuantity - Number(editDeduction) * record.bags) * Number(editRate) * 100) / 100).toLocaleString("en-IN")
-                  : "₹" + record.total.toLocaleString("en-IN")}
-              </span>
+                  "₹" + (Math.round((record.grossQuantity * Number(editRate)) * 100) / 100 + Math.round((record.grossQuantity * record.bones) * 100) / 100 - Math.round(((record.grossQuantity * Number(editDeduction)) / 100) * Number(editRate) * 100) / 100).toLocaleString("en-IN", { minimumFractionDigits: 2 })
+                  : "₹" + (Math.round((record.grossQuantity * record.rate) * 100) / 100 + Math.round((record.grossQuantity * record.bones) * 100) / 100 - Math.round(((record.grossQuantity * record.deduction) / 100) * record.rate * 100) / 100).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+              </p>
+            </div>
+
+            <div className="h-px bg-slate-100 print:bg-black" />
+
+            {/* Purchase / Approved By */}
+            <div className="flex justify-between pt-1 pb-3 border-b border-slate-100 print:border-black/20">
+              <div>
+                <span className="block text-[10px] text-slate-400 print:text-black">Purchase by</span>
+                <span className="block text-xs font-bold text-slate-800 print:text-black">{record.agentName || "Agent"}</span>
+              </div>
+              <div className="text-right">
+                <span className="block text-[10px] text-slate-400 print:text-black">Approved by</span>
+                <span className="block text-xs font-bold text-slate-700 print:text-black">{record.l3ApproverName || record.l2ApproverName || "Pending"}</span>
+              </div>
+            </div>
+
+            {/* Farmer Signature */}
+            <div className="pt-1 pb-3 border-b border-slate-100 print:border-black/20">
+              <span className="text-[10px] text-slate-400 print:text-black">{record.farmer?.category === "TRADER" ? "Trader Signature" : "Farmer Signature"}</span>
+              <div className="h-8 border-b border-dotted border-slate-300 mt-1 print:border-black"></div>
             </div>
 
             {/* Caption */}
             {record.status !== "APPROVED" && (
-              <div className="mt-4 text-center">
+              <div className="mt-2 text-center">
                 <p className="text-[10px] text-amber-600 print:text-black font-semibold mb-2 max-w-sm mx-auto leading-tight">
-                  * This slip is going for approval. This is not an official receipt. Official receipt will be downloaded after final approval.
+                  * This slip is going for approval. This is not an official receipt.
                 </p>
               </div>
             )}
           </div>
         </div>
+      </div>
 
         {/* Approvals */}
         {isL2Pending && (
@@ -471,12 +496,24 @@ export default function ReceiptPage() {
         )}
       </div>
 
-      {/* Global Print Styles to make background white and remove shadows */}
+      {/* Global Print Styles - 2-inch thermal receipt format */}
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
-          body { background-color: white !important; }
+          @page { size: 58mm auto; margin: 2mm 3mm; }
+          html, body { background: white !important; margin: 0 !important; padding: 0 !important; }
+          body * { visibility: hidden; }
+          #purchase-slip, #purchase-slip * { visibility: visible; }
+          #purchase-slip {
+            position: absolute !important;
+            left: 0 !important; top: 0 !important;
+            width: 52mm !important;
+            padding: 1mm !important;
+            margin: 0 !important;
+            background: white !important;
+            font-family: monospace, Courier !important;
+            font-size: 10px !important;
+          }
           .glass-card { box-shadow: none !important; border: none !important; }
-          /* Hide sidebar or other global layouts if needed */
           #sidebar { display: none !important; }
         }
       `}} />
