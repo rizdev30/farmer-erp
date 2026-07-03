@@ -147,7 +147,7 @@ export default function PurchaseSlip({ receipts, onClose }: Props) {
           {/* ========================================= */}
           {/* SLIP CONTENT — Colored on screen */}
           {/* ========================================= */}
-          <div className="px-6 py-6 relative bg-white print:px-2 print:py-2" id="purchase-slip">
+          <div className="px-6 py-6 relative bg-white print:px-2 print:pb-2 print:pt-6" id="purchase-slip">
 
             {/* Watermark for anti-copy */}
             <div className="absolute inset-0 flex flex-col items-center justify-evenly pointer-events-none z-0 overflow-hidden opacity-30 print:opacity-[0.15]">

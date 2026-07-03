@@ -505,8 +505,8 @@ export default function ProcurementPage() {
                         }}
                         className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 text-left transition-colors"
                       >
-                        <div className="w-8 h-8 rounded-lg bg-forest-100 flex items-center justify-center">
-                          <User size={14} className="text-forest-600" />
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${farmer.category === "TRADER" ? "bg-blue-100" : "bg-forest-100"}`}>
+                          <User size={14} className={farmer.category === "TRADER" ? "text-blue-600" : "text-forest-600"} />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-slate-800 truncate">

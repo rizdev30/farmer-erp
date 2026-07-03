@@ -203,17 +203,27 @@ export async function createProcurement(
     }
   }
 
-  // Verify the farmer belongs to this agent (if not admin/approver)
-  const farmer = await prisma.farmer.findUnique({
-    where: { id: data.farmerId },
-    select: { registeredBy: true, state: true },
-  });
-  if (!farmer) {
-    return { success: false, error: "Farmer not found" };
+  // Verify the farmer/trader belongs to this agent (if not admin/approver)
+  let entity: any = null;
+  if (data.category === "TRADER") {
+    entity = await prisma.trader.findUnique({
+      where: { id: data.farmerId },
+      select: { registeredBy: true, state: true },
+    });
+  } else {
+    entity = await prisma.farmer.findUnique({
+      where: { id: data.farmerId },
+      select: { registeredBy: true, state: true },
+    });
   }
+
+  if (!entity) {
+    return { success: false, error: `${data.category === "TRADER" ? "Trader" : "Farmer"} not found` };
+  }
+  
   if (!user.roles.includes("L4_ADMIN") && !user.roles.includes("L2_APPROVAL")) {
-    if (farmer.registeredBy !== user.userId) {
-      return { success: false, error: "You can only procure from farmers you registered" };
+    if (entity.registeredBy !== user.userId) {
+      return { success: false, error: `You can only procure from ${data.category === "TRADER" ? "traders" : "farmers"} you registered` };
     }
   }
 
@@ -237,7 +247,7 @@ export async function createProcurement(
     // We save the 'total' as the net amount for backend consistency if needed, 
     // or as gross. Let's save it as grossAmount - deductionAmount.
     const total = roundQuintal(totalAmount - totalDeductionAmount);
-    const slipId = generateSlipId(farmer.state);
+    const slipId = generateSlipId(entity.state);
 
     // Create procurement record in local DB
     const procurement = await prisma.procurement.create({
