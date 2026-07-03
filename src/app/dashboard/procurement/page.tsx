@@ -293,6 +293,7 @@ export default function ProcurementPage() {
             bones: payload.bones, adtiyaName: payload.adtiyaName, lotNo: payload.lotNo,
             total: itemTotal, timestamp: new Date().toISOString(),
             agentName: session?.user?.name || "Agent",
+            status: "PENDING_L2",
           };
           try {
             await addToSyncQueue("procurement", payload, offlineReceipt);

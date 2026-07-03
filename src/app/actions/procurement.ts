@@ -107,6 +107,7 @@ export type ProcurementReceipt =
       lotNo?: string;
       total: number;
       agentName?: string;
+      status: string;
       error?: undefined;
     }
   | {
@@ -136,6 +137,7 @@ export type ProcurementReceipt =
       lotNo?: undefined;
       total?: undefined;
       agentName?: undefined;
+      status?: undefined;
     };
 
 export async function createProcurement(
