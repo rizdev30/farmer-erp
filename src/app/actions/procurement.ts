@@ -476,12 +476,23 @@ export async function getProcurementBySlipId(slipId: string) {
   const user = await getSessionUser();
   const isAdmin = user.roles.includes("L4_ADMIN");
 
-  const procurement = await prisma.procurement.findUniqueOrThrow({
+  let procurement = await prisma.procurement.findUniqueOrThrow({
     where: { slipId },
     include: {
       farmer: true,
     },
   });
+
+  // If this is a Trader procurement, the farmerId actually mapped to a Farmer with the same ID.
+  // We must fetch the actual Trader using the farmerCode.
+  if (procurement.farmerCode && procurement.farmerCode.startsWith("T")) {
+    const trader = await prisma.trader.findUnique({
+      where: { traderCode: procurement.farmerCode },
+    });
+    if (trader) {
+      (procurement as any).farmer = { ...trader, category: "TRADER" };
+    }
+  }
 
   if (user.roles.includes("L4_ADMIN") || user.isSuperAdmin) {
     // allowed
