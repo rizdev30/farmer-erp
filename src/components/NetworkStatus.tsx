@@ -24,6 +24,7 @@ import { invalidateCache } from "@/lib/swr-cache";
  */
 export default function NetworkStatusMonitor() {
   const [networkStatus, setNetworkStatus] = useState<NetworkStatus>("online");
+  const prevStatusRef = useRef<NetworkStatus>("online");
   const [queueCount, setQueueCount] = useState(0);
   const [syncing, setSyncing] = useState(false);
   const [showBanner, setShowBanner] = useState(false);
@@ -101,29 +102,30 @@ export default function NetworkStatusMonitor() {
 
     async function checkNetwork() {
       const status = await detectNetworkQuality();
-      setNetworkStatus((prev) => {
-        if (prev !== status) {
-          // Network changed
-          if (status === "online" && (prev === "offline" || prev === "slow")) {
-            // Network came back — attempt sync
-            attemptSync();
-            addToast({
-              type: "success",
-              title: "Back online!",
-              message: "Checking for offline data to sync...",
-              duration: 3000,
-            });
-          } else if (status === "offline" && prev === "online") {
-            addToast({
-              type: "offline",
-              title: "You're offline",
-              message: "Don't worry — your data will be saved locally and synced automatically.",
-              duration: 0, // Persistent until online
-            });
-          }
+      const prev = prevStatusRef.current;
+      
+      if (prev !== status) {
+        // Network changed
+        if (status === "online" && (prev === "offline" || prev === "slow")) {
+          // Network came back — attempt sync
+          attemptSync();
+          addToast({
+            type: "success",
+            title: "Back online!",
+            message: "Checking for offline data to sync...",
+            duration: 3000,
+          });
+        } else if (status === "offline" && prev === "online") {
+          addToast({
+            type: "offline",
+            title: "You're offline",
+            message: "Don't worry — your data will be saved locally and synced automatically.",
+            duration: 0, // Persistent until online
+          });
         }
-        return status;
-      });
+        prevStatusRef.current = status;
+        setNetworkStatus(status);
+      }
     }
 
     // Check every 15 seconds
