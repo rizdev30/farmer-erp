@@ -201,6 +201,10 @@ export default function PurchaseSlip({ receipts, onClose }: Props) {
                       <span className="text-[10px] text-slate-400 print:text-black">Trader Code</span>
                       <span className="text-xs font-mono font-bold text-blue-700 print:text-black">{firstReceipt.farmerCode || "N/A"}</span>
                     </div>
+                    <div className="flex justify-between">
+                      <span className="text-[10px] text-slate-400 print:text-black">Name</span>
+                      <span className="text-xs font-semibold text-slate-800 print:text-black">{firstReceipt.farmerName}</span>
+                    </div>
                     {firstReceipt.company && (
                       <div className="flex justify-between">
                         <span className="text-[10px] text-slate-400 print:text-black">Company</span>
