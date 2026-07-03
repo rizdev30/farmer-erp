@@ -3,6 +3,9 @@ import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { authConfig } from "./auth.config";
+import { checkRateLimit, recordFailedAttempt, clearRateLimit } from "@/lib/rate-limit";
+import { logAuditAction } from "@/lib/logger";
+import { headers } from "next/headers";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -18,18 +21,40 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!credentials?.email || !credentials?.password) return null;
 
         const emailStr = (credentials.email as string).trim();
+        const headersList = await headers();
+        const ip = headersList.get("x-forwarded-for") || "unknown IP";
+        
+        // 1. Check Rate Limit
+        const rateLimit = await checkRateLimit(emailStr);
+        if (!rateLimit.allowed) {
+          await logAuditAction(null, "RATE_LIMIT_BLOCKED", `Email: ${emailStr} blocked due to too many attempts`, ip);
+          throw new Error(`Account locked. Please try again in ${rateLimit.minutesLeft} minute(s).`);
+        }
+
         const user = await prisma.user.findUnique({
           where: { email: emailStr },
         });
 
-        if (!user || !user.active) return null;
+        if (!user || !user.active) {
+          await recordFailedAttempt(emailStr);
+          await logAuditAction(null, "FAILED_LOGIN", `Invalid login attempt for email: ${emailStr} (User not found)`, ip);
+          return null;
+        }
 
         const isValid = await bcrypt.compare(
           credentials.password as string,
           user.password
         );
 
-        if (!isValid) return null;
+        if (!isValid) {
+          await recordFailedAttempt(emailStr);
+          await logAuditAction(user.id, "FAILED_LOGIN", `Invalid login attempt for email: ${emailStr} (Wrong password)`, ip);
+          return null;
+        }
+
+        // 2. Clear rate limit on successful login
+        await clearRateLimit(emailStr);
+        await logAuditAction(user.id, "SUCCESSFUL_LOGIN", `User logged in successfully`, ip);
 
         const sessionId = crypto.randomUUID();
         const isHighLevel = user.roles.includes("L3_PO_MAKER") || user.roles.includes("L4_ADMIN") || user.isSuperAdmin;

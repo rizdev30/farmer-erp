@@ -183,3 +183,24 @@ model PurchaseOrder {
   @@map("purchase_orders")
 }
 
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  details   String?
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  @@map("audit_logs")
+}
+
+model LoginAttempt {
+  id          String   @id @default(cuid())
+  identifier  String   @unique // Store Email or IP Address
+  attempts    Int      @default(0)
+  lockedUntil DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("login_attempts")
+}

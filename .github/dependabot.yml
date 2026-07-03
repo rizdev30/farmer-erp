@@ -1,0 +1,9 @@
+version: 2
+updates:
+  # Maintain dependencies for npm (package.json / package-lock.json)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly" # Runs every week to check for safe updates
+      day: "saturday"
+    open-pull-requests-limit: 5 # Limits how many PRs it opens at once so you aren't overwhelmed
