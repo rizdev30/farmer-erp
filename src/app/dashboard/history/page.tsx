@@ -300,10 +300,8 @@ export default function HistoryPage() {
               >
                 <option value="">All Statuses</option>
                 <option value="PENDING_L2">Pending Level 2</option>
-                <option value="PENDING_L3">Pending Level 3</option>
                 <option value="APPROVED">Approved</option>
                 <option value="REJECTED_L2">Rejected Level 2</option>
-                <option value="REJECTED_L3">Rejected Level 3</option>
               </select>
             </div>
           </div>

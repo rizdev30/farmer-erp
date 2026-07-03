@@ -154,7 +154,6 @@ export default function ReceiptPage() {
   }
 
   const isL2Pending = record.status === "PENDING_L2" && (roles.includes("L2_APPROVAL") || roles.includes("L4_ADMIN"));
-  const isL3Pending = record.status === "PENDING_L3" && (roles.includes("L3_PO_MAKER") || roles.includes("L4_ADMIN"));
 
   return (
     <div className="max-w-md mx-auto py-8">
@@ -188,8 +187,8 @@ export default function ReceiptPage() {
           {/* Watermark for anti-copy */}
           <div className="absolute inset-0 flex flex-col items-center justify-evenly pointer-events-none z-0 overflow-hidden opacity-30 print:opacity-[0.15]">
             {[1, 2, 3].map((i) => (
-              <div key={i} className={`transform -rotate-45 text-4xl sm:text-6xl print:text-[24px] font-black tracking-widest whitespace-nowrap print:text-black ${(record.status === "PENDING_L3" || record.status === "APPROVED") ? "text-slate-300" : "text-amber-200"}`}>
-                {(record.status === "PENDING_L3" || record.status === "APPROVED") ? "OFFICIAL RECEIPT" : "UNOFFICIAL SLIP"}
+              <div key={i} className={`transform -rotate-45 text-4xl sm:text-6xl print:text-[24px] font-black tracking-widest whitespace-nowrap print:text-black ${record.status === "APPROVED" ? "text-slate-300" : "text-amber-200"}`}>
+                {record.status === "APPROVED" ? "OFFICIAL RECEIPT" : "UNOFFICIAL SLIP"}
               </div>
             ))}
           </div>
@@ -198,8 +197,8 @@ export default function ReceiptPage() {
           <div className="text-center mb-5 pb-4 border-b-2 border-slate-800 print:border-black relative z-10">
             <h2 className="text-xl font-black uppercase tracking-widest text-forest-900 print:text-black">Purchase Slip</h2>
             <p className="text-sm font-semibold text-slate-500 print:text-black mt-1">FARMER ERP PVT. LTD.</p>
-            <p className={`text-[10px] font-bold mt-1 print:text-black ${(record.status === "PENDING_L3" || record.status === "APPROVED") ? "text-emerald-600" : "text-amber-600"}`}>
-              {(record.status === "PENDING_L3" || record.status === "APPROVED") ? "✓ Official Receipt" : "⏳ " + (record.status || "PENDING_L2").replace(/_/g, " ")}
+            <p className={`text-[10px] font-bold mt-1 print:text-black ${record.status === "APPROVED" ? "text-emerald-600" : "text-amber-600"}`}>
+              {record.status === "APPROVED" ? "✓ Official Receipt" : "⏳ " + (record.status || "PENDING_L2").replace(/_/g, " ")}
             </p>
           </div>
 
@@ -354,7 +353,7 @@ export default function ReceiptPage() {
               <div className="flex justify-between text-xs">
                 <span className="text-slate-500 font-medium print:text-black">Total Amount</span>
                 <span className="font-bold text-slate-800 print:text-black whitespace-nowrap">
-                  {((isL2Pending || isL3Pending) && editRate !== "" ? 
+                  {(isL2Pending && editRate !== "" ? 
                     Math.round(record.grossQuantity * Number(editRate) * 100) / 100 
                     : Math.round(record.grossQuantity * record.rate * 100) / 100)?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </span>
@@ -368,7 +367,7 @@ export default function ReceiptPage() {
               <div className="flex justify-between text-xs text-red-600 print:text-black">
                 <span className="font-medium">Total Deduction</span>
                 <span className="font-bold whitespace-nowrap">
-                  -{((isL2Pending || isL3Pending) && editRate !== "" && editDeduction !== "" ? 
+                  -{(isL2Pending && editRate !== "" && editDeduction !== "" ? 
                     Math.round(((record.grossQuantity * Number(editDeduction)) / 100) * Number(editRate) * 100) / 100 
                     : Math.round(((record.grossQuantity * record.deduction) / 100) * record.rate * 100) / 100)?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </span>
@@ -379,7 +378,7 @@ export default function ReceiptPage() {
             <div className="bg-forest-50 rounded-xl p-3 text-center border border-forest-100 print:bg-transparent print:border-black">
               <p className="text-[10px] text-forest-600 font-bold uppercase tracking-wider mb-1 print:text-black">Total Payout</p>
               <p className="text-lg sm:text-xl print:text-[14px] font-black text-forest-800 print:text-black tracking-tighter whitespace-nowrap">
-                {(isL2Pending || isL3Pending) && editRate !== "" && editDeduction !== "" ? 
+                {isL2Pending && editRate !== "" && editDeduction !== "" ? 
                   "₹" + (Math.round((record.grossQuantity * Number(editRate)) * 100) / 100 + Math.round((record.grossQuantity * record.bones) * 100) / 100 - Math.round(((record.grossQuantity * Number(editDeduction)) / 100) * Number(editRate) * 100) / 100).toLocaleString("en-IN", { minimumFractionDigits: 2 })
                   : "₹" + (Math.round((record.grossQuantity * record.rate) * 100) / 100 + Math.round((record.grossQuantity * record.bones) * 100) / 100 - Math.round(((record.grossQuantity * record.deduction) / 100) * record.rate * 100) / 100).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
               </p>
@@ -437,24 +436,7 @@ export default function ReceiptPage() {
           </div>
         )}
 
-        {isL3Pending && (
-          <div className="px-6 pb-6 flex gap-3 print:hidden">
-            <button
-              onClick={() => handleAction("L3_REJECT")}
-              disabled={isUpdating}
-              className="flex-1 bg-red-100 text-red-700 py-3 rounded-xl font-semibold hover:bg-red-200"
-            >
-              Reject
-            </button>
-            <button
-              onClick={() => handleAction("L3_APPROVE")}
-              disabled={isUpdating}
-              className="flex-1 bg-green-600 text-white py-3 rounded-xl font-semibold hover:bg-green-700"
-            >
-              Final Approve (L3)
-            </button>
-          </div>
-        )}
+
 
         {/* Actions */}
         <div className="px-6 pb-6 flex gap-3 print:hidden">

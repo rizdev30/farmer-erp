@@ -359,9 +359,9 @@ export async function getProcurementHistory(filters?: {
       
       if (filters?.status) {
         if (filters.status === "PENDING") {
-          where.status = "PENDING_L3";
+          where.status = "APPROVED"; // Since they don't approve anymore, they process APPROVED slips
         } else if (filters.status === "REJECTED") {
-          where.status = "REJECTED_L3";
+          where.status = "REJECTED_L3"; // legacy, or could just skip
         } else {
           where.status = filters.status;
         }
@@ -670,7 +670,7 @@ export async function updateProcurementStatus(
   if (action === "L2_APPROVE") {
     if (!user.roles.includes("L2_APPROVAL") && !user.roles.includes("L4_ADMIN")) throw new Error("Unauthorized");
     if (procurement.status !== "PENDING_L2") throw new Error("Invalid status");
-    dataToUpdate.status = "PENDING_L3";
+    dataToUpdate.status = "APPROVED";
     dataToUpdate.l2ApprovedBy = user.userId;
   } else if (action === "L2_REJECT") {
     if (!user.roles.includes("L2_APPROVAL") && !user.roles.includes("L4_ADMIN")) throw new Error("Unauthorized");
