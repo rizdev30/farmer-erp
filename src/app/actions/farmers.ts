@@ -410,7 +410,7 @@ export async function registerFarmer(data: {
   if (data.accountNumber && data.accountNumber.length > 30) return { success: false, error: "Account number is too long" };
 
   try {
-    const isAdmin = user.roles.includes("L4_ADMIN") || user.isSuperAdmin;
+    const isAdmin = user.isSuperAdmin;
     const code = data.farmerCode || (await generateFarmerCode(data.category));
 
     let registeredById = user.userId;

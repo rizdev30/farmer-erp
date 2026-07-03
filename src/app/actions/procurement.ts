@@ -195,7 +195,7 @@ export async function createProcurement(
   let procurementAgentName = user.userName;
   let createdByAdmin = false;
 
-  if (user.roles.includes("L4_ADMIN") && data.agentId && data.agentId !== user.userId) {
+  if (user.isSuperAdmin && data.agentId && data.agentId !== user.userId) {
     const agent = await prisma.user.findUnique({ where: { id: data.agentId } });
     if (agent) {
       procurementAgentId = agent.id;
@@ -222,7 +222,7 @@ export async function createProcurement(
     return { success: false, error: `${data.category === "TRADER" ? "Trader" : "Farmer"} not found` };
   }
   
-  if (!user.roles.includes("L4_ADMIN") && !user.roles.includes("L2_APPROVAL")) {
+  if (!user.isSuperAdmin && !user.roles.includes("L2_APPROVAL")) {
     if (entity.registeredBy !== user.userId) {
       return { success: false, error: `You can only procure from ${data.category === "TRADER" ? "traders" : "farmers"} you registered` };
     }
@@ -682,21 +682,21 @@ export async function updateProcurementStatus(
   const dataToUpdate: any = {};
 
   if (action === "L2_APPROVE") {
-    if (!user.roles.includes("L2_APPROVAL") && !user.roles.includes("L4_ADMIN")) throw new Error("Unauthorized");
+    if (!user.roles.includes("L2_APPROVAL") && !user.isSuperAdmin) throw new Error("Unauthorized");
     if (procurement.status !== "PENDING_L2") throw new Error("Invalid status");
     dataToUpdate.status = "APPROVED";
     dataToUpdate.l2ApprovedBy = user.userId;
   } else if (action === "L2_REJECT") {
-    if (!user.roles.includes("L2_APPROVAL") && !user.roles.includes("L4_ADMIN")) throw new Error("Unauthorized");
+    if (!user.roles.includes("L2_APPROVAL") && !user.isSuperAdmin) throw new Error("Unauthorized");
     if (procurement.status !== "PENDING_L2") throw new Error("Invalid status");
     dataToUpdate.status = "REJECTED_L2";
   } else if (action === "L3_APPROVE") {
-    if (!user.roles.includes("L3_PO_MAKER") && !user.roles.includes("L4_ADMIN")) throw new Error("Unauthorized");
+    if (!user.roles.includes("L3_PO_MAKER") && !user.isSuperAdmin) throw new Error("Unauthorized");
     if (procurement.status !== "PENDING_L3") throw new Error("Invalid status");
     dataToUpdate.status = "APPROVED";
     dataToUpdate.l3ApprovedBy = user.userId;
   } else if (action === "L3_REJECT") {
-    if (!user.roles.includes("L3_PO_MAKER") && !user.roles.includes("L4_ADMIN")) throw new Error("Unauthorized");
+    if (!user.roles.includes("L3_PO_MAKER") && !user.isSuperAdmin) throw new Error("Unauthorized");
     if (procurement.status !== "PENDING_L3") throw new Error("Invalid status");
     dataToUpdate.status = "REJECTED_L3";
   }

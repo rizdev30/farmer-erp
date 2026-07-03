@@ -58,7 +58,7 @@ export async function getPOBySlipId(slipId: string) {
 
 export async function savePO(data: any) {
   const user = await getSessionUser();
-  if (!user.roles.includes("L3_PO_MAKER") && !user.roles.includes("L4_ADMIN") && !user.isSuperAdmin) {
+  if (!user.roles.includes("L3_PO_MAKER") && !user.isSuperAdmin) {
     throw new Error("Unauthorized");
   }
 

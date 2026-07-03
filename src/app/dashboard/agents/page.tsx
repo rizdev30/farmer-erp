@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import {
   UserCog,
   Plus,
@@ -120,6 +121,9 @@ function MultiSelectCombobox({
 }
 
 export default function AgentsPage() {
+  const { data: session } = useSession();
+  const isSuperAdmin = (session?.user as any)?.isSuperAdmin;
+
   const {
     data: agents = [],
     isLoading: loading,
@@ -340,16 +344,18 @@ export default function AgentsPage() {
             </p>
           </div>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl 
-            bg-gradient-to-r from-forest-800 to-forest-700 text-white text-sm font-semibold
-            hover:from-forest-700 hover:to-forest-600 
-            shadow-sm hover:shadow-md transition-all active:scale-[0.98]"
-        >
-          <Plus size={18} />
-          Create Agent
-        </button>
+        {isSuperAdmin && (
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl 
+              bg-gradient-to-r from-forest-800 to-forest-700 text-white text-sm font-semibold
+              hover:from-forest-700 hover:to-forest-600 
+              shadow-sm hover:shadow-md transition-all active:scale-[0.98]"
+          >
+            <Plus size={18} />
+            Create Agent
+          </button>
+        )}
       </div>
 
       {/* Agent List */}
@@ -415,31 +421,34 @@ export default function AgentsPage() {
                     </span>
                   ))}
                   
-                  <div className="ml-0 sm:ml-2 flex items-center gap-2 shrink-0">
-                    {!agent.roles?.includes("L4_ADMIN") && !agent.isSuperAdmin && (
+                  
+                  {isSuperAdmin && (
+                    <div className="ml-0 sm:ml-2 flex items-center gap-2 shrink-0">
+                      {!agent.roles?.includes("L4_ADMIN") && !agent.isSuperAdmin && (
+                        <button
+                          onClick={() => toggleAgent(agent.id, agent.active)}
+                          className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+                          title={agent.active ? "Deactivate" : "Activate"}
+                        >
+                          {agent.active ? (
+                            <ToggleRight
+                              size={24}
+                              className="text-forest-500"
+                            />
+                          ) : (
+                            <ToggleLeft size={24} className="text-slate-300" />
+                          )}
+                        </button>
+                      )}
                       <button
-                        onClick={() => toggleAgent(agent.id, agent.active)}
-                        className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
-                        title={agent.active ? "Deactivate" : "Activate"}
+                        onClick={() => openEditModal(agent)}
+                        className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-600"
+                        title="Edit Agent"
                       >
-                        {agent.active ? (
-                          <ToggleRight
-                            size={24}
-                            className="text-forest-500"
-                          />
-                        ) : (
-                          <ToggleLeft size={24} className="text-slate-300" />
-                        )}
+                        <Edit size={20} />
                       </button>
-                    )}
-                    <button
-                      onClick={() => openEditModal(agent)}
-                      className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-600"
-                      title="Edit Agent"
-                    >
-                      <Edit size={20} />
-                    </button>
-                  </div>
+                    </div>
+                  )}
                 </div>
               </div>
               

@@ -8,9 +8,10 @@ export default async function AgentsLayout({
 }) {
   const session = await auth();
 
-  // If there's no session or the user is NOT a Super Admin, instantly redirect them to the dashboard homepage
+  // If there's no session or the user is NOT a Super Admin or L4 Admin, instantly redirect them to the dashboard homepage
   const user = session?.user as any;
-  if (!user || !user.isSuperAdmin) {
+  const roles = user?.roles || [];
+  if (!user || (!user.isSuperAdmin && !roles.includes("L4_ADMIN"))) {
     redirect("/dashboard");
   }
 
