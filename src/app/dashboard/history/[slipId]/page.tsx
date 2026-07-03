@@ -31,6 +31,7 @@ export default function ReceiptPage() {
       // Pre-fill edit forms
       setEditRate(data.rate);
       setEditDeduction(data.deduction);
+      setEditBones(data.bones);
       return data;
     },
     { ttl: 60000 }
@@ -44,6 +45,7 @@ export default function ReceiptPage() {
 
   const [editRate, setEditRate] = useState<number | "">("");
   const [editDeduction, setEditDeduction] = useState<number | "">("");
+  const [editBones, setEditBones] = useState<number | "">("");
   const [isUpdating, setIsUpdating] = useState(false);
 
   if (loading) {
@@ -136,7 +138,8 @@ export default function ReceiptPage() {
     try {
       const updates = (action === "L2_APPROVE") ? { 
         rate: Number(editRate), 
-        deduction: Number(editDeduction) 
+        deduction: Number(editDeduction),
+        bones: Number(editBones)
       } : undefined;
       await updateProcurementStatus(slipId, action, updates);
       
@@ -348,7 +351,11 @@ export default function ReceiptPage() {
                   </div>
                   <div className="flex justify-between text-xs">
                     <span className="text-slate-500 print:text-black">Bones/Qtl</span>
-                    <span className="font-bold text-slate-800 print:text-black whitespace-nowrap">{record.bones?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                    {isL2Pending ? (
+                      <input type="number" value={editBones} onChange={(e) => setEditBones(e.target.value === "" ? "" : Number(e.target.value))} className="w-16 border rounded text-right p-1" />
+                    ) : (
+                      <span className="font-bold text-slate-800 print:text-black whitespace-nowrap">{record.bones?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                    )}
                   </div>
                 </div>
 
@@ -365,7 +372,9 @@ export default function ReceiptPage() {
               <div className="flex justify-between text-xs">
                 <span className="text-slate-500 font-medium print:text-black">Total Bones</span>
                 <span className="font-bold text-slate-800 print:text-black whitespace-nowrap">
-                  {(record.bones * record.grossQuantity)?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  {(isL2Pending && editBones !== "" ? 
+                    Math.round(record.grossQuantity * Number(editBones) * 100) / 100 
+                    : record.bones * record.grossQuantity)?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </span>
               </div>
               <div className="flex justify-between text-xs text-red-600 print:text-black">
@@ -382,8 +391,8 @@ export default function ReceiptPage() {
             <div className="bg-forest-50 rounded-xl p-3 text-center border border-forest-100 print:bg-transparent print:border-black">
               <p className="text-[10px] text-forest-600 font-bold uppercase tracking-wider mb-1 print:text-black">Total Payout</p>
               <p className="text-lg sm:text-xl print:text-[14px] font-black text-forest-800 print:text-black tracking-tighter whitespace-nowrap">
-                {isL2Pending && editRate !== "" && editDeduction !== "" ? 
-                  "₹" + (Math.round((record.grossQuantity * Number(editRate)) * 100) / 100 + Math.round((record.grossQuantity * record.bones) * 100) / 100 - Math.round(((record.grossQuantity * Number(editDeduction)) / 100) * Number(editRate) * 100) / 100).toLocaleString("en-IN", { minimumFractionDigits: 2 })
+                {isL2Pending && editRate !== "" && editDeduction !== "" && editBones !== "" ? 
+                  "₹" + (Math.round((record.grossQuantity * Number(editRate)) * 100) / 100 + Math.round((record.grossQuantity * Number(editBones)) * 100) / 100 - Math.round(((record.grossQuantity * Number(editDeduction)) / 100) * Number(editRate) * 100) / 100).toLocaleString("en-IN", { minimumFractionDigits: 2 })
                   : "₹" + (Math.round((record.grossQuantity * record.rate) * 100) / 100 + Math.round((record.grossQuantity * record.bones) * 100) / 100 - Math.round(((record.grossQuantity * record.deduction) / 100) * record.rate * 100) / 100).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
               </p>
             </div>

@@ -671,7 +671,7 @@ export async function getAgentsList() {
 export async function updateProcurementStatus(
   slipId: string,
   action: "L2_APPROVE" | "L2_REJECT" | "L3_APPROVE" | "L3_REJECT",
-  updates?: { rate?: number; deduction?: number }
+  updates?: { rate?: number; deduction?: number; bones?: number }
 ) {
   const user = await getSessionUser();
   const procurement = await prisma.procurement.findUniqueOrThrow({ where: { slipId } });
@@ -718,6 +718,15 @@ export async function updateProcurementStatus(
         hasEdit = true;
       }
     }
+    if (updates.bones !== undefined) {
+      if (typeof updates.bones !== "number" || updates.bones < 0) {
+        throw new Error("Bones must be a non-negative number");
+      }
+      if (updates.bones !== procurement.bones) {
+        dataToUpdate.bones = updates.bones;
+        hasEdit = true;
+      }
+    }
     
     if (hasEdit) {
       if (action.startsWith("L2")) dataToUpdate.l2Edited = true;
@@ -727,10 +736,18 @@ export async function updateProcurementStatus(
     // Recalculate total if needed
     const newRate = updates.rate !== undefined ? updates.rate : procurement.rate;
     const newDeduction = updates.deduction !== undefined ? updates.deduction : procurement.deduction;
-    const totalDeduction = newDeduction * procurement.bags;
-    const netQuantity = procurement.grossQuantity - totalDeduction;
+    const newBones = updates.bones !== undefined ? updates.bones : procurement.bones;
+    
+    // deduction is in kg per quintal
+    const dedWeightQtl = (procurement.grossQuantity * newDeduction) / 100;
+    const netQuantity = procurement.grossQuantity - dedWeightQtl;
     dataToUpdate.netQuantity = Math.round(netQuantity * 100) / 100;
-    dataToUpdate.total = Math.round((dataToUpdate.netQuantity * newRate) * 100) / 100;
+    
+    const grossAmount = procurement.grossQuantity * newRate;
+    const dedAmount = dedWeightQtl * newRate;
+    const bonesAmount = procurement.grossQuantity * newBones;
+    
+    dataToUpdate.total = Math.round((grossAmount - dedAmount) * 100) / 100;
   }
 
   return await prisma.procurement.update({

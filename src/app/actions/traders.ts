@@ -57,17 +57,25 @@ export async function registerTrader(data: {
   if (!data.village || typeof data.village !== "string" || !data.village.trim() || data.village.length > 100) {
     return { success: false, error: "Invalid village (must be 1-100 characters)" };
   }
+  if (!data.state || typeof data.state !== "string" || !data.state.trim() || data.state.length > 100) {
+    return { success: false, error: "State is required (must be 1-100 characters)" };
+  }
+  if (!data.company || typeof data.company !== "string" || !data.company.trim() || data.company.length > 100) {
+    return { success: false, error: "Company is required (must be 1-100 characters)" };
+  }
+  if (!data.promoterName || typeof data.promoterName !== "string" || !data.promoterName.trim() || data.promoterName.length > 100) {
+    return { success: false, error: "Promoter Name is required (must be 1-100 characters)" };
+  }
+  if (!data.panGst || typeof data.panGst !== "string" || !data.panGst.trim() || data.panGst.length > 30) {
+    return { success: false, error: "PAN/GST is required (must be 1-30 characters)" };
+  }
 
   // Optional string fields length limits to prevent buffer/DB size attack
   if (data.fatherName && data.fatherName.length > 100) return { success: false, error: "Father's name is too long" };
   if (data.town && data.town.length > 100) return { success: false, error: "Town is too long" };
-  if (data.state && data.state.length > 100) return { success: false, error: "State is too long" };
   if (data.gender && data.gender.length > 20) return { success: false, error: "Gender is too long" };
   if (data.pinCode && data.pinCode.length > 10) return { success: false, error: "Pin code is too long" };
   if (data.projectName && data.projectName.length > 100) return { success: false, error: "Project name is too long" };
-  if (data.panGst && data.panGst.length > 30) return { success: false, error: "PAN/GST is too long" };
-  if (data.company && data.company.length > 100) return { success: false, error: "Company name is too long" };
-  if (data.promoterName && data.promoterName.length > 100) return { success: false, error: "Promoter name is too long" };
   if (data.bankName && data.bankName.length > 100) return { success: false, error: "Bank name is too long" };
   if (data.ifscCode && data.ifscCode.length > 20) return { success: false, error: "IFSC code is too long" };
   if (data.accountNumber && data.accountNumber.length > 30) return { success: false, error: "Account number is too long" };

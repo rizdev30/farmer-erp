@@ -392,10 +392,12 @@ export async function registerFarmer(data: {
   if (!data.fatherName || typeof data.fatherName !== "string" || !data.fatherName.trim() || data.fatherName.length > 100) {
     return { success: false, error: "Invalid father's name (must be 1-100 characters)" };
   }
+  if (!data.state || typeof data.state !== "string" || !data.state.trim() || data.state.length > 100) {
+    return { success: false, error: "State is required (must be 1-100 characters)" };
+  }
 
   // Optional string fields length limits to prevent buffer/DB size attack
   if (data.town && data.town.length > 100) return { success: false, error: "Town is too long" };
-  if (data.state && data.state.length > 100) return { success: false, error: "State is too long" };
   if (data.gender && data.gender.length > 20) return { success: false, error: "Gender is too long" };
   if (data.pinCode && data.pinCode.length > 10) return { success: false, error: "Pin code is too long" };
   if (data.projectName && data.projectName.length > 100) return { success: false, error: "Project name is too long" };

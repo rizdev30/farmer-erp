@@ -232,7 +232,7 @@ export default function FarmerRegistrationModal({
   }
 
   async function handleSubmit() {
-    if (!village.trim() || !block.trim() || !state.trim() || !district.trim() || !town.trim()) {
+    if (!address.trim() || !village.trim() || !block.trim() || !state.trim() || !district.trim() || !town.trim()) {
       setError("Please fill all required location fields (*).");
       return;
     }
@@ -567,7 +567,7 @@ export default function FarmerRegistrationModal({
 
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                    Address
+                    Address *
                   </label>
                   <input
                     value={address}

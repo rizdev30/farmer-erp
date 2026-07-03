@@ -500,9 +500,9 @@ export default function HistoryPage() {
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   {/* Left: Farmer Info */}
                   <div className="flex items-start gap-3.5">
-                    <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-forest-100 to-forest-200 flex items-center justify-center shrink-0 mt-0.5">
-                      <span className="text-sm font-bold text-forest-700">
-                        {record.farmerName?.[0] || "F"}
+                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${record.farmerCode?.startsWith("T") ? "bg-gradient-to-br from-blue-100 to-blue-200" : "bg-gradient-to-br from-forest-100 to-forest-200"}`}>
+                      <span className={`text-sm font-bold ${record.farmerCode?.startsWith("T") ? "text-blue-700" : "text-forest-700"}`}>
+                        {record.farmerName?.[0] || (record.farmerCode?.startsWith("T") ? "T" : "F")}
                       </span>
                     </div>
                     <div className="min-w-0">
@@ -510,6 +510,9 @@ export default function HistoryPage() {
                         <h3 className="font-semibold text-slate-800">
                           {record.farmerName}
                         </h3>
+                        {record.farmerCode?.startsWith("T") && (
+                          <span className="text-[9px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded uppercase font-bold tracking-wider shrink-0">Trader</span>
+                        )}
                         <span className="text-[10px] font-mono bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md">
                           {record.farmerCode || "—"}
                         </span>
