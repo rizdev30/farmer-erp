@@ -2,6 +2,7 @@
 
 import prisma from "@/lib/prisma";
 import { auth } from "@/auth";
+import { logAuditAction } from "@/lib/logger";
 
 async function getSessionUser() {
   const session = await auth();
@@ -68,7 +69,7 @@ export async function savePO(data: any) {
   const existing = await prisma.purchaseOrder.findUnique({ where: { slipId } });
 
   if (existing) {
-    return await prisma.purchaseOrder.update({
+    const updated = await prisma.purchaseOrder.update({
       where: { slipId },
       data: {
         poNumber: poNumber || existing.poNumber,
@@ -81,6 +82,9 @@ export async function savePO(data: any) {
         supplierLocation,
       },
     });
+    
+    await logAuditAction(user.userId, "PO_UPDATED", `Updated PO ${updated.poNumber} for slip ${slipId}`);
+    return updated;
   } else {
     // Check if PO number already exists
     const poNumberToCheck = poNumber || `PO-${slipId}`;
@@ -90,7 +94,7 @@ export async function savePO(data: any) {
       throw new Error(`PO Number ${poNumberToCheck} already exists.`);
     }
 
-    return await prisma.purchaseOrder.create({
+    const created = await prisma.purchaseOrder.create({
       data: {
         slipId,
         poNumber: poNumberToCheck,
@@ -104,6 +108,9 @@ export async function savePO(data: any) {
         createdById: user.userId,
       },
     });
+
+    await logAuditAction(user.userId, "PO_CREATED", `Created PO ${created.poNumber} for slip ${slipId}`);
+    return created;
   }
 }
 

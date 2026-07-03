@@ -2,6 +2,7 @@
 
 import prisma from "@/lib/prisma";
 import { generateFarmerCode, getSessionUser } from "./farmers";
+import { logAuditAction } from "@/lib/logger";
 
 export async function registerTrader(data: {
   name: string;
@@ -122,6 +123,8 @@ export async function registerTrader(data: {
         registeredByName: registeredByName,
       },
     });
+
+    await logAuditAction(user.userId, "TRADER_REGISTERED", `Registered trader ${trader.name} (${trader.traderCode})`);
 
     return {
       success: true,

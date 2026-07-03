@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
 import { NextRequest } from "next/server";
 import bcrypt from "bcryptjs";
+import { logAuditAction } from "@/lib/logger";
 
 export async function PATCH(
   req: NextRequest,
@@ -57,6 +58,8 @@ export async function PATCH(
       active: true,
     },
   });
+
+  await logAuditAction((session.user as any).id, "USER_UPDATED", `Updated agent user ${user.email}`);
 
   return Response.json(user);
 }

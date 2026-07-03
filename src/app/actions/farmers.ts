@@ -2,6 +2,7 @@
 
 import prisma from "@/lib/prisma";
 import { auth } from "@/auth";
+import { logAuditAction } from "@/lib/logger";
 
 export async function generateFarmerCode(category: string = "FARMER"): Promise<string> {
   const now = new Date();
@@ -454,6 +455,8 @@ export async function registerFarmer(data: {
         createdByAdmin,
       },
     });
+
+    await logAuditAction(user.userId, "FARMER_REGISTERED", `Registered farmer ${farmer.name} (${farmer.farmerCode})`);
 
     return {
       success: true,

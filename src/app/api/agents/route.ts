@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { logAuditAction } from "@/lib/logger";
 
 export async function GET() {
   const session = await auth();
@@ -89,6 +90,8 @@ export async function POST(req: Request) {
       active: true,
     },
   });
+
+  await logAuditAction((session.user as any).id, "USER_CREATED", `Created new agent user ${email}`);
 
   return Response.json(user, { status: 201 });
 }

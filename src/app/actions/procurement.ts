@@ -2,6 +2,7 @@
 
 import prisma from "@/lib/prisma";
 import { auth } from "@/auth";
+import { logAuditAction } from "@/lib/logger";
 
 function generateSlipId(state?: string): string {
   const now = new Date();
@@ -277,6 +278,8 @@ export async function createProcurement(
         validated: true,
       },
     });
+
+    await logAuditAction(user.userId, "PROCUREMENT_CREATED", `Created procurement slip ${slipId} for farmer ${data.farmerName}`);
 
     return {
       success: true,
@@ -750,8 +753,12 @@ export async function updateProcurementStatus(
     dataToUpdate.total = Math.round((grossAmount - dedAmount) * 100) / 100;
   }
 
-  return await prisma.procurement.update({
+  const updatedProcurement = await prisma.procurement.update({
     where: { slipId },
     data: dataToUpdate,
   });
+
+  await logAuditAction(user.userId, `PROCUREMENT_${action}`, `Status changed to ${dataToUpdate.status} for slip ${slipId}`);
+
+  return updatedProcurement;
 }
