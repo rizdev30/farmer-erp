@@ -2,9 +2,9 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { getPOBySlipId, savePO } from "@/app/actions/po";
+import { getPOBySlipId, savePO, getApprovedProcurementsByAdhatiya } from "@/app/actions/po";
 import { 
-  FileText, Search, Plus, Trash2, Save, Printer, ArrowLeft, Loader2, Calendar, CheckCircle2 
+  FileText, Search, Plus, Trash2, Save, Printer, ArrowLeft, Loader2, Calendar, CheckCircle2, Users
 } from "lucide-react";
 import { useToast } from "@/components/Toast";
 
@@ -15,6 +15,12 @@ function POMakerForm() {
   const initialSlipId = searchParams.get("slipId") || "";
 
   const [slipIdInput, setSlipIdInput] = useState(initialSlipId);
+  const [adhatiyaInput, setAdhatiyaInput] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchingAdhatiya, setSearchingAdhatiya] = useState(false);
+  const [selectedSlipIds, setSelectedSlipIds] = useState<Set<string>>(new Set());
+  const [allSelectedProcurements, setAllSelectedProcurements] = useState<any[]>([]);
+  
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [poData, setPoData] = useState<any>(null);
@@ -124,6 +130,9 @@ function POMakerForm() {
             setManualCrop(parsedItems.overrides.manualCrop ?? "");
             setManualVariety(parsedItems.overrides.manualVariety ?? "");
           }
+          if (parsedItems.selectedProcurements?.length > 0) {
+            setAllSelectedProcurements(parsedItems.selectedProcurements);
+          }
         }
       } catch (e) {
         setItems([]);
@@ -147,6 +156,32 @@ function POMakerForm() {
       fetchPO(slipIdInput.trim());
       // Update URL without full reload
       router.replace(`/dashboard/po-maker?slipId=${slipIdInput.trim()}`, { scroll: false });
+    }
+  };
+
+  const handleAdhatiyaSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (adhatiyaInput.trim()) {
+      setSearchingAdhatiya(true);
+      try {
+        const res = await getApprovedProcurementsByAdhatiya(adhatiyaInput.trim());
+        setSearchResults(res);
+        if (res.length === 0) {
+          addToast({
+            type: "info",
+            title: "No Results",
+            message: "No approved procurements found for this Adhatiya"
+          });
+        }
+      } catch (err: any) {
+        addToast({
+          type: "error",
+          title: "Error",
+          message: err.message || "Failed to search Adhatiya"
+        });
+      } finally {
+        setSearchingAdhatiya(false);
+      }
     }
   };
 
@@ -252,7 +287,10 @@ function POMakerForm() {
             manualRate,
             manualCrop,
             manualVariety
-          }
+          },
+          selectedProcurements: allSelectedProcurements.length > 1
+            ? allSelectedProcurements.map(p => ({ slipId: p.slipId, farmerName: p.farmerName, bags: p.bags, netQuantity: p.netQuantity, rate: p.rate, total: p.total, crop: p.crop, variety: p.variety }))
+            : []
         },
       });
       addToast({
@@ -323,25 +361,119 @@ function POMakerForm() {
           </div>
         </div>
 
-        <form onSubmit={handleSearch} className="bg-white border border-slate-200 p-3 rounded-2xl flex gap-3 shadow-sm">
-          <div className="relative flex-1">
-            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Slip ID (e.g. UP-...)"
-              value={slipIdInput}
-              onChange={(e) => setSlipIdInput(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-forest-500/20 focus:border-forest-500 transition-all text-sm"
-            />
+        <div className="flex flex-col gap-3 bg-white border border-slate-200 p-4 rounded-2xl shadow-sm">
+          <form onSubmit={handleAdhatiyaSearch} className="flex gap-3">
+            <div className="relative flex-1">
+              <Users size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search Adhatiya (Agent Name)"
+                value={adhatiyaInput}
+                onChange={(e) => setAdhatiyaInput(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
+              />
+            </div>
+            <button 
+              type="submit" 
+              disabled={searchingAdhatiya || !adhatiyaInput.trim()}
+              className="px-5 py-2.5 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 active:bg-blue-800 transition-all disabled:opacity-50 flex items-center gap-2"
+            >
+              {searchingAdhatiya ? <Loader2 size={18} className="animate-spin" /> : "Search"}
+            </button>
+          </form>
+
+          <form onSubmit={handleSearch} className="flex gap-3">
+            <div className="relative flex-1">
+              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Or enter Slip ID directly (e.g. UP-...)"
+                value={slipIdInput}
+                onChange={(e) => setSlipIdInput(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-forest-500/20 focus:border-forest-500 transition-all text-sm"
+              />
+            </div>
+            <button 
+              type="submit" 
+              disabled={loading || !slipIdInput.trim()}
+              className="px-5 py-2.5 bg-forest-600 text-white font-medium rounded-xl hover:bg-forest-700 active:bg-forest-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {loading ? <Loader2 size={18} className="animate-spin" /> : "Fetch"}
+            </button>
+          </form>
+        </div>
+
+        {/* Search Results List — Multi-select */}
+        {searchResults.length > 0 && !poData && (
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-700">
+                Approved Procurements <span className="text-xs font-normal text-slate-400">({searchResults.length} found)</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  if (selectedSlipIds.size === searchResults.length) {
+                    setSelectedSlipIds(new Set());
+                  } else {
+                    setSelectedSlipIds(new Set(searchResults.map(r => r.slipId)));
+                  }
+                }}
+                className="text-xs font-semibold text-blue-600 hover:text-blue-800"
+              >
+                {selectedSlipIds.size === searchResults.length ? "Deselect All" : "Select All"}
+              </button>
+            </div>
+            <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+              {searchResults.map(res => {
+                const isSelected = selectedSlipIds.has(res.slipId);
+                return (
+                  <label
+                    key={res.slipId}
+                    className={`p-3 border rounded-xl flex items-start gap-3 cursor-pointer transition-all ${isSelected ? "border-forest-400 bg-forest-50/50" : "border-slate-100 hover:bg-slate-50"}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => {
+                        setSelectedSlipIds(prev => {
+                          const next = new Set(prev);
+                          if (next.has(res.slipId)) next.delete(res.slipId);
+                          else next.add(res.slipId);
+                          return next;
+                        });
+                      }}
+                      className="mt-1 w-4 h-4 accent-forest-600 shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-sm text-slate-800">{res.farmerName} <span className="text-xs font-normal text-slate-500">({res.farmer?.category || "FARMER"})</span></p>
+                      <p className="text-xs text-slate-500">{res.crop} - {res.variety} • {res.bags} Bags • {res.netQuantity} Qtl • ₹{res.rate}/Qtl</p>
+                      <p className="text-[10px] text-slate-400 font-mono mt-0.5">{res.slipId} • Agent: {res.agentName}</p>
+                    </div>
+                    <span className="text-xs font-bold text-forest-700 tabular-nums shrink-0">₹{res.total?.toLocaleString("en-IN")}</span>
+                  </label>
+                );
+              })}
+            </div>
+            {selectedSlipIds.size > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  const selected = searchResults.filter(r => selectedSlipIds.has(r.slipId));
+                  setAllSelectedProcurements(selected);
+                  // Load the first selected as the primary PO
+                  const primary = selected[0];
+                  setSlipIdInput(primary.slipId);
+                  fetchPO(primary.slipId);
+                }}
+                className="w-full py-3 bg-forest-600 text-white font-bold rounded-xl hover:bg-forest-700 active:bg-forest-800 transition-all flex items-center justify-center gap-2 shadow-md"
+              >
+                <Plus size={18} />
+                Create PO for {selectedSlipIds.size} Selected {selectedSlipIds.size === 1 ? "Procurement" : "Procurements"}
+              </button>
+            )}
           </div>
-          <button 
-            type="submit" 
-            disabled={loading || !slipIdInput.trim()}
-            className="px-5 py-2.5 bg-forest-600 text-white font-medium rounded-xl hover:bg-forest-700 active:bg-forest-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            {loading ? <Loader2 size={18} className="animate-spin" /> : "Fetch"}
-          </button>
-        </form>
+        )}
 
         {poData && (
           <div className="space-y-6">
@@ -396,20 +528,58 @@ function POMakerForm() {
             {originalProcurement && calcs && (
               <div className="bg-blue-50/50 rounded-2xl border border-blue-100 overflow-hidden">
                 <div className="bg-blue-100/50 px-4 py-3 border-b border-blue-100 flex justify-between items-center">
-                  <h3 className="text-xs font-bold text-blue-800 uppercase">Fetched Procurement</h3>
+                  <h3 className="text-xs font-bold text-blue-800 uppercase">
+                    {allSelectedProcurements.length > 1 ? `${allSelectedProcurements.length} Procurements Selected` : "Fetched Procurement"}
+                  </h3>
                   <span className="text-[10px] font-bold text-blue-600 bg-blue-100 px-2 py-1 rounded">{originalProcurement.crop}</span>
                 </div>
-                <div className="p-4 space-y-4">
-                  <div className="bg-white p-3 rounded-xl border border-blue-50 shadow-sm flex items-center gap-4">
-                    <div className="flex-1">
-                      <span className="text-[10px] text-slate-400 block mb-1">Procured Bags</span>
-                      <span className="font-bold text-slate-700">{originalProcurement.bags}</span>
+                <div className="p-4 space-y-3">
+                  {/* Show all selected procurements if multi-select was used */}
+                  {allSelectedProcurements.length > 1 ? (
+                    <div className="space-y-2">
+                      {allSelectedProcurements.map((proc, idx) => (
+                        <div key={proc.slipId} className="bg-white p-3 rounded-xl border border-blue-50 shadow-sm">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-bold text-slate-700">#{idx + 1} {proc.farmerName}</span>
+                            <span className="text-[10px] text-slate-400 font-mono">{proc.slipId}</span>
+                          </div>
+                          <div className="flex items-center gap-4 text-xs text-slate-500">
+                            <span>{proc.bags} Bags</span>
+                            <span>{proc.netQuantity} Qtl</span>
+                            <span>₹{proc.rate}/Qtl</span>
+                            <span className="font-bold text-forest-700 ml-auto">₹{proc.total?.toLocaleString("en-IN")}</span>
+                          </div>
+                        </div>
+                      ))}
+                      <div className="bg-white p-3 rounded-xl border-2 border-blue-200 shadow-sm">
+                        <div className="flex items-center gap-4">
+                          <div className="flex-1">
+                            <span className="text-[10px] text-slate-400 block mb-1">Total Bags (All)</span>
+                            <span className="font-bold text-slate-700">{allSelectedProcurements.reduce((s: number, p: any) => s + (p.bags || 0), 0)}</span>
+                          </div>
+                          <div className="flex-1">
+                            <span className="text-[10px] text-slate-400 block mb-1">Total Qtl (All)</span>
+                            <span className="font-bold text-slate-700">{allSelectedProcurements.reduce((s: number, p: any) => s + (p.netQuantity || 0), 0).toFixed(2)}</span>
+                          </div>
+                          <div className="flex-1">
+                            <span className="text-[10px] text-blue-600 font-bold block mb-1">Override Total Bags</span>
+                            <input type="number" value={poBags} onChange={(e) => setPoBags(Number(e.target.value))} className="w-full border-b-2 border-blue-300 bg-transparent text-lg font-black text-blue-700 focus:outline-none focus:border-blue-600 py-1" />
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <span className="text-[10px] text-blue-600 font-bold block mb-1">Make PO For (Bags)</span>
-                      <input type="number" value={poBags} onChange={(e) => setPoBags(Number(e.target.value))} className="w-full border-b-2 border-blue-300 bg-transparent text-lg font-black text-blue-700 focus:outline-none focus:border-blue-600 py-1" />
+                  ) : (
+                    <div className="bg-white p-3 rounded-xl border border-blue-50 shadow-sm flex items-center gap-4">
+                      <div className="flex-1">
+                        <span className="text-[10px] text-slate-400 block mb-1">Procured Bags</span>
+                        <span className="font-bold text-slate-700">{originalProcurement.bags}</span>
+                      </div>
+                      <div className="flex-1">
+                        <span className="text-[10px] text-blue-600 font-bold block mb-1">Make PO For (Bags)</span>
+                        <input type="number" value={poBags} onChange={(e) => setPoBags(Number(e.target.value))} className="w-full border-b-2 border-blue-300 bg-transparent text-lg font-black text-blue-700 focus:outline-none focus:border-blue-600 py-1" />
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
             )}
@@ -612,26 +782,61 @@ function POMakerForm() {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr className="border-b-[1.5px] border-black">
-                    <td className="border-r border-black p-1">1</td>
-                    <td className="border-r border-black p-1">{hsnCode}</td>
-                    <td className="border-r border-black p-1 text-left font-semibold uppercase px-2">{manualCrop || originalProcurement?.crop} {manualVariety || originalProcurement?.variety}</td>
-                    <td className="border-r border-black p-1">{packingSize ? packingSize.toFixed(2) : ""}</td>
-                    <td className="border-r border-black p-1">kg</td>
-                    <td className="border-r border-black p-1">{poBags || ""}</td>
-                    <td className="border-r border-black p-1">{calcs?.netQuantity ? (calcs.netQuantity / 10).toFixed(2) : ""}</td>
-                    <td className="border-r border-black p-1">{calcs?.rate ? calcs.rate.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : ""}</td>
-                    <td className="border-r border-black p-1">{gstPercent > 0 ? `${gstPercent}%` : ""}</td>
-                    <td className="p-1">{calcs?.subtotal ? `₹ ${calcs.subtotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : ""}</td>
-                  </tr>
-                  {/* Empty spacer row mimicking image */}
-                  <tr className="h-2 border-b-[1.5px] border-black">
-                    <td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td></td>
-                  </tr>
-                  <tr className="border-b border-black">
-                    <td colSpan={9} className="border-r border-black font-bold p-0.5">Total</td>
-                    <td className="p-0.5">₹ {calcs?.subtotal.toLocaleString("en-IN", { minimumFractionDigits: 2 }) || "0.00"}</td>
-                  </tr>
+                  {allSelectedProcurements.length > 1 ? (
+                    <>
+                      {allSelectedProcurements.map((proc, idx) => {
+                        const rowAmount = proc.netQuantity * proc.rate;
+                        return (
+                          <tr key={proc.slipId} className="border-b border-black">
+                            <td className="border-r border-black p-1">{idx + 1}</td>
+                            <td className="border-r border-black p-1">{hsnCode}</td>
+                            <td className="border-r border-black p-1 text-left font-semibold uppercase px-2 text-[9px]">
+                              {proc.crop} {proc.variety}<br/>
+                              <span className="font-normal text-[8px]">{proc.farmerName}</span>
+                            </td>
+                            <td className="border-r border-black p-1">{packingSize ? packingSize.toFixed(2) : ""}</td>
+                            <td className="border-r border-black p-1">kg</td>
+                            <td className="border-r border-black p-1">{proc.bags}</td>
+                            <td className="border-r border-black p-1">{(proc.netQuantity / 10).toFixed(2)}</td>
+                            <td className="border-r border-black p-1">{proc.rate?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                            <td className="border-r border-black p-1">{gstPercent > 0 ? `${gstPercent}%` : ""}</td>
+                            <td className="p-1">₹ {rowAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                          </tr>
+                        );
+                      })}
+                      {/* Spacer */}
+                      <tr className="h-2 border-b-[1.5px] border-black">
+                        <td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td></td>
+                      </tr>
+                      <tr className="border-b border-black">
+                        <td colSpan={9} className="border-r border-black font-bold p-0.5">Total</td>
+                        <td className="p-0.5">₹ {allSelectedProcurements.reduce((s: number, p: any) => s + (p.netQuantity * p.rate), 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                      </tr>
+                    </>
+                  ) : (
+                    <>
+                      <tr className="border-b-[1.5px] border-black">
+                        <td className="border-r border-black p-1">1</td>
+                        <td className="border-r border-black p-1">{hsnCode}</td>
+                        <td className="border-r border-black p-1 text-left font-semibold uppercase px-2">{manualCrop || originalProcurement?.crop} {manualVariety || originalProcurement?.variety}</td>
+                        <td className="border-r border-black p-1">{packingSize ? packingSize.toFixed(2) : ""}</td>
+                        <td className="border-r border-black p-1">kg</td>
+                        <td className="border-r border-black p-1">{poBags || ""}</td>
+                        <td className="border-r border-black p-1">{calcs?.netQuantity ? (calcs.netQuantity / 10).toFixed(2) : ""}</td>
+                        <td className="border-r border-black p-1">{calcs?.rate ? calcs.rate.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : ""}</td>
+                        <td className="border-r border-black p-1">{gstPercent > 0 ? `${gstPercent}%` : ""}</td>
+                        <td className="p-1">{calcs?.subtotal ? `₹ ${calcs.subtotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : ""}</td>
+                      </tr>
+                      {/* Empty spacer row mimicking image */}
+                      <tr className="h-2 border-b-[1.5px] border-black">
+                        <td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td></td>
+                      </tr>
+                      <tr className="border-b border-black">
+                        <td colSpan={9} className="border-r border-black font-bold p-0.5">Total</td>
+                        <td className="p-0.5">₹ {calcs?.subtotal.toLocaleString("en-IN", { minimumFractionDigits: 2 }) || "0.00"}</td>
+                      </tr>
+                    </>
+                  )}
                   {gstPercent > 0 && (
                     <tr className="border-b border-black">
                       <td colSpan={9} className="border-r border-black font-bold p-0.5">GST ({gstPercent}%)</td>

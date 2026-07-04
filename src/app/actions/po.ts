@@ -135,3 +135,32 @@ export async function getPOHistory() {
     }
   });
 }
+
+export async function getApprovedProcurementsByAdhatiya(adhatiyaName: string) {
+  const user = await getSessionUser();
+  if (!user.roles.includes("L3_PO_MAKER") && !user.roles.includes("L4_ADMIN") && !user.isSuperAdmin) {
+    throw new Error("Unauthorized");
+  }
+
+  const procurements = await prisma.procurement.findMany({
+    where: {
+      agentName: {
+        contains: adhatiyaName,
+        mode: "insensitive"
+      },
+      status: {
+        in: ["APPROVED", "PENDING_L3"] // Approved by L2 (PENDING_L3) or fully APPROVED
+      },
+      // If L3 PO MAKER is assigned specific states/users, we should ideally filter, but for now simple search works
+    },
+    include: {
+      farmer: true
+    },
+    orderBy: {
+      createdAt: "desc"
+    },
+    take: 50
+  });
+
+  return procurements;
+}

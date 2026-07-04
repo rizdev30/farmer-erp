@@ -556,29 +556,33 @@ export default function DashboardPage() {
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Link href="/dashboard/procurement" className="glass-card rounded-2xl p-6 group">
-          <div className="flex items-center gap-4">
-            <div className="shrink-0 w-12 h-12 bg-gradient-to-br from-forest-500 to-forest-600 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
-              <ShoppingCart size={22} className="text-white" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-slate-800 group-hover:text-forest-700 transition-colors">New Procurement</h3>
-              <p className="text-sm text-slate-500">Record a new purchase transaction</p>
-            </div>
-          </div>
-        </Link>
+        {!((session?.user as any)?.roles?.includes("L3_PO_MAKER") && !(session?.user as any)?.roles?.includes("L4_ADMIN") && !(session?.user as any)?.isSuperAdmin) && (
+          <>
+            <Link href="/dashboard/procurement" className="glass-card rounded-2xl p-6 group">
+              <div className="flex items-center gap-4">
+                <div className="shrink-0 w-12 h-12 bg-gradient-to-br from-forest-500 to-forest-600 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
+                  <ShoppingCart size={22} className="text-white" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-slate-800 group-hover:text-forest-700 transition-colors">New Procurement</h3>
+                  <p className="text-sm text-slate-500">Record a new purchase transaction</p>
+                </div>
+              </div>
+            </Link>
 
-        <Link href="/dashboard/farmers" className="glass-card rounded-2xl p-6 group">
-          <div className="flex items-center gap-4">
-            <div className="shrink-0 w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
-              <Users size={22} className="text-white" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-slate-800 group-hover:text-blue-700 transition-colors">Manage Farmers</h3>
-              <p className="text-sm text-slate-500">View, search, or register new farmers</p>
-            </div>
-          </div>
-        </Link>
+            <Link href="/dashboard/farmers" className="glass-card rounded-2xl p-6 group">
+              <div className="flex items-center gap-4">
+                <div className="shrink-0 w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
+                  <Users size={22} className="text-white" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-slate-800 group-hover:text-blue-700 transition-colors">Manage Farmers</h3>
+                  <p className="text-sm text-slate-500">View, search, or register new farmers</p>
+                </div>
+              </div>
+            </Link>
+          </>
+        )}
 
         <Link href="/dashboard/history" className="glass-card rounded-2xl p-6 group">
           <div className="flex items-center gap-4">

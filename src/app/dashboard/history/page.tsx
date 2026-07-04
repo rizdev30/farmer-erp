@@ -252,18 +252,13 @@ export default function HistoryPage() {
     <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="shrink-0 w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center">
-          <ClipboardList size={22} className="text-amber-600" />
+        <div className="shrink-0 w-10 h-10 bg-amber-100/80 rounded-xl flex items-center justify-center">
+          <ClipboardList size={18} className="text-amber-600" />
         </div>
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-slate-800 tracking-tight">
-            Recent Purchase Orders
+            Records
           </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            {isAdmin
-              ? "All agent procurement data with monthly records"
-              : "Your procurement history"}
-          </p>
         </div>
       </div>
 

@@ -16,6 +16,8 @@ import {
   ChevronRight,
   Settings as SettingsIcon,
   FileText,
+  PlusCircle,
+  Receipt,
 } from "lucide-react";
 
 const navItems = [
@@ -41,12 +43,22 @@ export default function DashboardLayout({
   const isL4Admin = (session?.user as any)?.roles?.includes("L4_ADMIN") === true;
   const isL3Maker = (session?.user as any)?.roles?.includes("L3_PO_MAKER") === true;
   
-  const allNavItems = [...navItems];
-  if (isL3Maker || isL4Admin || isSuperAdmin) {
-    allNavItems.push({ href: "/dashboard/po-records", label: "PO Maker", icon: FileText });
-  }
-  if (isSuperAdmin) {
-    allNavItems.push(...adminItems);
+  let allNavItems = [...navItems];
+  
+  if (isL3Maker && !isL4Admin && !isSuperAdmin) {
+    allNavItems = [
+      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/dashboard/po-maker", label: "Create PO", icon: PlusCircle },
+      { href: "/dashboard/history", label: "Records", icon: ClipboardList },
+      { href: "/dashboard/po-records", label: "PO List", icon: FileText },
+    ];
+  } else {
+    if (isL3Maker || isL4Admin || isSuperAdmin) {
+      allNavItems.push({ href: "/dashboard/po-records", label: "PO Maker", icon: FileText });
+    }
+    if (isSuperAdmin) {
+      allNavItems.push(...adminItems);
+    }
   }
 
   return (
