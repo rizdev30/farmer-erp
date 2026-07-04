@@ -554,8 +554,8 @@ export default function DashboardPage() {
           <>
             <Link href="/dashboard/procurement" className="glass-card rounded-2xl p-6 group">
               <div className="flex items-center gap-4">
-                <div className="shrink-0 w-12 h-12 bg-gradient-to-br from-forest-500 to-forest-600 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
-                  <ShoppingCart size={22} className="text-white" />
+                <div className="shrink-0 w-12 h-12 bg-forest-100 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
+                  <ShoppingCart size={22} className="text-forest-600" />
                 </div>
                 <div>
                   <h3 className="font-semibold text-slate-800 group-hover:text-forest-700 transition-colors">New Procurement</h3>
@@ -566,8 +566,8 @@ export default function DashboardPage() {
 
             <Link href="/dashboard/farmers" className="glass-card rounded-2xl p-6 group">
               <div className="flex items-center gap-4">
-                <div className="shrink-0 w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
-                  <Users size={22} className="text-white" />
+                <div className="shrink-0 w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
+                  <Users size={22} className="text-blue-600" />
                 </div>
                 <div>
                   <h3 className="font-semibold text-slate-800 group-hover:text-blue-700 transition-colors">Manage Farmers</h3>
@@ -580,8 +580,8 @@ export default function DashboardPage() {
 
         <Link href="/dashboard/history" className="glass-card rounded-2xl p-6 group">
           <div className="flex items-center gap-4">
-            <div className="shrink-0 w-12 h-12 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
-              <ClipboardList size={22} className="text-white" />
+            <div className="shrink-0 w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
+              <ClipboardList size={22} className="text-indigo-600" />
             </div>
             <div>
               <h3 className="font-semibold text-slate-800 group-hover:text-indigo-700 transition-colors">Procurement Records</h3>
@@ -592,8 +592,8 @@ export default function DashboardPage() {
 
         <Link href="/dashboard/settings" className="glass-card rounded-2xl p-6 group md:hidden">
           <div className="flex items-center gap-4">
-            <div className="shrink-0 w-12 h-12 bg-gradient-to-br from-slate-400 to-slate-500 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
-              <SettingsIcon size={22} className="text-white" />
+            <div className="shrink-0 w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
+              <SettingsIcon size={22} className="text-slate-600" />
             </div>
             <div>
               <h3 className="font-semibold text-slate-800 group-hover:text-slate-600 transition-colors">App Settings</h3>
@@ -605,8 +605,8 @@ export default function DashboardPage() {
         {(session?.user as any)?.roles?.includes("L3_PO_MAKER") || (session?.user as any)?.roles?.includes("L4_ADMIN") || (session?.user as any)?.isSuperAdmin ? (
           <Link href="/dashboard/po-records" className="glass-card rounded-2xl p-6 group">
             <div className="flex items-center gap-4">
-              <div className="shrink-0 w-12 h-12 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
-                <FileText size={22} className="text-white" />
+              <div className="shrink-0 w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
+                <FileText size={22} className="text-indigo-600" />
               </div>
               <div>
                 <h3 className="font-semibold text-slate-800 group-hover:text-indigo-700 transition-colors">PO Maker & Records</h3>
@@ -619,8 +619,8 @@ export default function DashboardPage() {
         {(session?.user as any)?.isSuperAdmin ? (
           <Link href="/dashboard/agents" className="glass-card rounded-2xl p-6 group">
             <div className="flex items-center gap-4">
-              <div className="shrink-0 w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
-                <Users size={22} className="text-white" />
+              <div className="shrink-0 w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
+                <Users size={22} className="text-purple-600" />
               </div>
               <div>
                 <h3 className="font-semibold text-slate-800 group-hover:text-purple-700 transition-colors">Manage Agents</h3>

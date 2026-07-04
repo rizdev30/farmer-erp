@@ -4,7 +4,7 @@ import { useState, useOptimistic, useEffect } from "react";
 import { getFarmers } from "@/app/actions/farmers";
 import CommandBar from "@/components/CommandBar";
 import FarmerRegistrationModal from "@/components/FarmerRegistrationModal";
-import { Plus, User, ChevronRight, RefreshCw, Filter, FilterX, ChevronDown, ChevronLeft, Search, Check, Phone, MapPin } from "lucide-react";
+import { Plus, User, Users, ChevronRight, RefreshCw, Filter, FilterX, ChevronDown, ChevronLeft, Search, Check, Phone, MapPin } from "lucide-react";
 import { ListSkeleton } from "@/components/LoadingSkeleton";
 import Link from "next/link";
 import { useDebounce } from "@/lib/use-debounce";
@@ -120,12 +120,17 @@ export default function FarmersPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-slate-800 tracking-tight">
-            Farmer Directory
-          </h1>
-          <p className="text-slate-500 mt-1 flex items-center gap-2 text-sm">
+          <div className="flex items-center gap-3">
+            <div className="shrink-0 w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+              <Users size={18} className="text-blue-600" />
+            </div>
+            <h1 className="text-xl md:text-2xl font-bold text-slate-800 tracking-tight">
+              Farmer Directory
+            </h1>
+          </div>
+          <p className="text-slate-500 mt-1.5 flex items-center gap-2 text-sm ml-[52px]">
             {totalEntries} registered entries
             {isValidating && (
               <RefreshCw size={12} className="animate-spin text-forest-500" />
@@ -147,7 +152,7 @@ export default function FarmersPage() {
       </div>
 
       {/* Segmented Control */}
-      <div className="flex bg-slate-100 p-1 rounded-2xl w-full border border-slate-100">
+      <div className="flex bg-slate-100 p-1 rounded-xl w-full border border-slate-100">
         <button
           onClick={() => { setCategoryFilter(""); setPageIndex(0); }}
           className={`flex-1 text-sm font-semibold rounded-xl py-2.5 transition-all ${
@@ -193,7 +198,7 @@ export default function FarmersPage() {
                   setActiveDropdown('village');
                 }}
                 placeholder="Filter by village"
-                className={`w-full pl-4 pr-8 h-[46px] rounded-[20px] sm:rounded-xl border border-transparent sm:border-slate-200 bg-slate-50 sm:bg-white text-slate-800 placeholder:text-slate-500 sm:placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-forest-500 focus:ring-forest-500/30 transition-all text-sm font-medium cursor-pointer ${villageFilter ? 'sm:border-forest-300 ring-1 ring-forest-500/20' : ''}`}
+                className={`w-full pl-4 pr-8 h-[46px] rounded-xl border border-transparent sm:border-slate-200 bg-slate-50 sm:bg-white text-slate-800 placeholder:text-slate-500 sm:placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-forest-500 focus:ring-forest-500/30 transition-all text-sm font-medium cursor-pointer ${villageFilter ? 'sm:border-forest-300 ring-1 ring-forest-500/20' : ''}`}
               />
               <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             </div>
@@ -244,7 +249,7 @@ export default function FarmersPage() {
                   setActiveDropdown('district');
                 }}
                 placeholder="Filter by district"
-                className={`w-full pl-4 pr-8 h-[46px] rounded-[20px] sm:rounded-xl border border-transparent sm:border-slate-200 bg-slate-50 sm:bg-white text-slate-800 placeholder:text-slate-500 sm:placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-forest-500 focus:ring-forest-500/30 transition-all text-sm font-medium cursor-pointer ${districtFilter ? 'sm:border-forest-300 ring-1 ring-forest-500/20' : ''}`}
+                className={`w-full pl-4 pr-8 h-[46px] rounded-xl border border-transparent sm:border-slate-200 bg-slate-50 sm:bg-white text-slate-800 placeholder:text-slate-500 sm:placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-forest-500 focus:ring-forest-500/30 transition-all text-sm font-medium cursor-pointer ${districtFilter ? 'sm:border-forest-300 ring-1 ring-forest-500/20' : ''}`}
               />
               <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             </div>
@@ -295,7 +300,7 @@ export default function FarmersPage() {
                   setActiveDropdown('block');
                 }}
                 placeholder="Filter by block"
-                className={`w-full pl-4 pr-8 h-[46px] rounded-[20px] sm:rounded-xl border border-transparent sm:border-slate-200 bg-slate-50 sm:bg-white text-slate-800 placeholder:text-slate-500 sm:placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-forest-500 focus:ring-forest-500/30 transition-all text-sm font-medium cursor-pointer ${blockFilter ? 'sm:border-forest-300 ring-1 ring-forest-500/20' : ''}`}
+                className={`w-full pl-4 pr-8 h-[46px] rounded-xl border border-transparent sm:border-slate-200 bg-slate-50 sm:bg-white text-slate-800 placeholder:text-slate-500 sm:placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-forest-500 focus:ring-forest-500/30 transition-all text-sm font-medium cursor-pointer ${blockFilter ? 'sm:border-forest-300 ring-1 ring-forest-500/20' : ''}`}
               />
               <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             </div>

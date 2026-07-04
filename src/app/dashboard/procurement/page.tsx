@@ -572,7 +572,7 @@ export default function ProcurementPage() {
 
           <div className="space-y-6">
             {cropItems.map((item, index) => (
-              <div key={item.id} className="p-4 bg-white/50 border border-slate-200/60 rounded-xl relative">
+              <div key={item.id} className="p-4 bg-white shadow-sm border border-slate-200 rounded-xl relative">
                 {cropItems.length > 1 && (
                   <button
                     type="button"
@@ -819,7 +819,7 @@ export default function ProcurementPage() {
                   </div>
                 </div>
                 
-                <div className="bg-white/50 rounded-xl p-3 mt-4 border border-slate-200/50 flex justify-between items-center">
+                <div className="bg-white shadow-sm rounded-xl p-3 mt-4 border border-slate-200 flex justify-between items-center">
                   <span className="text-xs text-slate-500 font-medium">Net Quantity</span>
                   <span className="text-sm font-bold text-slate-700">{netQuantities[index]} Quintals</span>
                 </div>
