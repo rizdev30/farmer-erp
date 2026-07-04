@@ -180,15 +180,25 @@ export default function NetworkStatusMonitor() {
     init().catch(console.error);
   }, [addToast, scheduleSync]);
 
+  // Auto-hide slow network banner after 3 seconds, otherwise manage visibility based on queue/offline
+  useEffect(() => {
+    if (networkStatus === "slow" && queueCount === 0) {
+      setShowBanner(true);
+      const timer = setTimeout(() => setShowBanner(false), 3000);
+      return () => clearTimeout(timer);
+    } else {
+      setShowBanner(queueCount > 0 || networkStatus === "offline");
+    }
+  }, [networkStatus, queueCount]);
+
   // Update queue count periodically
   useEffect(() => {
     const interval = setInterval(async () => {
       const count = await getQueueCount();
       setQueueCount(count);
-      setShowBanner(count > 0 || networkStatus !== "online");
     }, 10000);
     return () => clearInterval(interval);
-  }, [networkStatus]);
+  }, []);
 
   // Don't render anything if everything is fine
   if (!showBanner && networkStatus === "online" && queueCount === 0) {

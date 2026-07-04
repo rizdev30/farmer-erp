@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import {
@@ -14,10 +14,9 @@ import {
   LogOut,
   Sprout,
   ChevronRight,
-  Settings as SettingsIcon,
   FileText,
   PlusCircle,
-  Receipt,
+  ArrowLeft,
 } from "lucide-react";
 
 const navItems = [
@@ -38,14 +37,20 @@ export default function DashboardLayout({
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
   const isSuperAdmin = (session?.user as any)?.isSuperAdmin === true;
   const isL4Admin = (session?.user as any)?.roles?.includes("L4_ADMIN") === true;
   const isL3Maker = (session?.user as any)?.roles?.includes("L3_PO_MAKER") === true;
   
+  const searchParams = useSearchParams();
+  const isPOEnvironment = pathname.startsWith("/dashboard/po-") || searchParams.get("env") === "po";
+
   let allNavItems = [...navItems];
   
   if (isL3Maker && !isL4Admin && !isSuperAdmin) {
+    // Pure L3 users ONLY see the PO Maker environment
     allNavItems = [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
       { href: "/dashboard/po-maker", label: "Create PO", icon: PlusCircle },
@@ -53,12 +58,56 @@ export default function DashboardLayout({
       { href: "/dashboard/po-records", label: "PO List", icon: FileText },
     ];
   } else {
-    if (isL3Maker || isL4Admin || isSuperAdmin) {
-      allNavItems.push({ href: "/dashboard/po-records", label: "PO Maker", icon: FileText });
+    // Admins and mixed-role users (L1/L2 + L3)
+    if (isPOEnvironment && (isL3Maker || isL4Admin || isSuperAdmin)) {
+      // Inside PO Maker Environment (Dedicated Panel)
+      allNavItems = [
+        { href: "/dashboard", label: "Exit PO Maker", icon: ArrowLeft, isExitItem: true } as any,
+        { href: "/dashboard?env=po", label: "Dashboard", icon: LayoutDashboard },
+        { href: "/dashboard/po-maker", label: "Create PO", icon: PlusCircle },
+        { href: "/dashboard/history?env=po", label: "Records", icon: ClipboardList },
+        { href: "/dashboard/po-records", label: "PO List", icon: FileText },
+      ];
+    } else {
+      // Main ERP Environment
+      if (isL3Maker || isL4Admin || isSuperAdmin) {
+        // Link to enter the PO Maker Environment
+        allNavItems.push({ href: "/dashboard/po-maker", label: "PO Maker", icon: PlusCircle });
+      }
+      if (isSuperAdmin) {
+        allNavItems.push(...adminItems);
+      }
     }
-    if (isSuperAdmin) {
-      allNavItems.push(...adminItems);
+  }
+  // Double-layer security: redirect on the client-side if proxy is bypassed,
+  // and prevent rendering of the layout if unauthenticated.
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.replace("/login");
     }
+  }, [status, router]);
+
+  if (status === "unauthenticated") {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-slate-50">
+        <div className="flex items-center gap-3 text-forest-600 font-semibold bg-forest-50 px-6 py-3 rounded-full shadow-sm">
+          <div className="w-5 h-5 border-2 border-forest-600 border-t-transparent rounded-full animate-spin"></div>
+          Redirecting to Login...
+        </div>
+      </div>
+    );
+  }
+
+  if (status === "loading") {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-slate-50">
+        <div className="animate-pulse flex flex-col items-center gap-4">
+          <div className="w-14 h-14 bg-forest-100 rounded-2xl flex items-center justify-center shadow-inner">
+            <Sprout className="w-8 h-8 text-forest-300" strokeWidth={2.5} />
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -106,8 +155,9 @@ export default function DashboardLayout({
 
         {/* Navigation */}
         <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto">
-          {allNavItems.map((item) => {
-            const isActive = pathname === item.href;
+          {allNavItems.map((item: any) => {
+            const itemPath = item.href.split('?')[0];
+            const isActive = !item.isExitItem && pathname === itemPath;
             return (
               <Link
                 key={item.href}
@@ -200,8 +250,9 @@ export default function DashboardLayout({
         {/* Mobile Bottom Navigation */}
         <nav className={`md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-[8px] border-t border-slate-200/80 z-40 print:hidden shadow-[0_-4px_16px_rgba(0,0,0,0.04)] ${sidebarOpen ? "hidden" : "block"}`} style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
           <div className="flex items-center justify-around h-[52px] px-2">
-            {allNavItems.map((item) => {
-              const isActive = pathname === item.href;
+            {allNavItems.map((item: any) => {
+              const itemPath = item.href.split('?')[0];
+              const isActive = !item.isExitItem && pathname === itemPath;
               return (
                 <Link
                   key={item.href}

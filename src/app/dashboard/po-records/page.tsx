@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { getPOHistory } from "@/app/actions/po";
 import { 
-  FileText, ArrowLeft, Loader2, Calendar, Edit3, ChevronRight 
+  FileText, Loader2, Calendar, Edit3 
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -41,22 +41,11 @@ export default function PORecordsPage() {
     <div className="max-w-5xl mx-auto space-y-6 pb-20">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <button
-          onClick={() => router.push('/dashboard')}
-          className="w-9 h-9 shrink-0 rounded-xl bg-white border border-slate-200 flex items-center justify-center shadow-[0_2px_8px_-3px_rgba(0,0,0,0.1)] hover:bg-slate-50 transition-all"
-        >
-          <ArrowLeft size={18} className="text-slate-700" />
-        </button>
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-gradient-to-br from-indigo-100 to-indigo-200">
-            <FileText size={16} className="text-indigo-700" />
-          </div>
-          <div className="min-w-0">
-            <h1 className="text-xl font-bold text-slate-800 tracking-tight leading-tight truncate">
-              PO Records Hub
-            </h1>
-            <p className="text-xs text-slate-400">View and manage all generated Purchase Orders</p>
-          </div>
+        <div className="shrink-0 w-10 h-10 bg-indigo-100/80 rounded-xl flex items-center justify-center">
+          <FileText size={18} className="text-indigo-600" />
+        </div>
+        <div>
+          <h1 className="text-xl md:text-2xl font-bold text-slate-800 tracking-tight">Purchase Order List</h1>
         </div>
       </div>
 

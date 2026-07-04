@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useOptimistic, useCallback } from "react";
+import { useState, useOptimistic, useEffect } from "react";
 import { getFarmers } from "@/app/actions/farmers";
 import CommandBar from "@/components/CommandBar";
 import FarmerRegistrationModal from "@/components/FarmerRegistrationModal";
-import { Plus, Phone, MapPin, User, ArrowRight, RefreshCw } from "lucide-react";
+import { Plus, User, ChevronRight, RefreshCw, Filter, FilterX, ChevronDown, ChevronLeft, Search, Check, Phone, MapPin } from "lucide-react";
 import { ListSkeleton } from "@/components/LoadingSkeleton";
 import Link from "next/link";
 import { useDebounce } from "@/lib/use-debounce";
@@ -31,6 +31,29 @@ export default function FarmersPage() {
   const [blockFilter, setBlockFilter] = useState("");
   const [villageFilter, setVillageFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
+  
+  // Combobox state
+  const [activeDropdown, setActiveDropdown] = useState<"village" | "district" | "block" | null>(null);
+  const [dropdownSearch, setDropdownSearch] = useState("");
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.combobox-filter')) {
+        setActiveDropdown(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside, { passive: true });
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, []);
+
+  // Pagination
+  const [pageIndex, setPageIndex] = useState(0);
+  const pageSize = 10;
 
   // Debounce filter inputs — wait 400ms after user stops typing
   const debouncedDistrict = useDebounce(districtFilter, 400, 2);
@@ -75,101 +98,256 @@ export default function FarmersPage() {
     setTimeout(() => mutate(), 500);
   }
 
+  // Derived arrays for dropdowns
+  const uniqueVillages = Array.from(new Set(farmersList.map(f => f.village).filter(Boolean)));
+  const uniqueDistricts = Array.from(new Set(farmersList.map(f => f.district).filter(Boolean)));
+  const uniqueBlocks = Array.from(new Set(farmersList.map(f => f.block).filter(Boolean)));
+
+  // Pagination derived state
+  const totalEntries = optimisticFarmers.length;
+  const totalPages = Math.ceil(totalEntries / pageSize) || 1;
+  const paginatedFarmers = optimisticFarmers.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize);
+  
+  // Handlers
+  const handleClear = () => {
+    setVillageFilter("");
+    setDistrictFilter("");
+    setBlockFilter("");
+    setCategoryFilter("");
+    setPageIndex(0);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-800 tracking-tight">
-            Farmer/Traders Directory
+            Farmer Directory
           </h1>
-          <p className="text-slate-500 mt-1 flex items-center gap-2">
-            {optimisticFarmers.length} registered entries
+          <p className="text-slate-500 mt-1 flex items-center gap-2 text-sm">
+            {totalEntries} registered entries
             {isValidating && (
               <RefreshCw size={12} className="animate-spin text-forest-500" />
             )}
           </p>
         </div>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center gap-2 px-5 py-3 rounded-xl 
+              bg-gradient-to-r from-forest-800 to-forest-700 text-white text-sm font-semibold
+              hover:from-forest-700 hover:to-forest-600 
+              shadow-sm hover:shadow-md transition-all active:scale-[0.98]"
+          >
+            <Plus size={18} />
+            Add Farmer/Trader
+          </button>
+        </div>
+      </div>
+
+      {/* Segmented Control */}
+      <div className="flex bg-slate-100 p-1 rounded-2xl w-full border border-slate-100">
         <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 px-5 py-3 rounded-xl 
-            bg-gradient-to-r from-forest-800 to-forest-700 text-white text-sm font-semibold
-            hover:from-forest-700 hover:to-forest-600 
-            shadow-sm hover:shadow-md transition-all active:scale-[0.98]"
+          onClick={() => { setCategoryFilter(""); setPageIndex(0); }}
+          className={`flex-1 text-sm font-semibold rounded-xl py-2.5 transition-all ${
+            categoryFilter === "" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
+          }`}
         >
-          <Plus size={18} />
-          Add Farmer/Trader
+          All
+        </button>
+        <button
+          onClick={() => { setCategoryFilter("FARMER"); setPageIndex(0); }}
+          className={`flex-1 text-sm font-semibold rounded-xl py-2.5 transition-all ${
+            categoryFilter === "FARMER" ? "bg-white text-forest-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          Farmer
+        </button>
+        <button
+          onClick={() => { setCategoryFilter("TRADER"); setPageIndex(0); }}
+          className={`flex-1 text-sm font-semibold rounded-xl py-2.5 transition-all ${
+            categoryFilter === "TRADER" ? "bg-white text-blue-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          Trader
         </button>
       </div>
 
       {/* Search + Filters */}
-      <div className="flex flex-col gap-3">
-        <div className="w-full">
+      <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
+        <div className="flex-1 w-full min-w-[200px]">
           <CommandBar />
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-          <div className="flex bg-slate-100 p-1 rounded-2xl h-[46px] col-span-2 md:col-span-1">
-            <button
-              onClick={() => setCategoryFilter("")}
-              className={`flex-1 text-sm font-semibold rounded-xl transition-all ${
-                categoryFilter === "" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              All
-            </button>
-            <button
-              onClick={() => setCategoryFilter("FARMER")}
-              className={`flex-1 text-sm font-semibold rounded-xl transition-all ${
-                categoryFilter === "FARMER" ? "bg-white text-forest-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              Farmer
-            </button>
-            <button
-              onClick={() => setCategoryFilter("TRADER")}
-              className={`flex-1 text-sm font-semibold rounded-xl transition-all ${
-                categoryFilter === "TRADER" ? "bg-white text-blue-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              Trader
-            </button>
+        <div className="flex flex-wrap items-end gap-2 sm:gap-3 w-full lg:w-auto pb-1 relative z-[60]">
+          <div className="flex flex-col shrink-0 w-[calc(50%-0.25rem)] sm:w-[160px] xl:w-[180px] combobox-filter relative">
+            <div className="relative">
+              <input
+                value={activeDropdown === 'village' ? dropdownSearch : (villageFilter || "")}
+                onChange={(e) => {
+                  setDropdownSearch(e.target.value);
+                  setActiveDropdown('village');
+                }}
+                onFocus={() => {
+                  setDropdownSearch(villageFilter);
+                  setActiveDropdown('village');
+                }}
+                placeholder="Filter by village"
+                className={`w-full pl-4 pr-8 h-[46px] rounded-[20px] sm:rounded-xl border border-transparent sm:border-slate-200 bg-slate-50 sm:bg-white text-slate-800 placeholder:text-slate-500 sm:placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-forest-500 focus:ring-forest-500/30 transition-all text-sm font-medium cursor-pointer ${villageFilter ? 'sm:border-forest-300 ring-1 ring-forest-500/20' : ''}`}
+              />
+              <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            </div>
+            {activeDropdown === 'village' && (
+              <div className="absolute top-full mt-2 left-0 z-[60] w-full min-w-[180px] bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="max-h-48 overflow-y-auto p-1">
+                  <div
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      setVillageFilter("");
+                      setPageIndex(0);
+                      setActiveDropdown(null);
+                    }}
+                    className={`flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer transition-colors ${!villageFilter ? 'bg-forest-50 text-forest-700 font-medium' : 'text-slate-700 hover:bg-slate-100'}`}
+                  >
+                    <span className="text-sm truncate pr-2">All Villages</span>
+                    {!villageFilter && <Check size={14} className="flex-shrink-0" />}
+                  </div>
+                  {uniqueVillages.filter(v => v && v.toLowerCase().includes(dropdownSearch.toLowerCase())).map((v) => (
+                    <div
+                      key={v}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        setVillageFilter(v as string);
+                        setPageIndex(0);
+                        setActiveDropdown(null);
+                      }}
+                      className={`flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer transition-colors ${villageFilter === v ? 'bg-forest-50 text-forest-700 font-medium' : 'text-slate-700 hover:bg-slate-100'}`}
+                    >
+                      <span className="text-sm truncate pr-2">{v}</span>
+                      {villageFilter === v && <Check size={14} className="flex-shrink-0" />}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-          <input
-            placeholder="Filter by village"
-            value={villageFilter}
-            onChange={(e) => setVillageFilter(e.target.value)}
-            className="px-4 h-[46px] rounded-2xl bg-slate-100 border-none
-              text-sm font-medium text-slate-800 placeholder:text-slate-500
-              focus:outline-none focus:ring-2 focus:ring-forest-500/30 focus:bg-white
-              transition-all"
-          />
-          <input
-            placeholder="Filter by district"
-            value={districtFilter}
-            onChange={(e) => setDistrictFilter(e.target.value)}
-            className="px-4 h-[46px] rounded-2xl bg-slate-100 border-none
-              text-sm font-medium text-slate-800 placeholder:text-slate-500
-              focus:outline-none focus:ring-2 focus:ring-forest-500/30 focus:bg-white
-              transition-all"
-          />
-          <input
-            placeholder="Filter by block"
-            value={blockFilter}
-            onChange={(e) => setBlockFilter(e.target.value)}
-            className="px-4 h-[46px] rounded-2xl bg-slate-100 border-none
-              text-sm font-medium text-slate-800 placeholder:text-slate-500
-              focus:outline-none focus:ring-2 focus:ring-forest-500/30 focus:bg-white
-              transition-all"
-          />
+          <div className="flex flex-col shrink-0 w-[calc(50%-0.25rem)] sm:w-[160px] xl:w-[180px] combobox-filter relative">
+            <div className="relative">
+              <input
+                value={activeDropdown === 'district' ? dropdownSearch : (districtFilter || "")}
+                onChange={(e) => {
+                  setDropdownSearch(e.target.value);
+                  setActiveDropdown('district');
+                }}
+                onFocus={() => {
+                  setDropdownSearch(districtFilter);
+                  setActiveDropdown('district');
+                }}
+                placeholder="Filter by district"
+                className={`w-full pl-4 pr-8 h-[46px] rounded-[20px] sm:rounded-xl border border-transparent sm:border-slate-200 bg-slate-50 sm:bg-white text-slate-800 placeholder:text-slate-500 sm:placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-forest-500 focus:ring-forest-500/30 transition-all text-sm font-medium cursor-pointer ${districtFilter ? 'sm:border-forest-300 ring-1 ring-forest-500/20' : ''}`}
+              />
+              <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            </div>
+            {activeDropdown === 'district' && (
+              <div className="absolute top-full mt-2 right-0 sm:left-0 sm:right-auto z-[60] w-full min-w-[180px] bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="max-h-48 overflow-y-auto p-1">
+                  <div
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      setDistrictFilter("");
+                      setPageIndex(0);
+                      setActiveDropdown(null);
+                    }}
+                    className={`flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer transition-colors ${!districtFilter ? 'bg-forest-50 text-forest-700 font-medium' : 'text-slate-700 hover:bg-slate-100'}`}
+                  >
+                    <span className="text-sm truncate pr-2">All Districts</span>
+                    {!districtFilter && <Check size={14} className="flex-shrink-0" />}
+                  </div>
+                  {uniqueDistricts.filter(v => v && v.toLowerCase().includes(dropdownSearch.toLowerCase())).map((v) => (
+                    <div
+                      key={v}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        setDistrictFilter(v as string);
+                        setPageIndex(0);
+                        setActiveDropdown(null);
+                      }}
+                      className={`flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer transition-colors ${districtFilter === v ? 'bg-forest-50 text-forest-700 font-medium' : 'text-slate-700 hover:bg-slate-100'}`}
+                    >
+                      <span className="text-sm truncate pr-2">{v}</span>
+                      {districtFilter === v && <Check size={14} className="flex-shrink-0" />}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="flex flex-col shrink-0 w-[calc(50%-0.25rem)] sm:w-[160px] xl:w-[180px] combobox-filter relative">
+            <div className="relative">
+              <input
+                value={activeDropdown === 'block' ? dropdownSearch : (blockFilter || "")}
+                onChange={(e) => {
+                  setDropdownSearch(e.target.value);
+                  setActiveDropdown('block');
+                }}
+                onFocus={() => {
+                  setDropdownSearch(blockFilter);
+                  setActiveDropdown('block');
+                }}
+                placeholder="Filter by block"
+                className={`w-full pl-4 pr-8 h-[46px] rounded-[20px] sm:rounded-xl border border-transparent sm:border-slate-200 bg-slate-50 sm:bg-white text-slate-800 placeholder:text-slate-500 sm:placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-forest-500 focus:ring-forest-500/30 transition-all text-sm font-medium cursor-pointer ${blockFilter ? 'sm:border-forest-300 ring-1 ring-forest-500/20' : ''}`}
+              />
+              <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            </div>
+            {activeDropdown === 'block' && (
+              <div className="absolute top-full mt-2 left-0 z-[60] w-full min-w-[180px] bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="max-h-48 overflow-y-auto p-1">
+                  <div
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      setBlockFilter("");
+                      setPageIndex(0);
+                      setActiveDropdown(null);
+                    }}
+                    className={`flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer transition-colors ${!blockFilter ? 'bg-forest-50 text-forest-700 font-medium' : 'text-slate-700 hover:bg-slate-100'}`}
+                  >
+                    <span className="text-sm truncate pr-2">All Blocks</span>
+                    {!blockFilter && <Check size={14} className="flex-shrink-0" />}
+                  </div>
+                  {uniqueBlocks.filter(v => v && v.toLowerCase().includes(dropdownSearch.toLowerCase())).map((v) => (
+                    <div
+                      key={v}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        setBlockFilter(v as string);
+                        setPageIndex(0);
+                        setActiveDropdown(null);
+                      }}
+                      className={`flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer transition-colors ${blockFilter === v ? 'bg-forest-50 text-forest-700 font-medium' : 'text-slate-700 hover:bg-slate-100'}`}
+                    >
+                      <span className="text-sm truncate pr-2">{v}</span>
+                      {blockFilter === v && <Check size={14} className="flex-shrink-0" />}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <button 
+            onClick={handleClear}
+            className="flex items-center justify-center gap-1.5 text-red-500 font-semibold text-sm h-[46px] w-[calc(50%-0.25rem)] sm:w-auto px-3 shrink-0 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+          >
+            <FilterX size={16} /> Clear
+          </button>
         </div>
       </div>
 
-      {/* Farmer List */}
+      {/* List View */}
       {loading && !farmers ? (
         <ListSkeleton rows={6} />
       ) : optimisticFarmers.length === 0 ? (
-        <div className="glass-card rounded-2xl p-12 text-center">
-          <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+        <div className="glass-card rounded-2xl p-12 text-center border border-slate-100">
+          <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <User size={28} className="text-slate-400" />
           </div>
           <h3 className="text-lg font-semibold text-slate-700 mb-2">
@@ -191,52 +369,159 @@ export default function FarmersPage() {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {optimisticFarmers.map((farmer) => (
-            <Link 
-              key={farmer.id} 
-              href={`/dashboard/farmers/${farmer._source === "TRADER" ? 't' : 'f'}${farmer.id}`}
-              className="glass-card rounded-2xl p-5 hover:shadow-md transition-shadow group relative block"
-            >
-              <div className="flex items-start gap-3.5">
-                <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${farmer.category === "TRADER" ? "bg-gradient-to-br from-blue-100 to-blue-200" : "bg-gradient-to-br from-forest-100 to-forest-200"}`}>
-                  <span className={`text-sm font-bold ${farmer.category === "TRADER" ? "text-blue-700" : "text-forest-700"}`}>
-                    {farmer.name?.[0] || "F"}
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0 pr-6">
-                  <h3 className="font-semibold text-slate-800 flex items-center gap-2">
-                    <span className="truncate">{farmer.name}</span>
-                    {farmer.category === "TRADER" && (
-                      <span className="text-[9px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded uppercase font-bold tracking-wider shrink-0">Trader</span>
-                    )}
-                  </h3>
-                  <p className="text-[10px] font-mono bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md inline-block mt-0.5">
-                    {farmer.farmerCode || "—"}
-                  </p>
-                  
-                  {farmer.phone && (
-                    <p className="flex items-center gap-1.5 text-sm text-slate-500 mt-2">
-                      <Phone size={13} />
+        <>
+          {/* Desktop Table View */}
+          <div className="hidden md:block bg-slate-50/40 rounded-2xl overflow-hidden mt-6 shadow-sm">
+          <div className="overflow-x-auto hide-scrollbar">
+            <div className="min-w-[900px]">
+              {/* Table Header */}
+              <div className="grid grid-cols-[1fr_2fr_1.5fr_1.5fr_2fr_0.5fr] gap-4 p-4 bg-[#e6f4ea] text-[11px] font-bold text-forest-800 uppercase tracking-wider rounded-t-2xl">
+                <div className="pl-4">FARMER CODE</div>
+                <div>FARMER NAME</div>
+                <div>MOBILE NUMBER</div>
+                <div>MANDI</div>
+                <div>ADDRESS</div>
+                <div className="text-right pr-4">ACTIONS</div>
+              </div>
+              
+              {/* Table Body */}
+              <div className="bg-slate-50">
+                {paginatedFarmers.map((farmer, index) => (
+                  <Link 
+                    key={farmer.id} 
+                    href={`/dashboard/farmers/${farmer._source === "TRADER" ? 't' : 'f'}${farmer.id}`} 
+                    className={`grid grid-cols-[1fr_2fr_1.5fr_1.5fr_2fr_0.5fr] gap-4 p-4 items-center hover:bg-slate-100 transition-colors group ${index !== paginatedFarmers.length - 1 ? 'border-b border-slate-100' : ''}`}
+                  >
+                    {/* Code */}
+                    <div className="pl-4">
+                      <span className="text-xs font-mono bg-slate-200/50 text-slate-600 px-2 py-1 rounded-md inline-block">{farmer.farmerCode || "—"}</span>
+                    </div>
+                    
+                    {/* Profile */}
+                    <div className="flex items-center gap-3">
+                      <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${farmer.category === "TRADER" ? "bg-gradient-to-br from-blue-100 to-blue-200" : "bg-gradient-to-br from-forest-100 to-forest-200"}`}>
+                        <span className={`text-sm font-bold ${farmer.category === "TRADER" ? "text-blue-700" : "text-forest-700"}`}>
+                          {farmer.name?.[0] || "F"}
+                        </span>
+                      </div>
+                      <div>
+                        <div className="font-semibold text-slate-800 text-sm leading-tight max-w-[160px] break-words">
+                          {farmer.name}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Mobile */}
+                    <div className="text-sm font-medium text-slate-700">
                       {farmer.phone}
-                    </p>
-                  )}
-                  {(farmer.village || farmer.district || farmer.block) && (
-                    <p className="flex items-center gap-1.5 text-sm text-slate-400 mt-1">
-                      <MapPin size={13} />
-                      {[farmer.village, farmer.block, farmer.district]
-                        .filter(Boolean)
-                        .join(", ")}
-                    </p>
-                  )}
-                </div>
+                    </div>
+                    
+                    {/* Mandi */}
+                    <div>
+                      <span className="text-[10px] font-bold text-forest-700 bg-[#e6f4ea] px-2 py-1 rounded-md uppercase tracking-wide inline-block">
+                        {farmer.town || "MAIN MANDI"}
+                      </span>
+                    </div>
+                    
+                    {/* Address */}
+                    <div className="text-xs text-slate-600 leading-relaxed pr-2">
+                      {[farmer.address, farmer.village, farmer.district].filter(Boolean).join(", ")}
+                    </div>
+                    
+                    {/* Actions */}
+                    <div className="text-right pr-4 flex justify-end">
+                      <ChevronRight size={18} className="text-forest-600/60 group-hover:text-forest-700 transition-colors" />
+                    </div>
+                  </Link>
+                ))}
               </div>
-              <div className={`absolute top-1/2 -translate-y-1/2 right-4 transition-colors ${farmer.category === "TRADER" ? "text-slate-300 group-hover:text-blue-500" : "text-slate-300 group-hover:text-forest-500"}`}>
-                <ArrowRight size={18} />
-              </div>
-            </Link>
-          ))}
+            </div>
+          </div>
         </div>
+
+        {/* Mobile Cards View */}
+          <div className="md:hidden flex flex-col gap-3 mt-6">
+            {paginatedFarmers.map((farmer) => (
+              <Link
+                key={farmer.id} 
+                href={`/dashboard/farmers/${farmer._source === "TRADER" ? 't' : 'f'}${farmer.id}`} 
+                className="bg-white rounded-[20px] p-4 flex items-center justify-between shadow-sm border border-slate-100 active:scale-[0.98] transition-transform"
+              >
+                <div className="flex items-start gap-4 flex-1 min-w-0">
+                   {/* Avatar */}
+                   <div className={`w-[42px] h-[42px] rounded-xl flex items-center justify-center shrink-0 ${farmer.category === "TRADER" ? "bg-gradient-to-br from-blue-100 to-blue-200" : "bg-gradient-to-br from-green-100 to-green-200"}`}>
+                     <span className={`text-base font-bold ${farmer.category === "TRADER" ? "text-blue-700" : "text-green-800"}`}>
+                       {farmer.name?.[0] || "F"}
+                     </span>
+                   </div>
+                   
+                   {/* Content */}
+                   <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                     <h3 className="font-bold text-slate-800 text-[15px] leading-tight truncate">{farmer.name}</h3>
+                     <span className="text-[10px] font-mono bg-[#f1f5f9] text-slate-500 px-1.5 py-0.5 rounded inline-flex self-start">{farmer.farmerCode || "—"}</span>
+                     
+                     <div className="flex flex-col gap-1 mt-1.5">
+                       <div className="flex items-center gap-1.5 text-slate-500">
+                         <Phone size={12} className="shrink-0" />
+                         <span className="text-[11px] truncate">{farmer.phone}</span>
+                       </div>
+                       <div className="flex items-start gap-1.5 text-slate-500">
+                         <MapPin size={12} className="shrink-0 mt-[2px]" />
+                         <span className="text-[11px] leading-tight line-clamp-1">{[farmer.address, farmer.village, farmer.district].filter(Boolean).join(", ")}</span>
+                       </div>
+                     </div>
+                   </div>
+                </div>
+                
+                <ChevronRight size={18} className="text-slate-300 shrink-0 ml-2" />
+              </Link>
+            ))}
+          </div>
+        
+        {/* Pagination Footer */}
+        {totalEntries > 0 && (
+            <div className="flex items-center justify-between px-6 py-6 bg-transparent">
+              <div className="text-sm text-slate-500 font-medium">
+                Showing {pageIndex * pageSize + 1}-{Math.min((pageIndex + 1) * pageSize, totalEntries)} of {totalEntries} entries
+              </div>
+              <div className="flex items-center gap-1 bg-slate-50/50 p-1 rounded-xl border border-slate-100">
+                <button 
+                  onClick={() => setPageIndex(p => Math.max(0, p - 1))}
+                  disabled={pageIndex === 0}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-50 disabled:hover:bg-transparent transition-all"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                {Array.from({ length: totalPages }).map((_, i) => {
+                  if (totalPages > 5 && i !== 0 && i !== totalPages - 1 && Math.abs(i - pageIndex) > 1) {
+                    if (i === 1 || i === totalPages - 2) return <span key={i} className="px-1 text-slate-400">...</span>;
+                    return null;
+                  }
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => setPageIndex(i)}
+                      className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-semibold transition-all ${
+                        pageIndex === i 
+                          ? 'bg-forest-800 text-white shadow-sm' 
+                          : 'text-slate-600 hover:bg-slate-100'
+                      }`}
+                    >
+                      {i + 1}
+                    </button>
+                  );
+                })}
+                <button 
+                  onClick={() => setPageIndex(p => Math.min(totalPages - 1, p + 1))}
+                  disabled={pageIndex === totalPages - 1}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-50 disabled:hover:bg-transparent transition-all"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* Mobile FAB */}

@@ -21,7 +21,7 @@ import {
   Calendar,
   FileText
 } from "lucide-react";
-import CommandBar from "@/components/CommandBar";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSWRCache, prefetchCache } from "@/lib/swr-cache";
@@ -465,17 +465,11 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-slate-800 tracking-tight">
-            Welcome back, {session?.user?.name || "Agent"}
-          </h1>
-          <p className="text-slate-500 mt-1 flex items-center gap-2">
-            Here&apos;s your procurement overview
-            {isValidating && <RefreshCw size={12} className="animate-spin text-forest-500" />}
-          </p>
-        </div>
-        <CommandBar />
+      <div className="flex items-center gap-2 mb-2">
+        <h1 className="text-2xl md:text-3xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
+          Namaste 🙏
+          {isValidating && <RefreshCw size={14} className="animate-spin text-forest-500 ml-2" />}
+        </h1>
       </div>
 
       {/* 3 Info Cards (now clickable) */}

@@ -103,7 +103,7 @@ export default function CommandBar() {
           hover:border-forest-200 transition-all duration-200"
       >
         <Search size={18} />
-        <span>Search farmers...</span>
+        <span>Search by name, code or mobile...</span>
         <kbd className="hidden md:flex ml-auto px-2 py-0.5 rounded-md bg-slate-100 text-[11px] text-slate-400 font-mono">
           ⌘K
         </kbd>
@@ -133,7 +133,7 @@ export default function CommandBar() {
                 setSelectedIndex(0);
               }}
               onKeyDown={handleKeyDown}
-              placeholder="Search farmers by name, unique id, or phone..."
+              placeholder="Search by name, code or mobile..."
               className="flex-1 bg-transparent text-slate-800 placeholder:text-slate-400 
                 outline-none text-base"
             />

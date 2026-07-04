@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import {
   getProcurementHistory,
@@ -166,6 +166,25 @@ export default function HistoryPage() {
       setIsFetchingMore(false);
     }
   };
+
+  const observer = useRef<IntersectionObserver | null>(null);
+  const handleLoadMoreRef = useRef(handleLoadMore);
+  
+  useEffect(() => {
+    handleLoadMoreRef.current = handleLoadMore;
+  }, [handleLoadMore]);
+
+  const loadMoreRef = useCallback((node: HTMLDivElement | null) => {
+    if (observer.current) observer.current.disconnect();
+    if (node) {
+      observer.current = new IntersectionObserver(entries => {
+        if (entries[0].isIntersecting) {
+          handleLoadMoreRef.current();
+        }
+      }, { rootMargin: '800px' });
+      observer.current.observe(node);
+    }
+  }, []);
 
   // SWR cached summary
   const {
@@ -544,7 +563,7 @@ export default function HistoryPage() {
                           <span className="text-[8px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded uppercase font-bold tracking-wider shrink-0">Trader</span>
                         )}
                         <span className="text-[9px] font-mono bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md font-semibold">
-                          #{record.farmerCode || record.slipId.slice(0,8)}
+                          {record.farmerCode || record.slipId.slice(0,8)}
                         </span>
                       </div>
                       {record.fatherName && (
@@ -604,14 +623,10 @@ export default function HistoryPage() {
             ))}
             
             {hasMore && initialRecords.length >= 15 && filteredRecords.length >= 15 && (
-              <div className="pt-5 pb-2 text-center">
-                <button 
-                  onClick={handleLoadMore}
-                  disabled={isFetchingMore}
-                  className="text-[13px] font-bold text-forest-700 hover:text-forest-800 underline decoration-2 underline-offset-4 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isFetchingMore ? "Loading..." : "View Older Records"}
-                </button>
+              <div ref={loadMoreRef} className="pt-2 pb-6 flex justify-center opacity-60">
+                {isFetchingMore && (
+                  <Loader2 size={24} className="animate-spin text-slate-400" />
+                )}
               </div>
             )}
           </div>

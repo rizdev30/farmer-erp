@@ -7,7 +7,7 @@ import type { NextRequest } from "next/server";
 
 // In Next.js 16, the middleware file is renamed to proxy.ts
 // and the export is renamed from `middleware` to `proxy`.
-const proxyHandler = auth((req) => {
+export const proxy = auth((req) => { console.log("PROXY IS RUNNING FOR:", req.nextUrl.pathname);
   const session = req.auth;
   const { pathname } = req.nextUrl;
 
@@ -35,10 +35,6 @@ const proxyHandler = auth((req) => {
   return NextResponse.next();
 });
 
-export default proxyHandler;
-// Export as `proxy` alias (Next.js 16 convention)
-export { proxyHandler as proxy };
-
 export const config = {
-  matcher: ["/dashboard/:path*", "/login"],
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
 };

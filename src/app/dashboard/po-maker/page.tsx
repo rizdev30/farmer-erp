@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { getPOBySlipId, savePO, getApprovedProcurementsByAdhatiya } from "@/app/actions/po";
 import { 
-  FileText, Search, Plus, Trash2, Save, Printer, ArrowLeft, Loader2, Calendar, CheckCircle2, Users
+  FileText, Search, Plus, Trash2, Save, Printer, ArrowLeft, Loader2, Calendar, CheckCircle2, Users, PlusCircle
 } from "lucide-react";
 import { useToast } from "@/components/Toast";
 
@@ -349,15 +349,11 @@ function POMakerForm() {
       {/* LEFT SIDE: CONTROLS */}
       <div className={`w-full xl:w-[45%] h-full xl:max-h-screen xl:overflow-y-auto p-4 md:p-6 space-y-6 bg-slate-50 border-r border-slate-200 print:hidden pb-32 xl:pb-6 ${poData && mobileTab === 'preview' ? 'hidden xl:block' : 'block'}`}>
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => router.back()}
-            className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center shadow-sm hover:bg-slate-50 transition-all shrink-0"
-          >
-            <ArrowLeft size={18} className="text-slate-700" />
-          </button>
+          <div className="shrink-0 w-10 h-10 bg-indigo-100/80 rounded-xl flex items-center justify-center">
+            <PlusCircle size={18} className="text-indigo-600" />
+          </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-800">PO Maker Control Panel</h1>
-            <p className="text-sm text-slate-500">Changes here reflect instantly on the right.</p>
+            <h1 className="text-xl md:text-2xl font-bold text-slate-800 tracking-tight">Create Purchase Order</h1>
           </div>
         </div>
 

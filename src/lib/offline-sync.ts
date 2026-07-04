@@ -87,7 +87,7 @@ export async function detectNetworkQuality(): Promise<NetworkStatus> {
 
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
+    const timeout = setTimeout(() => controller.abort(), 8000); // 8 second timeout
 
     const start = Date.now();
     // Use GET with a cache-bust param to test real network speed
@@ -99,7 +99,7 @@ export async function detectNetworkQuality(): Promise<NetworkStatus> {
     clearTimeout(timeout);
 
     const elapsed = Date.now() - start;
-    return elapsed > 3000 ? "slow" : "online";
+    return elapsed > 4500 ? "slow" : "online"; // Only flag as slow if it takes longer than 4.5 seconds
   } catch {
     return navigator.onLine ? "slow" : "offline";
   }

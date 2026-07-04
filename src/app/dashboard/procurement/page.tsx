@@ -759,7 +759,7 @@ export default function ProcurementPage() {
                   </div>
                   {/* Deduction Qtl/Bag */}
                   <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-1.5">Deduction/Qtl (in kg)</label>
+                    <label className="block text-xs font-medium text-slate-500 mb-1.5">Deduction/Qtl (kg)</label>
                     <input
                       type="number"
                       value={item.deduction}
