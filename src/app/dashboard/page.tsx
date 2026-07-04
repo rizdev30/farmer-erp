@@ -154,9 +154,9 @@ function ThreeCards({ s, loading, onTodayClick, onSlipClick, onTotalClick, hideT
 
       {!hideTotalPurchase && (
         <InfoCard 
-          icon={<TrendingUp size={16} className="text-forest-600" />} 
+          icon={<TrendingUp size={16} className="text-emerald-600" />} 
           title="Total Purchase" 
-          iconBg="bg-forest-100" 
+          iconBg="bg-emerald-100" 
           loading={loading}
           onClick={onTotalClick}
         >

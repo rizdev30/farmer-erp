@@ -326,6 +326,8 @@ export async function getProcurementHistory(filters?: {
   month?: number;
   agentId?: string;
   status?: string;
+  limit?: number;
+  skip?: number;
 }) {
   const user = await getSessionUser();
 
@@ -416,7 +418,8 @@ export async function getProcurementHistory(filters?: {
   const procurements = await prisma.procurement.findMany({
     where,
     orderBy: { createdAt: "desc" },
-    take: 200,
+    take: filters?.limit ?? 15,
+    skip: filters?.skip ?? 0,
     include: {
       farmer: {
         select: { name: true, farmerCode: true, village: true, registeredByName: true },
