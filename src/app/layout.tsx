@@ -9,6 +9,7 @@ export const viewport: Viewport = {
   themeColor: "#059669", // forest-600 (Solid smooth green)
 };
 import SessionProvider from "@/components/providers/SessionProvider";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -42,6 +43,7 @@ export default function RootLayout({
     <html lang="en" className={`h-full`} data-scroll-behavior="smooth">
       <body className="min-h-full flex flex-col bg-slate-50 antialiased font-sans">
         <SessionProvider>{children}</SessionProvider>
+        <SpeedInsights />
       </body>
     </html>
   );
