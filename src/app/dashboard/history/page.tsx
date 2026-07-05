@@ -6,6 +6,7 @@ import {
   getProcurementHistory,
   getMonthlySummary,
   getAgentsList,
+  getProcurementBySlipId,
 } from "@/app/actions/procurement";
 import {
   ClipboardList,
@@ -26,7 +27,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useDebounce } from "@/lib/use-debounce";
-import { useSWRCache } from "@/lib/swr-cache";
+import { useSWRCache, prefetchCache } from "@/lib/swr-cache";
 
 interface ProcurementRecord {
   id: number;
@@ -540,6 +541,8 @@ export default function HistoryPage() {
               <Link
                 key={record.id}
                 href={`/dashboard/history/${record.slipId}`}
+                onMouseEnter={() => prefetchCache(`receipt-${record.slipId}`, () => getProcurementBySlipId(record.slipId))}
+                onTouchStart={() => prefetchCache(`receipt-${record.slipId}`, () => getProcurementBySlipId(record.slipId))}
                 className="bg-white rounded-2xl p-4 sm:p-4 hover:shadow-md hover:border-slate-200 border border-slate-100 transition-all group relative block"
               >
                 <div className="absolute right-4 top-4 text-slate-400 group-hover:text-forest-500 transition-colors">
