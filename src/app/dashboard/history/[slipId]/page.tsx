@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getProcurementBySlipId, updateProcurementStatus } from "@/app/actions/procurement";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import {
   ArrowLeft,
   Loader2,
@@ -55,6 +55,17 @@ export default function ReceiptPage() {
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <Loader2 className="w-8 h-8 text-forest-500 animate-spin" />
         <p className="text-slate-500 font-medium animate-pulse">Loading receipt...</p>
+      </div>
+    );
+  }
+
+  // Security measure: if unauthorized, throw them out to the login page immediately
+  if (error === "You are not authorized to view this record." || error === "Not authenticated") {
+    signOut({ callbackUrl: "/login", redirect: true });
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <Loader2 className="w-8 h-8 text-red-500 animate-spin" />
+        <p className="text-red-500 font-bold animate-pulse">Unauthorized access detected. Logging out...</p>
       </div>
     );
   }
