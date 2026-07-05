@@ -27,7 +27,9 @@ export default function ReceiptPage() {
   } = useSWRCache<any>(
     slipId ? `receipt-${slipId}` : null,
     async () => {
-      const data = await getProcurementBySlipId(slipId);
+      const res = await getProcurementBySlipId(slipId);
+      if (res.error) throw new Error(res.error);
+      const data = res.data;
       // Pre-fill edit forms
       setEditRate(data.rate);
       setEditDeduction(data.deduction);

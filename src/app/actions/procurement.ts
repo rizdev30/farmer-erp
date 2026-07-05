@@ -479,78 +479,88 @@ export async function getProcurementHistory(filters?: {
  * Get full details of a specific procurement record by Slip ID.
  */
 export async function getProcurementBySlipId(slipId: string) {
-  const user = await getSessionUser();
-  const isAdmin = user.roles.includes("L4_ADMIN");
+  try {
+    const user = await getSessionUser();
+    const isAdmin = user.roles.includes("L4_ADMIN");
 
-  let procurement = await prisma.procurement.findUniqueOrThrow({
-    where: { slipId },
-    include: {
-      farmer: true,
-    },
-  });
-
-  // If this is a Trader procurement, the farmerId actually mapped to a Farmer with the same ID.
-  // We must fetch the actual Trader using the farmerCode.
-  if (procurement.farmerCode && procurement.farmerCode.startsWith("T")) {
-    const trader = await prisma.trader.findUnique({
-      where: { traderCode: procurement.farmerCode },
+    let procurement = await prisma.procurement.findUnique({
+      where: { slipId },
+      include: {
+        farmer: true,
+      },
     });
-    if (trader) {
-      (procurement as any).farmer = { ...trader, category: "TRADER" };
+
+    if (!procurement) {
+      return { error: "Record not found in the database." };
     }
-  }
 
-  if (user.roles.includes("L4_ADMIN") || user.isSuperAdmin) {
-    // allowed
-  } else {
-    const hasAllAccess = user.assignedStates.includes("ALL") || user.assignedMandis.includes("ALL");
-    if (!hasAllAccess) {
-      const isMyAgent = procurement.agentId === user.userId;
-      const isAssignedL1 = user.assignedL1Users.includes(procurement.agentId);
-      const isAssignedL2 = user.assignedL2Users.includes(procurement.l2ApprovedBy || "");
-      const inAssignedState = user.assignedStates.includes((procurement as any).farmer?.state);
-      const inAssignedMandi = user.assignedMandis.includes((procurement as any).farmer?.town);
-      const iApprovedL2 = procurement.l2ApprovedBy === user.userId;
-      const iApprovedL3 = procurement.l3ApprovedBy === user.userId;
-
-      if (!isMyAgent && !isAssignedL1 && !isAssignedL2 && !inAssignedState && !inAssignedMandi && !iApprovedL2 && !iApprovedL3) {
-        throw new Error("You are not authorized to view this record.");
+    // If this is a Trader procurement, the farmerId actually mapped to a Farmer with the same ID.
+    // We must fetch the actual Trader using the farmerCode.
+    if (procurement.farmerCode && procurement.farmerCode.startsWith("T")) {
+      const trader = await prisma.trader.findUnique({
+        where: { traderCode: procurement.farmerCode },
+      });
+      if (trader) {
+        (procurement as any).farmer = { ...trader, category: "TRADER" };
       }
     }
-  }
 
-  const agent = await prisma.user.findUnique({
-    where: { id: procurement.agentId },
-    select: { email: true, name: true },
-  });
+    if (user.roles.includes("L4_ADMIN") || user.isSuperAdmin) {
+      // allowed
+    } else {
+      const hasAllAccess = user.assignedStates.includes("ALL") || user.assignedMandis.includes("ALL");
+      if (!hasAllAccess) {
+        const isMyAgent = procurement.agentId === user.userId;
+        const isAssignedL1 = user.assignedL1Users.includes(procurement.agentId);
+        const isAssignedL2 = user.assignedL2Users.includes(procurement.l2ApprovedBy || "");
+        const inAssignedState = user.assignedStates.includes((procurement as any).farmer?.state);
+        const inAssignedMandi = user.assignedMandis.includes((procurement as any).farmer?.town);
+        const iApprovedL2 = procurement.l2ApprovedBy === user.userId;
+        const iApprovedL3 = procurement.l3ApprovedBy === user.userId;
 
-  let l2ApproverName = null;
-  if (procurement.l2ApprovedBy) {
-    const l2User = await prisma.user.findUnique({
-      where: { id: procurement.l2ApprovedBy },
-      select: { name: true },
+        if (!isMyAgent && !isAssignedL1 && !isAssignedL2 && !inAssignedState && !inAssignedMandi && !iApprovedL2 && !iApprovedL3) {
+          return { error: "You are not authorized to view this record." };
+        }
+      }
+    }
+
+    const agent = await prisma.user.findUnique({
+      where: { id: procurement.agentId },
+      select: { email: true, name: true },
     });
-    if (l2User) l2ApproverName = l2User.name;
-  }
 
-  let l3ApproverName = null;
-  if (procurement.l3ApprovedBy) {
-    const l3User = await prisma.user.findUnique({
-      where: { id: procurement.l3ApprovedBy },
-      select: { name: true },
-    });
-    if (l3User) l3ApproverName = l3User.name;
-  }
+    let l2ApproverName = null;
+    if (procurement.l2ApprovedBy) {
+      const l2User = await prisma.user.findUnique({
+        where: { id: procurement.l2ApprovedBy },
+        select: { name: true },
+      });
+      if (l2User) l2ApproverName = l2User.name;
+    }
 
-  return {
-    ...procurement,
-    farmer: {
-      ...procurement.farmer,
-    },
-    agentDetails: agent,
-    l2ApproverName,
-    l3ApproverName,
-  };
+    let l3ApproverName = null;
+    if (procurement.l3ApprovedBy) {
+      const l3User = await prisma.user.findUnique({
+        where: { id: procurement.l3ApprovedBy },
+        select: { name: true },
+      });
+      if (l3User) l3ApproverName = l3User.name;
+    }
+
+    return {
+      data: {
+        ...procurement,
+        farmer: {
+          ...procurement.farmer,
+        },
+        agentDetails: agent,
+        l2ApproverName,
+        l3ApproverName,
+      }
+    };
+  } catch (error: any) {
+    return { error: error.message || "An unexpected error occurred while fetching the record." };
+  }
 }
 
 /**
