@@ -30,6 +30,122 @@ const adminItems = [
   { href: "/dashboard/agents", label: "Agents", icon: UserCog },
 ];
 
+function NavigationWrapper({ isMobile, setSidebarOpen, sidebarOpen }: { isMobile: boolean, setSidebarOpen?: any, sidebarOpen?: boolean }) {
+  const pathname = usePathname();
+  const { data: session } = useSession();
+  const searchParams = useSearchParams();
+
+  const isSuperAdmin = (session?.user as any)?.isSuperAdmin === true;
+  const isL4Admin = (session?.user as any)?.roles?.includes("L4_ADMIN") === true;
+  const isL3Maker = (session?.user as any)?.roles?.includes("L3_PO_MAKER") === true;
+  
+  const isPOEnvironment = pathname.startsWith("/dashboard/po-") || searchParams.get("env") === "po";
+
+  let allNavItems = [...navItems];
+  
+  if (isL3Maker && !isL4Admin && !isSuperAdmin) {
+    allNavItems = [
+      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/dashboard/po-maker", label: "Create PO", icon: PlusCircle },
+      { href: "/dashboard/history", label: "Records", icon: ClipboardList },
+      { href: "/dashboard/po-records", label: "PO List", icon: FileText },
+    ];
+  } else {
+    if (isPOEnvironment && (isL3Maker || isL4Admin || isSuperAdmin)) {
+      allNavItems = [
+        { href: "/dashboard", label: "Exit PO Maker", icon: ArrowLeft, isExitItem: true } as any,
+        { href: "/dashboard?env=po", label: "Dashboard", icon: LayoutDashboard },
+        { href: "/dashboard/po-maker", label: "Create PO", icon: PlusCircle },
+        { href: "/dashboard/history?env=po", label: "Records", icon: ClipboardList },
+        { href: "/dashboard/po-records", label: "PO List", icon: FileText },
+      ];
+    } else {
+      if (isL3Maker || isL4Admin || isSuperAdmin) {
+        allNavItems.push({ href: "/dashboard/po-maker", label: "PO Maker", icon: PlusCircle });
+      }
+      if (isSuperAdmin) {
+        allNavItems.push(...adminItems);
+      }
+    }
+  }
+
+  if (isMobile) {
+    return (
+      <nav className={`md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-[8px] border-t border-slate-200/80 z-40 print:hidden shadow-[0_-4px_16px_rgba(0,0,0,0.04)] ${sidebarOpen ? "hidden" : "block"}`} style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+        <div className="flex items-center justify-around h-[52px] px-2">
+          {allNavItems.map((item: any) => {
+            const itemPath = item.href.split('?')[0];
+            const isActive = !item.isExitItem && pathname === itemPath;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`
+                  flex flex-col items-center justify-center w-full h-full space-y-0.5
+                  transition-colors duration-200
+                  ${
+                    isActive
+                      ? "text-forest-600"
+                      : "text-slate-400 hover:text-slate-600 active:text-slate-800"
+                  }
+                `}
+              >
+                <item.icon size={20} className={isActive ? "text-forest-600" : ""} />
+                <span className="text-[10px] font-medium">{item.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
+    );
+  }
+
+  return (
+    <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto">
+      {allNavItems.map((item: any) => {
+        const itemPath = item.href.split('?')[0];
+        const isActive = !item.isExitItem && pathname === itemPath;
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            prefetch={true}
+            onClick={() => setSidebarOpen && setSidebarOpen(false)}
+            className={`
+              flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium
+              transition-all duration-200 group relative
+              ${
+                isActive
+                  ? "bg-white/15 text-white shadow-sm"
+                  : "text-forest-200/70 hover:text-white hover:bg-white/8"
+              }
+            `}
+          >
+            {isActive && (
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-forest-400 rounded-r-full" />
+            )}
+            <item.icon
+              size={20}
+              className={
+                isActive
+                  ? "text-forest-400"
+                  : "text-forest-300/50 group-hover:text-forest-400/70"
+              }
+            />
+            <span>{item.label}</span>
+            {isActive && (
+              <ChevronRight
+                size={14}
+                className="ml-auto text-forest-400/50"
+              />
+            )}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
 function DashboardLayoutContent({
   children,
 }: {
@@ -40,71 +156,24 @@ function DashboardLayoutContent({
   const { data: session, status } = useSession();
   const router = useRouter();
 
-  const isSuperAdmin = (session?.user as any)?.isSuperAdmin === true;
-  const isL4Admin = (session?.user as any)?.roles?.includes("L4_ADMIN") === true;
-  const isL3Maker = (session?.user as any)?.roles?.includes("L3_PO_MAKER") === true;
-  
-  const searchParams = useSearchParams();
-  const isPOEnvironment = pathname.startsWith("/dashboard/po-") || searchParams.get("env") === "po";
-
-  let allNavItems = [...navItems];
-  
-  if (isL3Maker && !isL4Admin && !isSuperAdmin) {
-    // Pure L3 users ONLY see the PO Maker environment
-    allNavItems = [
-      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/dashboard/po-maker", label: "Create PO", icon: PlusCircle },
-      { href: "/dashboard/history", label: "Records", icon: ClipboardList },
-      { href: "/dashboard/po-records", label: "PO List", icon: FileText },
-    ];
-  } else {
-    // Admins and mixed-role users (L1/L2 + L3)
-    if (isPOEnvironment && (isL3Maker || isL4Admin || isSuperAdmin)) {
-      // Inside PO Maker Environment (Dedicated Panel)
-      allNavItems = [
-        { href: "/dashboard", label: "Exit PO Maker", icon: ArrowLeft, isExitItem: true } as any,
-        { href: "/dashboard?env=po", label: "Dashboard", icon: LayoutDashboard },
-        { href: "/dashboard/po-maker", label: "Create PO", icon: PlusCircle },
-        { href: "/dashboard/history?env=po", label: "Records", icon: ClipboardList },
-        { href: "/dashboard/po-records", label: "PO List", icon: FileText },
-      ];
-    } else {
-      // Main ERP Environment
-      if (isL3Maker || isL4Admin || isSuperAdmin) {
-        // Link to enter the PO Maker Environment
-        allNavItems.push({ href: "/dashboard/po-maker", label: "PO Maker", icon: PlusCircle });
-      }
-      if (isSuperAdmin) {
-        allNavItems.push(...adminItems);
-      }
-    }
-  }
-  // Double-layer security: redirect on the client-side if proxy is bypassed,
-  // and prevent rendering of the layout if unauthenticated.
   useEffect(() => {
     if (status === "unauthenticated") {
       router.replace("/login");
     }
   }, [status, router]);
 
-  if (status === "unauthenticated") {
+  if (status === "unauthenticated" || status === "loading") {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-slate-50">
-        <div className="flex items-center gap-3 text-forest-600 font-semibold bg-forest-50 px-6 py-3 rounded-full shadow-sm">
-          <div className="w-5 h-5 border-2 border-forest-600 border-t-transparent rounded-full animate-spin"></div>
-          Redirecting to Login...
-        </div>
-      </div>
-    );
-  }
-
-  if (status === "loading") {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-slate-50">
-        <div className="animate-pulse flex flex-col items-center gap-4">
-          <div className="w-14 h-14 bg-forest-100 rounded-2xl flex items-center justify-center shadow-inner">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-14 h-14 bg-forest-100 rounded-2xl flex items-center justify-center shadow-inner animate-pulse">
             <Sprout className="w-8 h-8 text-forest-300" strokeWidth={2.5} />
           </div>
+          {status === "unauthenticated" && (
+             <div className="text-forest-600 font-semibold bg-forest-50 px-6 py-2 rounded-full shadow-sm">
+               Redirecting...
+             </div>
+          )}
         </div>
       </div>
     );
@@ -112,7 +181,6 @@ function DashboardLayoutContent({
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
-      {/* Mobile Overlay */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/30 backdrop-fade md:hidden"
@@ -120,7 +188,6 @@ function DashboardLayoutContent({
         />
       )}
 
-      {/* Sidebar */}
       <aside
         className={`
           fixed md:static inset-y-0 left-0 z-50
@@ -130,7 +197,6 @@ function DashboardLayoutContent({
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
         `}
       >
-        {/* Logo */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-white/10">
           <Link href="/dashboard" className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-forest-400 to-forest-500 rounded-xl flex items-center justify-center shadow-lg shadow-forest-500/25">
@@ -153,51 +219,10 @@ function DashboardLayoutContent({
           </button>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto">
-          {allNavItems.map((item: any) => {
-            const itemPath = item.href.split('?')[0];
-            const isActive = !item.isExitItem && pathname === itemPath;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                prefetch={true}
-                onClick={() => setSidebarOpen(false)}
-                className={`
-                  flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium
-                  transition-all duration-200 group relative
-                  ${
-                    isActive
-                      ? "bg-white/15 text-white shadow-sm"
-                      : "text-forest-200/70 hover:text-white hover:bg-white/8"
-                  }
-                `}
-              >
-                {isActive && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-forest-400 rounded-r-full" />
-                )}
-                <item.icon
-                  size={20}
-                  className={
-                    isActive
-                      ? "text-forest-400"
-                      : "text-forest-300/50 group-hover:text-forest-400/70"
-                  }
-                />
-                <span>{item.label}</span>
-                {isActive && (
-                  <ChevronRight
-                    size={14}
-                    className="ml-auto text-forest-400/50"
-                  />
-                )}
-              </Link>
-            );
-          })}
-        </nav>
+        <Suspense fallback={<nav className="flex-1 px-4 py-6" />}>
+          <NavigationWrapper isMobile={false} setSidebarOpen={setSidebarOpen} />
+        </Suspense>
 
-        {/* Profile (Desktop only since Mobile has Settings tab now) */}
         <div className="hidden md:block px-4 pb-4">
           <div className="p-4 rounded-2xl bg-white/8 border border-white/5">
             <div className="flex items-center gap-3 mb-3">
@@ -226,9 +251,7 @@ function DashboardLayoutContent({
         </div>
       </aside>
 
-      {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden">
-        {/* Mobile Header (No longer has hamburger) */}
         <header className="md:hidden flex items-center justify-center px-4 pb-2 glass border-b border-slate-200/50 print:hidden relative" style={{ paddingTop: "max(0.375rem, env(safe-area-inset-top))" }}>
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-gradient-to-br from-forest-500 to-forest-600 rounded-lg flex items-center justify-center">
@@ -240,43 +263,15 @@ function DashboardLayoutContent({
           </div>
         </header>
 
-        {/* Page Content */}
         <div className="flex-1 overflow-y-auto pb-24 md:pb-0">
           <div className={pathname.startsWith("/dashboard/po-maker") ? "w-full h-full" : "max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-8"}>
             {children}
           </div>
         </div>
 
-        {/* Mobile Bottom Navigation */}
-        <nav className={`md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-[8px] border-t border-slate-200/80 z-40 print:hidden shadow-[0_-4px_16px_rgba(0,0,0,0.04)] ${sidebarOpen ? "hidden" : "block"}`} style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
-          <div className="flex items-center justify-around h-[52px] px-2">
-            {allNavItems.map((item: any) => {
-              const itemPath = item.href.split('?')[0];
-              const isActive = !item.isExitItem && pathname === itemPath;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`
-                    flex flex-col items-center justify-center w-full h-full space-y-0.5
-                    transition-colors duration-200
-                    ${
-                      isActive
-                        ? "text-forest-600"
-                        : "text-slate-400 hover:text-slate-600 active:text-slate-800"
-                    }
-                  `}
-                >
-                  <item.icon
-                    size={20}
-                    className={isActive ? "text-forest-600" : ""}
-                  />
-                  <span className="text-[10px] font-medium">{item.label}</span>
-                </Link>
-              );
-            })}
-          </div>
-        </nav>
+        <Suspense fallback={null}>
+          <NavigationWrapper isMobile={true} sidebarOpen={sidebarOpen} />
+        </Suspense>
       </main>
     </div>
   );
@@ -287,15 +282,5 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <Suspense 
-      fallback={
-        <div className="flex h-screen w-full items-center justify-center bg-[#f5f5f7]">
-          <div className="w-8 h-8 border-4 border-forest-500 border-t-transparent rounded-full animate-spin"></div>
-        </div>
-      }
-    >
-      <DashboardLayoutContent>{children}</DashboardLayoutContent>
-    </Suspense>
-  );
+  return <DashboardLayoutContent>{children}</DashboardLayoutContent>;
 }
