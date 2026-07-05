@@ -8,6 +8,7 @@ import {
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useToast } from "@/components/Toast";
+import { TableSkeleton } from "@/components/LoadingSkeleton";
 
 export default function PORecordsPage() {
   const router = useRouter();
@@ -66,9 +67,7 @@ export default function PORecordsPage() {
         </div>
 
         {loading ? (
-          <div className="p-12 flex justify-center">
-            <Loader2 size={32} className="animate-spin text-forest-500" />
-          </div>
+          <TableSkeleton rows={4} />
         ) : records.length === 0 ? (
           <div className="px-5 py-12 text-center">
             <FileText size={32} className="text-slate-200 mx-auto mb-3" />

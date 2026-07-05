@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useSWRCache, invalidateCache } from "@/lib/swr-cache";
+import LoadingSkeleton from "./loading";
 
 export default function ReceiptPage() {
   const params = useParams();
@@ -50,13 +51,12 @@ export default function ReceiptPage() {
   const [editBones, setEditBones] = useState<number | "">("");
   const [isUpdating, setIsUpdating] = useState(false);
 
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <Loader2 className="w-8 h-8 text-forest-500 animate-spin" />
-        <p className="text-slate-500 font-medium animate-pulse">Loading receipt...</p>
-      </div>
-    );
+    return <LoadingSkeleton />;
   }
 
   // Security measure: if unauthorized, throw them out to the login page immediately

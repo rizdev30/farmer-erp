@@ -7,6 +7,7 @@ import {
   FileText, Search, Plus, Trash2, Save, Printer, ArrowLeft, Loader2, Calendar, CheckCircle2, Users, PlusCircle
 } from "lucide-react";
 import { useToast } from "@/components/Toast";
+import LoadingSkeleton from "./loading";
 
 function POMakerForm() {
   const searchParams = useSearchParams();
@@ -400,7 +401,14 @@ function POMakerForm() {
         </div>
 
         {/* Search Results List — Multi-select */}
-        {searchResults.length > 0 && !poData && (
+        {searchingAdhatiya || loading ? (
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
+            <div className="skeleton h-6 w-48 mb-2" />
+            <div className="skeleton h-[72px] w-full rounded-xl" />
+            <div className="skeleton h-[72px] w-full rounded-xl" />
+            <div className="skeleton h-[72px] w-full rounded-xl" />
+          </div>
+        ) : searchResults.length > 0 && !poData && (
           <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-slate-700">
@@ -679,7 +687,9 @@ function POMakerForm() {
       {/* RIGHT SIDE: LIVE PREVIEW */}
       <div className={`w-full xl:w-[55%] h-full xl:max-h-screen xl:overflow-y-auto overflow-x-auto print:overflow-visible print:h-auto print:max-h-none bg-slate-200/50 flex flex-col xl:items-center py-8 print:p-0 print:bg-white print:w-full print:block pb-40 xl:pb-8 ${mobileTab === 'edit' ? 'hidden xl:flex' : 'flex'}`}>
         
-        {poData ? (
+        {loading ? (
+          <div className="w-[210mm] min-h-[297mm] mx-auto bg-white rounded-xl shadow-2xl skeleton" />
+        ) : poData ? (
           <div id="printable-po" className="w-[210mm] min-w-[210mm] mx-auto bg-white text-black shadow-2xl print:shadow-none p-4 sm:p-6 md:p-8 print:p-0 text-[10px] sm:text-[11px] font-sans leading-tight transform origin-top xl:scale-[0.8] 2xl:scale-100 print:scale-100 print:transform-none transition-transform">
             
             <style>{`
@@ -1022,7 +1032,7 @@ function POMakerForm() {
 
 export default function POMakerPage() {
   return (
-    <Suspense fallback={<div className="p-8 flex justify-center"><Loader2 className="animate-spin text-forest-500" size={32} /></div>}>
+    <Suspense fallback={<LoadingSkeleton />}>
       <POMakerForm />
     </Suspense>
   );

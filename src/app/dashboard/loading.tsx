@@ -1,17 +1,26 @@
-import { Loader2 } from "lucide-react";
+import { BentoSkeleton, TableSkeleton } from "@/components/LoadingSkeleton";
 
 export default function Loading() {
   return (
-    <div className="flex-1 flex flex-col items-center justify-center min-h-[70vh] gap-4 bg-slate-50">
-      <div className="relative">
-        <div className="absolute inset-0 bg-forest-200 rounded-full blur-xl animate-pulse"></div>
-        <div className="relative bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center">
-          <Loader2 className="w-8 h-8 text-forest-500 animate-spin" />
-        </div>
+    <div className="space-y-6 animate-in fade-in duration-300">
+      <div className="flex items-center gap-2 mb-2">
+        <div className="skeleton w-48 h-8 rounded-lg" />
       </div>
-      <p className="text-sm font-medium text-slate-500 animate-pulse tracking-wide">
-        Loading data...
-      </p>
+      
+      {/* 3 Info Cards approximation */}
+      <BentoSkeleton />
+
+      {/* Table section approximation */}
+      <div className="glass-card rounded-2xl overflow-hidden mt-6">
+        <div className="p-5 border-b border-slate-100 flex items-center gap-3">
+          <div className="skeleton w-9 h-9 rounded-xl shrink-0" />
+          <div className="space-y-2">
+            <div className="skeleton w-40 h-5" />
+            <div className="skeleton w-64 h-3" />
+          </div>
+        </div>
+        <TableSkeleton rows={4} />
+      </div>
     </div>
   );
 }
