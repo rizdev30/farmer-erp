@@ -23,10 +23,10 @@ export const authConfig = {
         try {
           const dbUser = await prisma.user.findUnique({
             where: { id: token.id as string },
-            select: { activeSessions: true }
+            select: { activeSessions: true, active: true }
           });
           
-          if (!dbUser || !dbUser.activeSessions.includes(token.sessionId as string)) {
+          if (!dbUser || !dbUser.active || !dbUser.activeSessions.includes(token.sessionId as string)) {
             // This session was invalidated, return empty token to force logout
             return {} as any;
           }
