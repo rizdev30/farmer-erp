@@ -79,46 +79,46 @@ export default function PORecordsPage() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-100">
                 <tr>
-                  <th className="text-left px-5 py-3 font-semibold text-slate-500">PO Number</th>
-                  <th className="text-left px-5 py-3 font-semibold text-slate-500">Supplier</th>
-                  <th className="text-right px-5 py-3 font-semibold text-slate-500">Procurement Total</th>
-                  <th className="text-center px-5 py-3 font-semibold text-slate-500">Payment Date</th>
-                  <th className="px-5 py-3 w-16"></th>
+                  <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">PO Number</th>
+                  <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Supplier</th>
+                  <th className="text-right px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Procurement Total</th>
+                  <th className="text-center px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Payment Date</th>
+                  <th className="px-5 py-3.5 w-20"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 bg-white">
                 {records.map((rec) => (
-                  <tr key={rec.id} className="hover:bg-slate-50/60 transition-colors">
+                  <tr key={rec.id} className="hover:bg-slate-50/70 transition-colors">
                     <td className="px-5 py-4">
-                      <div className="font-mono text-sm font-semibold text-slate-700">{rec.poNumber}</div>
-                      <div className="text-xs text-slate-400">Slip: {rec.slipId}</div>
+                      <div className="font-mono text-sm md:text-[15px] font-bold text-slate-800">{rec.poNumber}</div>
+                      <div className="text-xs text-slate-500 font-medium">Slip: {rec.slipId}</div>
                     </td>
                     <td className="px-5 py-4">
-                      <div className="font-semibold text-slate-800">{rec.supplierName}</div>
-                      <div className="text-xs text-slate-400">{rec.supplierLocation}</div>
+                      <div className="text-sm md:text-[15px] font-bold text-slate-800">{rec.supplierName}</div>
+                      <div className="text-xs text-slate-500 font-medium">{rec.supplierLocation}</div>
                     </td>
                     <td className="px-5 py-4 text-right">
                       {rec.procurement ? (
                         <>
-                          <div className="font-bold text-slate-700 tabular-nums">₹{fmtCurrency(rec.procurement.total)}</div>
-                          <div className="text-xs text-slate-400">{rec.procurement.crop} - {rec.procurement.variety}</div>
+                          <div className="text-sm md:text-[15px] font-extrabold text-slate-800 tabular-nums">₹{fmtCurrency(rec.procurement.total)}</div>
+                          <div className="text-xs text-slate-500 font-semibold">{rec.procurement.crop} - {rec.procurement.variety}</div>
                         </>
                       ) : (
                         <span className="text-slate-400 italic">N/A</span>
                       )}
                     </td>
                     <td className="px-5 py-4 text-center">
-                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold">
-                        <Calendar size={12} />
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold">
+                        <Calendar size={13} />
                         {rec.paymentDate ? fmtDate(rec.paymentDate) : "N/A"}
                       </div>
                     </td>
                     <td className="px-5 py-4 text-right">
                       <button
                         onClick={() => router.push(`/dashboard/po-maker?slipId=${rec.slipId}`)}
-                        className="p-2 text-slate-400 hover:text-forest-600 hover:bg-forest-50 rounded-lg transition-colors inline-flex items-center gap-1 text-xs font-semibold"
+                        className="px-2.5 py-1.5 text-slate-500 hover:text-forest-700 hover:bg-forest-50 border border-slate-200 hover:border-forest-200 rounded-lg transition-colors inline-flex items-center gap-1 text-xs font-bold shadow-sm"
                       >
-                        <Edit3 size={14} /> Edit
+                        <Edit3 size={13} /> Edit
                       </button>
                     </td>
                   </tr>

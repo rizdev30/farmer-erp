@@ -204,3 +204,24 @@ model LoginAttempt {
 
   @@map("login_attempts")
 }
+
+model Adhatiya {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  address   String   @default("") // Street address / House No.
+  village   String   @default("")
+  block     String   @default("")
+  pinCode   String   @default("")
+  state     String   @default("")
+  district  String   @default("")
+  mandi     String   @default("")
+  gstNo     String   @default("")
+  mobile    String   @default("")
+  email     String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("adhatiyas")
+}
+
+

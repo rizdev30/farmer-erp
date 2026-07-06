@@ -1,13 +1,71 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useTransition, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { getPOBySlipId, savePO, getApprovedProcurementsByAdhatiya } from "@/app/actions/po";
 import { 
-  FileText, Search, Plus, Trash2, Save, Printer, ArrowLeft, Loader2, Calendar, CheckCircle2, Users, PlusCircle
+  getPOBySlipId, 
+  savePO, 
+  getApprovedProcurementsByAdhatiya, 
+  getAdhatiyas, 
+  saveAdhatiya, 
+  deleteAdhatiya 
+} from "@/app/actions/po";
+import { 
+  FileText, Search, Plus, Trash2, Save, Printer, Loader2, Users, PlusCircle, Building, Settings, Check, HelpCircle, ChevronDown
 } from "lucide-react";
 import { useToast } from "@/components/Toast";
 import LoadingSkeleton from "./loading";
+import { getMandis } from "@/app/actions/mandis";
+
+// Utility to convert number to Indian Rupees words
+function numberToWords(num: number): string {
+  if (num === 0) return "Zero Only";
+  
+  const a = [
+    '', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
+    'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'
+  ];
+  const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+  
+  const formatThousands = (n: number): string => {
+    if (n < 20) return a[n];
+    if (n < 100) return b[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + a[n % 10] : '');
+    if (n < 1000) return a[Math.floor(n / 100)] + ' Hundred' + (n % 100 !== 0 ? ' and ' + formatThousands(n % 100) : '');
+    return '';
+  };
+
+  let word = '';
+  
+  const crore = Math.floor(num / 10000000);
+  num %= 10000000;
+  const lakh = Math.floor(num / 100000);
+  num %= 100000;
+  const thousand = Math.floor(num / 1000);
+  num %= 1000;
+  const remaining = Math.floor(num);
+
+  if (crore > 0) {
+    word += formatThousands(crore) + ' Crore ';
+  }
+  if (lakh > 0) {
+    word += formatThousands(lakh) + ' Lakh ';
+  }
+  if (thousand > 0) {
+    word += formatThousands(thousand) + ' Thousand ';
+  }
+  if (remaining > 0) {
+    word += formatThousands(remaining);
+  }
+
+  // Handle decimal paise if any
+  const paise = Math.round((num - remaining) * 100);
+  let paiseWord = '';
+  if (paise > 0) {
+    paiseWord = ' and ' + formatThousands(paise) + ' Paise';
+  }
+
+  return word.trim() + paiseWord + " Rupees Only";
+}
 
 function POMakerForm() {
   const searchParams = useSearchParams();
@@ -15,50 +73,153 @@ function POMakerForm() {
   const { addToast } = useToast();
   const initialSlipId = searchParams.get("slipId") || "";
 
-  const [slipIdInput, setSlipIdInput] = useState(initialSlipId);
-  const [adhatiyaInput, setAdhatiyaInput] = useState("");
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [searchingAdhatiya, setSearchingAdhatiya] = useState(false);
-  const [selectedSlipIds, setSelectedSlipIds] = useState<Set<string>>(new Set());
-  const [allSelectedProcurements, setAllSelectedProcurements] = useState<any[]>([]);
-  
+  // UI States
+  const [activeTab, setActiveTab] = useState<"adhatiya" | "billing" | "details" | "calculations">("adhatiya");
+  const [mobileTab, setMobileTab] = useState<"edit" | "preview">("edit");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [poData, setPoData] = useState<any>(null);
-  const [mobileTab, setMobileTab] = useState<"edit" | "preview">("edit");
+  const [isPending, startTransition] = useTransition();
 
-  // Form states
-  const [companyName, setCompanyName] = useState("Farmer ERP");
-  const [companyAddress, setCompanyAddress] = useState("123 Sample Address, Sample City, State 123456");
-  const [supplierName, setSupplierName] = useState("");
-  const [supplierLocation, setSupplierLocation] = useState("");
+  // Search States
+  const [slipIdInput, setSlipIdInput] = useState(initialSlipId);
+  const [adhatiyaSearch, setAdhatiyaSearch] = useState("");
+  const [dbAdhatiyas, setDbAdhatiyas] = useState<any[]>([]);
+  const [selectedAdhatiyaId, setSelectedAdhatiyaId] = useState<number | null>(null);
+  const [showAdhatiyaDropdown, setShowAdhatiyaDropdown] = useState(false);
+  const [loadingAdhatiyas, setLoadingAdhatiyas] = useState(false);
+
+  // Adhatiya CRUD Modal State
+  const [showCrudModal, setShowCrudModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [crudName, setCrudName] = useState("");
+  const [crudAddress, setCrudAddress] = useState("");
+  const [crudGst, setCrudGst] = useState("");
+  const [crudMobile, setCrudMobile] = useState("");
+  const [crudEmail, setCrudEmail] = useState("");
+    const [editingAdhatiyaId, setEditingAdhatiyaId] = useState<number | null>(null);
+
+  // Cascading location states for Adhatiya CRUD
+  const [mandisData, setMandisData] = useState<{state: string; district: string; mandiName: string}[]>([]);
+  const [crudVillage, setCrudVillage] = useState("");
+  const [crudBlock, setCrudBlock] = useState("");
+  const [crudPinCode, setCrudPinCode] = useState("");
+  const [crudState, setCrudState] = useState("");
+  const [crudDistrict, setCrudDistrict] = useState("");
+  const [crudMandi, setCrudMandi] = useState("");
+
+  const [showStateDropdown, setShowStateDropdown] = useState(false);
+  const [stateSearch, setStateSearch] = useState("");
+
+  const [showDistrictDropdown, setShowDistrictDropdown] = useState(false);
+  const [districtSearch, setDistrictSearch] = useState("");
+
+  const [showMandiDropdown, setShowMandiDropdown] = useState(false);
+  const [mandiSearch, setMandiSearch] = useState("");
+
+  // Load mandis data on demand when Add modal is active
+  useEffect(() => {
+    if (showAddModal && mandisData.length === 0) {
+      getMandis().then(setMandisData).catch(console.error);
+    }
+  }, [showAddModal, mandisData.length]);
+
+  // Click outside and sync search input with selected location values
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.combobox-state')) setShowStateDropdown(false);
+      if (!target.closest('.combobox-district')) setShowDistrictDropdown(false);
+      if (!target.closest('.combobox-mandi')) setShowMandiDropdown(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside, { passive: true });
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!showStateDropdown) setStateSearch(crudState);
+  }, [showStateDropdown, crudState]);
+
+  useEffect(() => {
+    if (!showDistrictDropdown) setDistrictSearch(crudDistrict);
+  }, [showDistrictDropdown, crudDistrict]);
+
+  useEffect(() => {
+    if (!showMandiDropdown) setMandiSearch(crudMandi);
+  }, [showMandiDropdown, crudMandi]);
+
+  // Location data filtering
+  const availableStates = useMemo(() => {
+    return Array.from(new Set((mandisData || []).map(m => m.state).filter(Boolean))).sort();
+  }, [mandisData]);
+
+  const availableDistricts = useMemo(() => {
+    return Array.from(new Set((mandisData || []).filter(m => m.state === crudState).map(m => m.district).filter(Boolean))).sort();
+  }, [mandisData, crudState]);
+
+  const availableMandis = useMemo(() => {
+    const list = (mandisData || []).filter(m => m.state === crudState && m.district === crudDistrict);
+    const unique = Array.from(new Map(list.map(m => [m.mandiName, m])).values());
+    return unique.sort((a, b) => a.mandiName.localeCompare(b.mandiName));
+  }, [mandisData, crudState, crudDistrict]);
+
+  const filteredStates = useMemo(() => {
+    return availableStates.filter(s => (s || "").toLowerCase().includes((stateSearch || "").toLowerCase()));
+  }, [availableStates, stateSearch]);
+
+  const filteredDistricts = useMemo(() => {
+    return availableDistricts.filter(d => (d || "").toLowerCase().includes((districtSearch || "").toLowerCase()));
+  }, [availableDistricts, districtSearch]);
+
+  const filteredMandis = useMemo(() => {
+    return availableMandis.filter(m => (m.mandiName || "").toLowerCase().includes((mandiSearch || "").toLowerCase()));
+  }, [availableMandis, mandiSearch]);
+
+  // Slips/Procurements State
+  const [procurementSlips, setProcurementSlips] = useState<any[]>([]);
+  const [selectedSlipIds, setSelectedSlipIds] = useState<Set<string>>(new Set());
+  const [originalProcurement, setOriginalProcurement] = useState<any>(null);
+  const [poBags, setPoBags] = useState(0);
+
+  // PO Document States
   const [poNumber, setPoNumber] = useState("");
-  const [paymentDuration, setPaymentDuration] = useState(10);
+  const [poDate, setPoDate] = useState(new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }));
+  const [paymentTerms, setPaymentTerms] = useState("-");
+  const [deliveryTerms, setDeliveryTerms] = useState("");
+  const [termsAndConditions, setTermsAndConditions] = useState(
+    "THE INSTRUMENT CONTAINS ALL THE TERMS AND CONDITIONS WITH RESPECT TO PURCHASE OF THE MATERIAL OR SERVICES NAMED HEREIN.\nNO MODIFICATION OR AMENDMENT SHALL HAVE ANY FORCE OR EFFECT UNLESS CONFIRMED BY BUYERS IN WRITING."
+  );
+  const [authorizedSignatory, setAuthorizedSignatory] = useState("XYZ Pvt Ltd");
+
+  // Address Blocks
+  const [vendor, setVendor] = useState({
+    name: "",
+    address: "",
+    gstNo: "",
+    mobile: "",
+    email: ""
+  });
   
-  // Sensorial Parameters State
-  const [params, setParams] = useState({
-    moisture: "12.5% (Max)",
-    broken: "2.0% (Max)3/4 only",
-    damaged: "1.00%",
-    immature: "<2.0",
-    chalky: "13% Max (Hafe to full)",
-    green: "6% Max",
-    red: "Nil",
-    avgLength: "7.80 mm",
-    admixture: "2.0% (max)",
-    aflatoxin: "BLQ",
-    paddyGrain: "3 Max",
-    whiteness: "N/A",
-    foreignMatter: "Nil",
-    ferrous: "Nil",
-    badSmell: "Not Acceptable",
-    materialAppearance: "Good",
-    infestation: "Nil",
-    purity: "98%>(DNA)",
-    ochratoxin: "BLQ"
+  const [billing, setBilling] = useState({
+    name: "XYZ Pvt Ltd",
+    address: "123 Sample Address, Sample City, State 123456",
+    gstNo: "GST/PAN No.: xxxxxxxxxxxxx",
+    mobile: "Mobile no.: xxxxxxxxxxx",
+    email: "Email Id: xxxxxxxxxxx"
   });
 
-  // Overrides State
+  const [delivery, setDelivery] = useState({
+    name: "XYZ Pvt Ltd",
+    address: "123 Sample Address, Sample City, State 123456",
+    gstNo: "GST/PAN No.: xxxxxxxxxxxxx",
+    mobile: "Mobile no.: xxxxxxxxxxx",
+    email: "Email Id: xxxxxxxxxxx"
+  });
+
+  // Table parameters override
   const [hsnCode, setHsnCode] = useState("1063020");
   const [packingSize, setPackingSize] = useState(50);
   const [gstPercent, setGstPercent] = useState(0);
@@ -67,219 +228,400 @@ function POMakerForm() {
   const [manualCrop, setManualCrop] = useState("");
   const [manualVariety, setManualVariety] = useState("");
 
-  // PO Calculation States
-  const [originalProcurement, setOriginalProcurement] = useState<any>(null);
-  const [poBags, setPoBags] = useState(0);
-  
-  type DynamicItem = {
-    id: string;
-    description: string;
-    calcType: 'PERCENTAGE' | 'FLAT' | 'PER_QTL';
-    value: number;
-    effect: 'ADD' | 'DEDUCT';
-  };
-  const [items, setItems] = useState<DynamicItem[]>([]);
+  // Taxes & Expenses Rates
+  const [rates, setRates] = useState({
+    mandiTaxPercent: 1.20,
+    hammaliRate: 18.00,
+    commissionPercent: 1.50,
+    sutliRate: 1.00,
+    otherExpenses: 300.00,
+    bonusRate: 100.00,
+    freightRate: 50.00
+  });
 
+  // Manual overrides for tax/expenses amounts
+  const [overrides, setOverrides] = useState<Record<string, number | "">>({
+    mandiTax: "",
+    hammali: "",
+    commission: "",
+    sutli: "",
+    otherExpenses: "",
+    bonus: "",
+    freight: "",
+    roundOff: "",
+    finalAmount: ""
+  });
+
+  // Load initial slip if passed in URL
   useEffect(() => {
     if (initialSlipId) {
       fetchPO(initialSlipId);
     }
+    loadAdhatiyas();
   }, [initialSlipId]);
 
+  // Load all Adhatiyas for search
+  const loadAdhatiyas = async (query = "") => {
+    setLoadingAdhatiyas(true);
+    try {
+      const res = await getAdhatiyas(query);
+      setDbAdhatiyas(res);
+    } catch (e: any) {
+      console.error("Failed to load Adhatiyas:", e);
+    } finally {
+      setLoadingAdhatiyas(false);
+    }
+  };
+
+  // Fetch PO by slip ID
   const fetchPO = async (id: string) => {
     if (!id) return;
     setLoading(true);
     try {
       const data: any = await getPOBySlipId(id);
-      setPoData(data);
-      setCompanyName(data.companyName);
-      setCompanyAddress(data.companyAddress);
-      setSupplierName(data.supplierName);
-      setSupplierLocation(data.supplierLocation);
+      
+      // Populate fields
       setPoNumber(data.poNumber || `PO-${id}`);
-      setPaymentDuration(data.paymentDuration || 10);
       
       if (data.procurement) {
         setOriginalProcurement(data.procurement);
-        setPoBags(data.procurement.bags);
-        setManualRate(data.procurement.rate);
-        setManualCrop(data.procurement.crop);
-        setManualVariety(data.procurement.variety);
-        // Default manualNetQty to empty to use auto-calculation based on bags initially
+        setPoBags(data.procurement.bags || 0);
+        setManualRate(data.procurement.rate || "");
+        setManualCrop(data.procurement.crop || "");
+        setManualVariety(data.procurement.variety || "");
         setManualNetQty("");
+
+        // Trigger loading of slips for this slip's Adhatiya
+        if (data.procurement.adtiyaName) {
+          setAdhatiyaSearch(data.procurement.adtiyaName);
+          fetchSlipsForAdhatiya(data.procurement.adtiyaName, data.slipId);
+        }
       }
 
+      // Check if saved PO values exist
       try {
-        const parsedItems = typeof data.items === 'string' ? JSON.parse(data.items) : data.items || [];
-        // Support backward compatibility if items contained the parameters
-        if (parsedItems.length === 0) {
-          setItems([
-            { id: '1', description: 'CASH DISCOUNT (CD)', calcType: 'PERCENTAGE', value: 2, effect: 'DEDUCT' },
-            { id: '2', description: 'BROKERAGE', calcType: 'PERCENTAGE', value: 0, effect: 'DEDUCT' },
-            { id: '3', description: 'DANA CHARGES', calcType: 'PER_QTL', value: 0, effect: 'DEDUCT' },
-            { id: '4', description: 'SAMPLING', calcType: 'FLAT', value: 0, effect: 'DEDUCT' }
-          ]);
-        } else {
-          setItems(parsedItems.itemsList || parsedItems);
-          if (parsedItems.params) setParams(parsedItems.params);
-          if (parsedItems.overrides) {
-            setHsnCode(parsedItems.overrides.hsnCode ?? "1063020");
-            setPackingSize(parsedItems.overrides.packingSize ?? 50);
-            setGstPercent(parsedItems.overrides.gstPercent ?? 0);
-            setManualNetQty(parsedItems.overrides.manualNetQty ?? "");
-            setManualRate(parsedItems.overrides.manualRate ?? "");
-            setManualCrop(parsedItems.overrides.manualCrop ?? "");
-            setManualVariety(parsedItems.overrides.manualVariety ?? "");
-          }
-          if (parsedItems.selectedProcurements?.length > 0) {
-            setAllSelectedProcurements(parsedItems.selectedProcurements);
-          }
+        const parsed = typeof data.items === 'string' ? JSON.parse(data.items) : data.items || {};
+        if (parsed.vendor) setVendor(parsed.vendor);
+        else {
+          setVendor({
+            name: data.supplierName || "",
+            address: data.supplierLocation || "",
+            gstNo: "",
+            mobile: "",
+            email: ""
+          });
         }
-      } catch (e) {
-        setItems([]);
+
+        if (parsed.billing) setBilling(parsed.billing);
+        if (parsed.delivery) setDelivery(parsed.delivery);
+        if (parsed.poDate) setPoDate(parsed.poDate);
+        if (parsed.paymentTerms) setPaymentTerms(parsed.paymentTerms);
+        if (parsed.deliveryTerms) setDeliveryTerms(parsed.deliveryTerms);
+        if (parsed.termsAndConditions) setTermsAndConditions(parsed.termsAndConditions);
+        if (parsed.authorizedSignatory) setAuthorizedSignatory(parsed.authorizedSignatory);
+
+        if (parsed.overrides) {
+          setHsnCode(parsed.overrides.hsnCode ?? "1063020");
+          setPackingSize(parsed.overrides.packingSize ?? 50);
+          setGstPercent(parsed.overrides.gstPercent ?? 0);
+          setManualNetQty(parsed.overrides.manualNetQty ?? "");
+          setManualRate(parsed.overrides.manualRate ?? "");
+          setManualCrop(parsed.overrides.manualCrop ?? "");
+          setManualVariety(parsed.overrides.manualVariety ?? "");
+        }
+
+        if (parsed.rates) setRates(parsed.rates);
+        if (parsed.calcOverrides) setOverrides(parsed.calcOverrides);
+
+        if (parsed.selectedProcurements?.length > 0) {
+          const ids = new Set<string>(parsed.selectedProcurements.map((p: any) => p.slipId));
+          setSelectedSlipIds(ids);
+        } else {
+          setSelectedSlipIds(new Set([id]));
+        }
+      } catch (err) {
+        console.error("Error parsing saved items:", err);
       }
-      
+
     } catch (error: any) {
       addToast({
         type: "error",
         title: "Error",
         message: error.message || "Failed to fetch procurement record"
       });
-      setPoData(null);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSearch = (e: React.FormEvent) => {
+  // Fetch approved slips for Selected Adhatiya Name
+  const fetchSlipsForAdhatiya = async (name: string, primarySlipId?: string) => {
+    try {
+      const res = await getApprovedProcurementsByAdhatiya(name);
+      setProcurementSlips(res);
+      
+      // If we are loading an existing or new slip, make sure it is checked
+      if (primarySlipId) {
+        setSelectedSlipIds(prev => {
+          const next = new Set(prev);
+          next.add(primarySlipId);
+          return next;
+        });
+      } else if (res.length > 0) {
+        // By default select all of them
+        setSelectedSlipIds(new Set(res.map(r => r.slipId)));
+      } else {
+        setSelectedSlipIds(new Set());
+      }
+    } catch (err: any) {
+      addToast({
+        type: "error",
+        title: "Slips Fetch Error",
+        message: err.message || "Could not fetch procurements for this Adhatiya"
+      });
+    }
+  };
+
+  // Fetch DB Adhatiya detailed Address & update Vendor state
+  const handleSelectAdhatiya = (adhatiya: any) => {
+    setSelectedAdhatiyaId(adhatiya.id);
+    setAdhatiyaSearch(adhatiya.name);
+    setShowAdhatiyaDropdown(false);
+    
+    // Construct structured address block
+    const fullAddress = [
+      adhatiya.address,
+      [adhatiya.village, adhatiya.block].filter(Boolean).join(", "),
+      [adhatiya.district, adhatiya.state].filter(Boolean).join(", ") + (adhatiya.pinCode ? ` - ${adhatiya.pinCode}` : ""),
+      adhatiya.mandi ? `Mandi: ${adhatiya.mandi}` : ""
+    ].filter(Boolean).join("\n");
+
+    // Fill Vendor Form Info
+    setVendor({
+      name: adhatiya.name,
+      address: fullAddress,
+      gstNo: adhatiya.gstNo,
+      mobile: adhatiya.mobile,
+      email: adhatiya.email
+    });
+
+    // Fetch slips for this Adhatiya
+    fetchSlipsForAdhatiya(adhatiya.name);
+  };
+
+  // Save/Create Adhatiya Action
+  const handleSaveAdhatiya = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!crudName.trim()) return;
+
+    if (!crudAddress.trim() || !crudVillage.trim() || !crudBlock.trim() || !crudState.trim() || !crudDistrict.trim() || !crudMandi.trim()) {
+      addToast({
+        type: "error",
+        title: "Validation Error",
+        message: "Please fill all required location fields (*)."
+      });
+      return;
+    }
+
+    try {
+      const saved = await saveAdhatiya({
+        id: editingAdhatiyaId || undefined,
+        name: crudName.trim(),
+        address: crudAddress.trim(),
+        village: crudVillage.trim(),
+        block: crudBlock.trim(),
+        pinCode: crudPinCode.trim(),
+        state: crudState.trim(),
+        district: crudDistrict.trim(),
+        mandi: crudMandi.trim(),
+        gstNo: crudGst.trim(),
+        mobile: crudMobile.trim(),
+        email: crudEmail.trim()
+      });
+
+      addToast({
+        type: "success",
+        title: "Success",
+        message: `Adhatiya ${editingAdhatiyaId ? "updated" : "created"} successfully`
+      });
+
+      // Clear fields
+      setCrudName("");
+      setCrudAddress("");
+      setCrudVillage("");
+      setCrudBlock("");
+      setCrudPinCode("");
+      setCrudState("");
+      setCrudDistrict("");
+      setCrudMandi("");
+      setStateSearch("");
+      setDistrictSearch("");
+      setMandiSearch("");
+      setCrudGst("");
+      setCrudMobile("");
+      setCrudEmail("");
+      setEditingAdhatiyaId(null);
+      setShowAddModal(false);
+
+      // Reload list and automatically select the saved one
+      await loadAdhatiyas();
+      handleSelectAdhatiya(saved);
+
+    } catch (err: any) {
+      addToast({
+        type: "error",
+        title: "Save Failed",
+        message: err.message || "Failed to save Adhatiya"
+      });
+    }
+  };
+
+  // Delete Adhatiya Action
+  const handleDeleteAdhatiya = async (id: number) => {
+    if (!confirm("Are you sure you want to delete this Adhatiya from the database?")) return;
+
+    try {
+      await deleteAdhatiya(id);
+      addToast({
+        type: "success",
+        title: "Deleted",
+        message: "Adhatiya removed from database"
+      });
+      loadAdhatiyas();
+      if (selectedAdhatiyaId === id) {
+        setSelectedAdhatiyaId(null);
+        setVendor({ name: "", address: "", gstNo: "", mobile: "", email: "" });
+      }
+    } catch (err: any) {
+      addToast({
+        type: "error",
+        title: "Delete Failed",
+        message: err.message || "Could not delete Adhatiya"
+      });
+    }
+  };
+
+  // Direct slip search handler
+  const handleDirectSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (slipIdInput.trim()) {
       fetchPO(slipIdInput.trim());
-      // Update URL without full reload
       router.replace(`/dashboard/po-maker?slipId=${slipIdInput.trim()}`, { scroll: false });
     }
   };
 
-  const handleAdhatiyaSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (adhatiyaInput.trim()) {
-      setSearchingAdhatiya(true);
-      try {
-        const res = await getApprovedProcurementsByAdhatiya(adhatiyaInput.trim());
-        setSearchResults(res);
-        if (res.length === 0) {
-          addToast({
-            type: "info",
-            title: "No Results",
-            message: "No approved procurements found for this Adhatiya"
-          });
-        }
-      } catch (err: any) {
-        addToast({
-          type: "error",
-          title: "Error",
-          message: err.message || "Failed to search Adhatiya"
-        });
-      } finally {
-        setSearchingAdhatiya(false);
-      }
+  // Calculations logic
+  const calcs = useMemo(() => {
+    // 1. Gather all selected slips
+    const selectedSlips = procurementSlips.filter(s => selectedSlipIds.has(s.slipId));
+    
+    // If no slips selected but we have a single primary loaded procurement, use it
+    const activeSlips = selectedSlips.length > 0 
+      ? selectedSlips 
+      : (originalProcurement ? [originalProcurement] : []);
+
+    let totalBags = 0;
+    let totalQty = 0;
+    let totalSubtotal = 0;
+
+    activeSlips.forEach(slip => {
+      totalBags += slip.bags || 0;
+      totalQty += slip.netQuantity || 0;
+      totalSubtotal += (slip.netQuantity || 0) * (slip.rate || 0);
+    });
+
+    // Handle overrides for single-item PO or bags override
+    if (activeSlips.length === 1 && originalProcurement) {
+      const netQty = manualNetQty !== "" ? Number(manualNetQty) : totalQty;
+      const rate = manualRate !== "" ? Number(manualRate) : (originalProcurement.rate || 0);
+      totalQty = netQty;
+      totalSubtotal = netQty * rate;
+      if (poBags > 0) totalBags = poBags;
+    } else {
+      if (poBags > 0) totalBags = poBags;
     }
-  };
 
-  const addItem = () => {
-    setItems([...items, { id: Math.random().toString(36).substr(2, 9), description: "", calcType: 'FLAT', value: 0, effect: 'ADD' }]);
-  };
+    // Auto-calculated taxes & additions
+    const autoMandiTax = (rates.mandiTaxPercent / 100) * totalSubtotal;
+    const autoHammali = rates.hammaliRate * totalBags;
+    const autoCommission = (rates.commissionPercent / 100) * totalSubtotal;
+    const autoSutli = rates.sutliRate * totalBags;
+    const autoOtherExpenses = rates.otherExpenses;
+    const autoBonus = rates.bonusRate * totalQty;
+    const autoFreight = rates.freightRate * totalQty;
 
-  const updateItem = (id: string, field: keyof DynamicItem, value: any) => {
-    setItems(items.map(item => item.id === id ? { ...item, [field]: value } : item));
-  };
+    // Apply Overrides if present
+    const mandiTax = overrides.mandiTax !== "" ? Number(overrides.mandiTax) : autoMandiTax;
+    const hammali = overrides.hammali !== "" ? Number(overrides.hammali) : autoHammali;
+    const commission = overrides.commission !== "" ? Number(overrides.commission) : autoCommission;
+    const sutli = overrides.sutli !== "" ? Number(overrides.sutli) : autoSutli;
+    const otherExpenses = overrides.otherExpenses !== "" ? Number(overrides.otherExpenses) : autoOtherExpenses;
+    const bonus = overrides.bonus !== "" ? Number(overrides.bonus) : autoBonus;
+    const freight = overrides.freight !== "" ? Number(overrides.freight) : autoFreight;
 
-  const removeItem = (id: string) => {
-    setItems(items.filter(item => item.id !== id));
-  };
+    const rawFinal = totalSubtotal + mandiTax + hammali + commission + sutli + otherExpenses + bonus + freight;
+    const autoRoundedFinal = Math.round(rawFinal);
+    const autoRoundOff = autoRoundedFinal - rawFinal;
 
-  const calculatePaymentDate = (duration: number) => {
-    const date = new Date();
-    date.setDate(date.getDate() + duration);
-    return date.toLocaleDateString("en-IN", {
-      day: "2-digit", month: "short", year: "numeric",
-    });
-  };
-
-  // Calculations
-  const getCalculations = () => {
-    if (!originalProcurement) return null;
-    
-    // Pro-rata based on bags for auto calculation
-    const originalBags = originalProcurement.bags || 1;
-    const ratio = poBags / originalBags;
-    
-    // Determine Net Quantity and Rate (Use manual if provided, else auto)
-    const autoNetQty = (originalProcurement.grossQuantity * ratio) - (originalProcurement.deduction * poBags);
-    const netQuantity = manualNetQty !== "" ? Number(manualNetQty) : autoNetQty;
-    const rate = manualRate !== "" ? Number(manualRate) : originalProcurement.rate;
-    
-    const subtotal = netQuantity * rate;
-    const gstAmount = subtotal * (gstPercent / 100);
-    const subtotalWithGst = subtotal + gstAmount;
-
-    let totalAdditions = 0;
-    let totalDeductions = 0;
-
-    const calculatedItems = items.map(item => {
-      let calculatedAmount = 0;
-      if (item.calcType === 'PERCENTAGE') {
-        calculatedAmount = (item.value / 100) * subtotal;
-      } else if (item.calcType === 'PER_QTL') {
-        calculatedAmount = item.value * netQuantity;
-      } else {
-        calculatedAmount = item.value;
-      }
-
-      if (item.effect === 'ADD') {
-        totalAdditions += calculatedAmount;
-      } else {
-        totalDeductions += calculatedAmount;
-      }
-      return { ...item, calculatedAmount };
-    });
-
-    const finalTotal = subtotalWithGst + totalAdditions - totalDeductions;
+    const roundOff = overrides.roundOff !== "" ? Number(overrides.roundOff) : autoRoundOff;
+    const finalAmount = overrides.finalAmount !== "" ? Number(overrides.finalAmount) : Math.round(rawFinal + roundOff);
 
     return {
-      netQuantity,
-      rate,
-      subtotal,
-      gstAmount,
-      subtotalWithGst,
-      calculatedItems,
-      finalTotal,
-      totalAdditions,
-      totalDeductions
+      activeSlips,
+      totalBags,
+      totalQty,
+      subtotal: totalSubtotal,
+      mandiTax,
+      hammali,
+      commission,
+      sutli,
+      otherExpenses,
+      bonus,
+      freight,
+      roundOff,
+      finalAmount
     };
-  };
+  }, [procurementSlips, selectedSlipIds, originalProcurement, poBags, manualNetQty, manualRate, rates, overrides]);
 
-  const calcs = getCalculations();
-
+  // Handle Save PO to Database
   const handleSave = async () => {
-    if (!poData) return;
+    // We need at least one slip ID to tie this PO to in the database.
+    let targetSlipId = initialSlipId;
+    if (!targetSlipId && calcs.activeSlips.length > 0) {
+      targetSlipId = calcs.activeSlips[0].slipId;
+    }
+
+    if (!targetSlipId) {
+      addToast({
+        type: "error",
+        title: "Validation Error",
+        message: "Please select or search for at least one procurement slip to create a PO."
+      });
+      return;
+    }
+
     setSaving(true);
     try {
-      const paymentDate = new Date();
-      paymentDate.setDate(paymentDate.getDate() + paymentDuration);
-
       await savePO({
-        slipId: poData.slipId,
+        slipId: targetSlipId,
         poNumber,
-        companyName,
-        companyAddress,
-        supplierName,
-        supplierLocation,
-        paymentDuration,
-        paymentDate,
-        items: { 
-          itemsList: items, 
-          params,
+        companyName: billing.name,
+        companyAddress: billing.address,
+        supplierName: vendor.name,
+        supplierLocation: vendor.address,
+        paymentDuration: 10, // Legacy support, actual metadata in items JSON
+        paymentDate: new Date(),
+        items: {
+          vendor,
+          billing,
+          delivery,
+          poDate,
+          paymentTerms,
+          deliveryTerms,
+          termsAndConditions,
+          authorizedSignatory,
+          rates,
+          calcOverrides: overrides,
           overrides: {
             hsnCode,
             packingSize,
@@ -289,412 +631,879 @@ function POMakerForm() {
             manualCrop,
             manualVariety
           },
-          selectedProcurements: allSelectedProcurements.length > 1
-            ? allSelectedProcurements.map(p => ({ slipId: p.slipId, farmerName: p.farmerName, bags: p.bags, netQuantity: p.netQuantity, rate: p.rate, total: p.total, crop: p.crop, variety: p.variety }))
-            : []
-        },
+          selectedProcurements: calcs.activeSlips.map((s: any) => ({
+            slipId: s.slipId,
+            farmerName: s.farmerName,
+            farmerCode: s.farmerCode,
+            bags: s.bags,
+            netQuantity: s.netQuantity,
+            rate: s.rate,
+            total: s.total,
+            crop: s.crop,
+            variety: s.variety
+          }))
+        }
       });
+
       addToast({
         type: "success",
         title: "Success",
         message: "Purchase Order saved successfully"
       });
       router.push('/dashboard/po-records');
-    } catch (error: any) {
+    } catch (err: any) {
       addToast({
         type: "error",
-        title: "Error",
-        message: error.message || "Failed to save PO"
+        title: "Save Failed",
+        message: err.message || "Failed to save PO"
       });
     } finally {
       setSaving(false);
     }
   };
+
   const handlePrint = () => {
     const originalTitle = document.title;
-    // Format PO Number and Supplier Name for a safe, readable filename
-    const safePoNumber = poNumber.replace(/[\/\\]/g, '-') || 'Document';
-    // Remove special characters from supplier name and replace spaces with underscores
-    const safeSupplier = supplierName.trim().replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_');
-    
-    // e.g., PO_Amba_Grains_SOPL-25-26-14
-    const safeFilename = `PO_${safeSupplier ? safeSupplier + '_' : ''}${safePoNumber}`;
-    document.title = safeFilename;
+    const safePoNumber = poNumber.replace(/[\/\\]/g, '-') || 'PO';
+    const safeSupplier = vendor.name.trim().replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_');
+    document.title = `PO_${safeSupplier}_${safePoNumber}`;
     window.print();
-    setTimeout(() => {
-      document.title = originalTitle;
-    }, 1000);
+    setTimeout(() => { document.title = originalTitle; }, 1000);
   };
 
   return (
-    <div className="max-w-[100vw] mx-auto min-h-screen flex flex-col xl:flex-row pb-24 xl:pb-0 overflow-hidden print:overflow-visible print:h-auto print:block">
+    <div className="max-w-[100vw] mx-auto min-h-screen flex flex-col xl:flex-row pb-24 xl:pb-0 overflow-hidden print:overflow-visible print:h-auto print:block bg-slate-50">
       
-      {/* MOBILE TAB TOGGLE */}
-      {poData && (
+      {/* MOBILE PREVIEW/EDITOR TOGGLE */}
+      {(calcs.activeSlips.length > 0 || originalProcurement) && (
         <div className="xl:hidden flex items-center p-1.5 bg-slate-200 m-4 rounded-xl print:hidden sticky top-4 z-40">
           <button 
             onClick={() => setMobileTab('edit')} 
             className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all ${mobileTab === 'edit' ? 'bg-white shadow-sm text-forest-700' : 'text-slate-500 hover:text-slate-700'}`}
           >
-            Editor
+            Form Editor
           </button>
           <button 
             onClick={() => setMobileTab('preview')} 
             className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all ${mobileTab === 'preview' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500 hover:text-slate-700'}`}
           >
-            Preview
+            A4 Live Preview
           </button>
         </div>
       )}
 
-      {/* LEFT SIDE: CONTROLS */}
-      <div className={`w-full xl:w-[45%] h-full xl:max-h-screen xl:overflow-y-auto p-4 md:p-6 space-y-6 bg-slate-50 border-r border-slate-200 print:hidden pb-32 xl:pb-6 ${poData && mobileTab === 'preview' ? 'hidden xl:block' : 'block'}`}>
+      {/* LEFT COLUMN: EDIT FORM */}
+      <div className={`w-full xl:w-[45%] h-full xl:max-h-screen xl:overflow-y-auto p-4 md:p-6 space-y-6 border-r border-slate-200 print:hidden pb-32 xl:pb-6 bg-slate-100/90 ${mobileTab === 'preview' ? 'hidden xl:block' : 'block'}`}>
+        
+        {/* Header Title */}
         <div className="flex items-center gap-3">
-          <div className="shrink-0 w-10 h-10 bg-indigo-100/80 rounded-xl flex items-center justify-center">
-            <PlusCircle size={18} className="text-indigo-600" />
+          <div className="shrink-0 w-10 h-10 bg-forest-100 rounded-xl flex items-center justify-center">
+            <PlusCircle size={20} className="text-forest-700" />
           </div>
           <div>
-            <h1 className="text-xl md:text-2xl font-bold text-slate-800 tracking-tight">Create Purchase Order</h1>
+            <h1 className="text-xl md:text-2xl font-bold text-slate-800 tracking-tight">PO Maker</h1>
+            <p className="text-xs text-slate-500">Configure purchase order templates & addresses in one place</p>
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 bg-white border border-slate-200 p-4 rounded-2xl shadow-sm">
-          <form onSubmit={handleAdhatiyaSearch} className="flex gap-3">
-            <div className="relative flex-1">
-              <Users size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search Adhatiya (Agent Name)"
-                value={adhatiyaInput}
-                onChange={(e) => setAdhatiyaInput(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
-              />
+        {/* Global Controls & Search Section */}
+        <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm space-y-4">
+          
+          {/* Adhatiya Search Box */}
+          <div className="relative">
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+              1. Add Vendor/Adhatiya From Database
+            </label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Users size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search Adhatiya name..."
+                  value={adhatiyaSearch}
+                  onChange={(e) => {
+                    setAdhatiyaSearch(e.target.value);
+                    loadAdhatiyas(e.target.value);
+                    setShowAdhatiyaDropdown(true);
+                  }}
+                  onFocus={() => setShowAdhatiyaDropdown(true)}
+                  className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-forest-500/20 focus:border-forest-500 transition-all text-sm font-semibold text-slate-800"
+                />
+                
+                {/* Search Dropdown */}
+                {showAdhatiyaDropdown && (
+                  <div className="absolute z-50 mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-xl max-h-60 overflow-y-auto p-1.5">
+                    {loadingAdhatiyas && (
+                      <div className="p-3 text-xs text-slate-400 flex items-center gap-2"><Loader2 size={14} className="animate-spin" /> Searching...</div>
+                    )}
+                    {!loadingAdhatiyas && dbAdhatiyas.length === 0 && (
+                      <div className="p-3 text-xs text-slate-500 text-center">
+                        <p className="mb-2">No Adhatiya named &quot;{adhatiyaSearch}&quot;</p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCrudName(adhatiyaSearch);
+                            setCrudAddress("");
+                            setCrudGst("");
+                            setCrudMobile("");
+                            setCrudEmail("");
+                            setEditingAdhatiyaId(null);
+                            setShowAddModal(true);
+                            setShowAdhatiyaDropdown(false);
+                          }}
+                          className="px-3 py-1.5 bg-forest-600 text-white text-[11px] font-bold rounded-lg hover:bg-forest-700"
+                        >
+                          + Add &quot;{adhatiyaSearch}&quot; as New Adhatiya
+                        </button>
+                      </div>
+                    )}
+                    {dbAdhatiyas.map((ad) => (
+                      <div
+                        key={ad.id}
+                        onClick={() => handleSelectAdhatiya(ad)}
+                        className="p-2.5 hover:bg-slate-50 rounded-lg cursor-pointer flex justify-between items-center text-xs group"
+                      >
+                        <div>
+                          <p className="font-bold text-slate-800">{ad.name}</p>
+                          <p className="text-[10px] text-slate-400 truncate max-w-[250px]">{ad.address || "No Address"}</p>
+                        </div>
+                        <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-mono group-hover:bg-forest-50 group-hover:text-forest-700">
+                          Select
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  loadAdhatiyas();
+                  setShowCrudModal(true);
+                }}
+                className="px-3 border border-slate-200 hover:bg-slate-50 rounded-xl text-xs font-semibold text-slate-600 flex items-center gap-1.5"
+                title="Manage Database"
+              >
+                <Settings size={14} />
+                Manage
+              </button>
             </div>
-            <button 
-              type="submit" 
-              disabled={searchingAdhatiya || !adhatiyaInput.trim()}
-              className="px-5 py-2.5 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 active:bg-blue-800 transition-all disabled:opacity-50 flex items-center gap-2"
-            >
-              {searchingAdhatiya ? <Loader2 size={18} className="animate-spin" /> : "Search"}
-            </button>
-          </form>
+          </div>
 
-          <form onSubmit={handleSearch} className="flex gap-3">
-            <div className="relative flex-1">
-              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Or enter Slip ID directly (e.g. UP-...)"
-                value={slipIdInput}
-                onChange={(e) => setSlipIdInput(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-forest-500/20 focus:border-forest-500 transition-all text-sm"
-              />
-            </div>
-            <button 
-              type="submit" 
-              disabled={loading || !slipIdInput.trim()}
-              className="px-5 py-2.5 bg-forest-600 text-white font-medium rounded-xl hover:bg-forest-700 active:bg-forest-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              {loading ? <Loader2 size={18} className="animate-spin" /> : "Fetch"}
-            </button>
-          </form>
+          {/* Or search by Slip ID directly */}
+          <div className="border-t border-slate-100 pt-3">
+            <form onSubmit={handleDirectSearch} className="flex gap-2">
+              <div className="relative flex-1">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Or load by Slip ID directly (e.g. UP-26...)"
+                  value={slipIdInput}
+                  onChange={(e) => setSlipIdInput(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-forest-500/20 focus:border-forest-500 transition-all text-xs font-semibold"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={loading || !slipIdInput.trim()}
+                className="px-4 bg-slate-800 text-white rounded-xl hover:bg-slate-900 text-xs font-bold transition-all flex items-center gap-1"
+              >
+                {loading ? <Loader2 size={12} className="animate-spin" /> : "Fetch"}
+              </button>
+            </form>
+          </div>
         </div>
 
-        {/* Search Results List — Multi-select */}
-        {searchingAdhatiya || loading ? (
-          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
-            <div className="skeleton h-6 w-48 mb-2" />
-            <div className="skeleton h-[72px] w-full rounded-xl" />
-            <div className="skeleton h-[72px] w-full rounded-xl" />
-            <div className="skeleton h-[72px] w-full rounded-xl" />
-          </div>
-        ) : searchResults.length > 0 && !poData && (
+        {/* Adhatiya procurement slips list (Multi-Select) */}
+        {procurementSlips.length > 0 && (
           <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-slate-700">
-                Approved Procurements <span className="text-xs font-normal text-slate-400">({searchResults.length} found)</span>
+              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                2. Select Slips under &quot;{adhatiyaSearch}&quot;
               </h3>
               <button
                 type="button"
                 onClick={() => {
-                  if (selectedSlipIds.size === searchResults.length) {
+                  if (selectedSlipIds.size === procurementSlips.length) {
                     setSelectedSlipIds(new Set());
                   } else {
-                    setSelectedSlipIds(new Set(searchResults.map(r => r.slipId)));
+                    setSelectedSlipIds(new Set(procurementSlips.map(s => s.slipId)));
                   }
                 }}
-                className="text-xs font-semibold text-blue-600 hover:text-blue-800"
+                className="text-[10px] font-bold text-forest-700 hover:text-forest-800 bg-forest-50 px-2 py-0.5 rounded"
               >
-                {selectedSlipIds.size === searchResults.length ? "Deselect All" : "Select All"}
+                {selectedSlipIds.size === procurementSlips.length ? "Clear All" : "Select All"}
               </button>
             </div>
-            <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-              {searchResults.map(res => {
-                const isSelected = selectedSlipIds.has(res.slipId);
+            
+            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+              {procurementSlips.map((slip) => {
+                const isChecked = selectedSlipIds.has(slip.slipId);
                 return (
                   <label
-                    key={res.slipId}
-                    className={`p-3 border rounded-xl flex items-start gap-3 cursor-pointer transition-all ${isSelected ? "border-forest-400 bg-forest-50/50" : "border-slate-100 hover:bg-slate-50"}`}
+                    key={slip.slipId}
+                    className={`flex items-start gap-3 p-2.5 border rounded-xl cursor-pointer hover:bg-slate-50 transition-all ${isChecked ? "border-forest-500 bg-forest-50/20" : "border-slate-100"}`}
                   >
                     <input
                       type="checkbox"
-                      checked={isSelected}
+                      checked={isChecked}
                       onChange={() => {
                         setSelectedSlipIds(prev => {
                           const next = new Set(prev);
-                          if (next.has(res.slipId)) next.delete(res.slipId);
-                          else next.add(res.slipId);
+                          if (next.has(slip.slipId)) next.delete(slip.slipId);
+                          else next.add(slip.slipId);
                           return next;
                         });
                       }}
-                      className="mt-1 w-4 h-4 accent-forest-600 shrink-0"
+                      className="mt-1 w-4 h-4 accent-forest-700 shrink-0 rounded"
                     />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-sm text-slate-800">{res.farmerName} <span className="text-xs font-normal text-slate-500">({res.farmer?.category || "FARMER"})</span></p>
-                      <p className="text-xs text-slate-500">{res.crop} - {res.variety} • {res.bags} Bags • {res.netQuantity} Qtl • ₹{res.rate}/Qtl</p>
-                      <p className="text-[10px] text-slate-400 font-mono mt-0.5">{res.slipId} • Agent: {res.agentName}</p>
+                    <div className="flex-1 min-w-0 text-xs">
+                      <p className="font-bold text-slate-800">
+                        {slip.farmerName} <span className="text-[9px] font-normal text-slate-400">({slip.farmerCode})</span>
+                      </p>
+                      <p className="text-[10px] text-slate-500">
+                        {slip.crop} {slip.variety} • {slip.bags} Bags • {slip.netQuantity} Qtl
+                      </p>
+                      <p className="text-[9px] font-mono text-slate-400 mt-0.5">{slip.slipId}</p>
                     </div>
-                    <span className="text-xs font-bold text-forest-700 tabular-nums shrink-0">₹{res.total?.toLocaleString("en-IN")}</span>
+                    <span className="text-xs font-bold text-slate-700 self-center tabular-nums">
+                      ₹{slip.total?.toLocaleString("en-IN")}
+                    </span>
                   </label>
                 );
               })}
             </div>
-            {selectedSlipIds.size > 0 && (
-              <button
-                type="button"
-                onClick={() => {
-                  const selected = searchResults.filter(r => selectedSlipIds.has(r.slipId));
-                  setAllSelectedProcurements(selected);
-                  // Load the first selected as the primary PO
-                  const primary = selected[0];
-                  setSlipIdInput(primary.slipId);
-                  fetchPO(primary.slipId);
-                }}
-                className="w-full py-3 bg-forest-600 text-white font-bold rounded-xl hover:bg-forest-700 active:bg-forest-800 transition-all flex items-center justify-center gap-2 shadow-md"
-              >
-                <Plus size={18} />
-                Create PO for {selectedSlipIds.size} Selected {selectedSlipIds.size === 1 ? "Procurement" : "Procurements"}
-              </button>
-            )}
+            <p className="text-[10px] text-slate-400 italic">
+              * Checking these slips dynamically includes/excludes them as rows in the PO below.
+            </p>
           </div>
         )}
 
-        {poData && (
-          <div className="space-y-6">
+        {/* EDITOR TABS */}
+        {(calcs.activeSlips.length > 0 || originalProcurement) && (
+          <div className="space-y-4">
             
-            {/* Header & Basic Info */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 shadow-sm">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Company & PO Info</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">Company Name</label>
-                  <input type="text" value={companyName} onChange={(e) => setCompanyName(e.target.value)} className="w-full text-sm font-semibold border-b border-slate-200 py-1 focus:border-forest-500 focus:outline-none" />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">PO Number</label>
-                  <input type="text" value={poNumber} onChange={(e) => setPoNumber(e.target.value)} className="w-full text-sm font-semibold border-b border-slate-200 py-1 focus:border-forest-500 focus:outline-none" />
-                </div>
-                <div className="col-span-2">
-                  <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">Company Address</label>
-                  <textarea value={companyAddress} onChange={(e) => setCompanyAddress(e.target.value)} rows={2} className="w-full text-sm border-b border-slate-200 py-1 focus:border-forest-500 focus:outline-none resize-none" />
-                </div>
-              </div>
+            {/* Tab selector */}
+            <div className="flex border-b border-slate-200 text-xs font-bold bg-white p-1 rounded-xl border">
+              <button 
+                onClick={() => setActiveTab("adhatiya")}
+                className={`flex-1 py-2 text-center rounded-lg transition-all ${activeTab === "adhatiya" ? "bg-slate-800 text-white shadow-sm" : "text-slate-600 hover:text-slate-900"}`}
+              >
+                Addresses
+              </button>
+              <button 
+                onClick={() => setActiveTab("billing")}
+                className={`flex-1 py-2 text-center rounded-lg transition-all ${activeTab === "billing" ? "bg-slate-800 text-white shadow-sm" : "text-slate-600 hover:text-slate-900"}`}
+              >
+                PO Meta
+              </button>
+              <button 
+                onClick={() => setActiveTab("details")}
+                className={`flex-1 py-2 text-center rounded-lg transition-all ${activeTab === "details" ? "bg-slate-800 text-white shadow-sm" : "text-slate-600 hover:text-slate-900"}`}
+              >
+                Rows Override
+              </button>
+              <button 
+                onClick={() => setActiveTab("calculations")}
+                className={`flex-1 py-2 text-center rounded-lg transition-all ${activeTab === "calculations" ? "bg-slate-800 text-white shadow-sm" : "text-slate-600 hover:text-slate-900"}`}
+              >
+                Taxes & Exp.
+              </button>
             </div>
 
-            {/* Supplier & Payment Info */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Supplier</h3>
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">Supplier Name</label>
-                  <input type="text" value={supplierName} onChange={(e) => setSupplierName(e.target.value)} className="w-full text-sm font-semibold border-b border-slate-200 py-1 focus:border-forest-500 focus:outline-none" />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">Supplier Location</label>
-                  <input type="text" value={supplierLocation} onChange={(e) => setSupplierLocation(e.target.value)} className="w-full text-sm border-b border-slate-200 py-1 focus:border-forest-500 focus:outline-none" />
-                </div>
-              </div>
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Payment Terms</h3>
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 block mb-2 uppercase">Duration</label>
-                  <div className="flex gap-2">
-                    {[10, 20, 30].map(days => (
-                      <button key={days} type="button" onClick={() => setPaymentDuration(days)} className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ${paymentDuration === days ? "bg-forest-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>{days} Days</button>
-                    ))}
-                  </div>
-                </div>
-                <p className="text-xs text-slate-500">Exp. Date: <span className="font-bold text-forest-700">{calculatePaymentDate(paymentDuration)}</span></p>
-              </div>
-            </div>
-
-            {/* Procurement Slip Fetched Details & Bag Calculation */}
-            {originalProcurement && calcs && (
-              <div className="bg-blue-50/50 rounded-2xl border border-blue-100 overflow-hidden">
-                <div className="bg-blue-100/50 px-4 py-3 border-b border-blue-100 flex justify-between items-center">
-                  <h3 className="text-xs font-bold text-blue-800 uppercase">
-                    {allSelectedProcurements.length > 1 ? `${allSelectedProcurements.length} Procurements Selected` : "Fetched Procurement"}
+            {/* TAB CONTENT 1: ADDRESS BLOCKS */}
+            {activeTab === "adhatiya" && (
+              <div className="space-y-4">
+                {/* Vendor Address Details */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
+                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider border-b pb-1.5">
+                    Vendor (Adhatiya / Seller) Details
                   </h3>
-                  <span className="text-[10px] font-bold text-blue-600 bg-blue-100 px-2 py-1 rounded">{originalProcurement.crop}</span>
-                </div>
-                <div className="p-4 space-y-3">
-                  {/* Show all selected procurements if multi-select was used */}
-                  {allSelectedProcurements.length > 1 ? (
-                    <div className="space-y-2">
-                      {allSelectedProcurements.map((proc, idx) => (
-                        <div key={proc.slipId} className="bg-white p-3 rounded-xl border border-blue-50 shadow-sm">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs font-bold text-slate-700">#{idx + 1} {proc.farmerName}</span>
-                            <span className="text-[10px] text-slate-400 font-mono">{proc.slipId}</span>
-                          </div>
-                          <div className="flex items-center gap-4 text-xs text-slate-500">
-                            <span>{proc.bags} Bags</span>
-                            <span>{proc.netQuantity} Qtl</span>
-                            <span>₹{proc.rate}/Qtl</span>
-                            <span className="font-bold text-forest-700 ml-auto">₹{proc.total?.toLocaleString("en-IN")}</span>
-                          </div>
-                        </div>
-                      ))}
-                      <div className="bg-white p-3 rounded-xl border-2 border-blue-200 shadow-sm">
-                        <div className="flex items-center gap-4">
-                          <div className="flex-1">
-                            <span className="text-[10px] text-slate-400 block mb-1">Total Bags (All)</span>
-                            <span className="font-bold text-slate-700">{allSelectedProcurements.reduce((s: number, p: any) => s + (p.bags || 0), 0)}</span>
-                          </div>
-                          <div className="flex-1">
-                            <span className="text-[10px] text-slate-400 block mb-1">Total Qtl (All)</span>
-                            <span className="font-bold text-slate-700">{allSelectedProcurements.reduce((s: number, p: any) => s + (p.netQuantity || 0), 0).toFixed(2)}</span>
-                          </div>
-                          <div className="flex-1">
-                            <span className="text-[10px] text-blue-600 font-bold block mb-1">Override Total Bags</span>
-                            <input type="number" value={poBags} onChange={(e) => setPoBags(Number(e.target.value))} className="w-full border-b-2 border-blue-300 bg-transparent text-lg font-black text-blue-700 focus:outline-none focus:border-blue-600 py-1" />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="bg-white p-3 rounded-xl border border-blue-50 shadow-sm flex items-center gap-4">
-                      <div className="flex-1">
-                        <span className="text-[10px] text-slate-400 block mb-1">Procured Bags</span>
-                        <span className="font-bold text-slate-700">{originalProcurement.bags}</span>
-                      </div>
-                      <div className="flex-1">
-                        <span className="text-[10px] text-blue-600 font-bold block mb-1">Make PO For (Bags)</span>
-                        <input type="number" value={poBags} onChange={(e) => setPoBags(Number(e.target.value))} className="w-full border-b-2 border-blue-300 bg-transparent text-lg font-black text-blue-700 focus:outline-none focus:border-blue-600 py-1" />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Editable Item Details */}
-            {originalProcurement && (
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Item Details & Pricing</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-y-4 gap-x-3">
                   <div>
-                    <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">HSN Code</label>
-                    <input type="text" value={hsnCode} onChange={(e) => setHsnCode(e.target.value)} className="w-full text-sm font-bold text-slate-800 border-b border-slate-200 py-1.5 focus:border-forest-500 focus:outline-none" />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">Packing (kg)</label>
-                    <input type="number" value={packingSize || ""} onChange={(e) => setPackingSize(Number(e.target.value) || 0)} placeholder="50" className="w-full text-sm font-bold text-slate-800 border-b border-slate-200 py-1.5 focus:border-forest-500 focus:outline-none" />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">GST %</label>
-                    <input type="number" value={gstPercent || ""} onChange={(e) => setGstPercent(Number(e.target.value) || 0)} placeholder="0" className="w-full text-sm font-bold text-slate-800 border-b border-slate-200 py-1.5 focus:border-forest-500 focus:outline-none" />
-                  </div>
-                  <div className="col-span-2 sm:col-span-1">
-                    <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">Crop Name</label>
-                    <input type="text" value={manualCrop} onChange={(e) => setManualCrop(e.target.value)} className="w-full text-sm font-bold text-slate-800 border-b border-slate-200 py-1.5 focus:border-forest-500 focus:outline-none" />
-                  </div>
-                  <div className="col-span-2">
-                    <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">Crop Variety (Compliance)</label>
-                    <input type="text" value={manualVariety} onChange={(e) => setManualVariety(e.target.value)} className="w-full text-sm font-bold text-slate-800 border-b border-slate-200 py-1.5 focus:border-forest-500 focus:outline-none" />
-                  </div>
-                  <div className="col-span-2 sm:col-span-1">
-                    <label className="text-[10px] font-bold text-blue-600 block mb-1 uppercase">Rate Override (₹)</label>
-                    <input type="number" placeholder="Auto" value={manualRate} onChange={(e) => setManualRate(e.target.value === "" ? "" : Number(e.target.value))} className="w-full text-sm font-bold text-slate-800 border-b border-slate-200 py-1.5 focus:border-blue-500 focus:outline-none" />
-                  </div>
-                  <div className="col-span-2">
-                    <label className="text-[10px] font-bold text-blue-600 block mb-1 uppercase">Net Qty Override (Qtl)</label>
-                    <input type="number" placeholder="Auto (Leaves it to Bag Calculation)" value={manualNetQty} onChange={(e) => setManualNetQty(e.target.value === "" ? "" : Number(e.target.value))} className="w-full text-sm font-bold text-slate-800 border-b border-slate-200 py-1.5 focus:border-blue-500 focus:outline-none" />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Dynamic Items Table */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Deductions / Additions</h3>
-                <button type="button" onClick={addItem} className="text-[10px] font-bold text-forest-600 bg-forest-50 px-2 py-1 rounded hover:bg-forest-100 transition-colors flex items-center gap-1"><Plus size={12} /> Add</button>
-              </div>
-              <div className="space-y-3">
-                {items.map((item, index) => (
-                  <div key={item.id} className="flex flex-wrap gap-2 items-center bg-slate-50 p-2 rounded-lg border border-slate-100">
-                    <input type="text" value={item.description} onChange={(e) => updateItem(item.id, 'description', e.target.value)} placeholder="Desc" className="flex-[2] min-w-[120px] text-xs bg-transparent border-b border-slate-200 focus:outline-none focus:border-forest-500 py-1 font-semibold" />
-                    <select value={item.effect} onChange={(e) => updateItem(item.id, 'effect', e.target.value)} className={`flex-1 min-w-[60px] text-xs bg-transparent border-b border-slate-200 focus:outline-none font-bold ${item.effect === 'ADD' ? 'text-green-600' : 'text-red-600'}`}>
-                      <option value="ADD">(+)</option>
-                      <option value="DEDUCT">(-)</option>
-                    </select>
-                    <select value={item.calcType} onChange={(e) => updateItem(item.id, 'calcType', e.target.value)} className="flex-[1.5] min-w-[80px] text-xs bg-transparent border-b border-slate-200 focus:outline-none">
-                      <option value="PERCENTAGE">%</option>
-                      <option value="FLAT">Flat ₹</option>
-                      <option value="PER_QTL">₹/Qtl</option>
-                    </select>
-                    <input type="number" value={item.value || ''} onChange={(e) => updateItem(item.id, 'value', parseFloat(e.target.value) || 0)} placeholder="0" className="flex-1 min-w-[60px] text-xs bg-transparent border-b border-slate-200 text-right font-bold focus:outline-none tabular-nums" />
-                    <button type="button" onClick={() => removeItem(item.id)} className="p-1 text-slate-400 hover:text-red-500"><Trash2 size={14} /></button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Sensory Parameters Table */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Sensorial Characteristics</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
-                {Object.entries(params).map(([key, value]) => (
-                  <div key={key} className="flex flex-col border-b border-slate-100 pb-1">
-                    <label className="text-[10px] text-slate-500 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase">Vendor Name</label>
                     <input 
                       type="text" 
-                      value={value} 
-                      onChange={(e) => setParams(prev => ({ ...prev, [key]: e.target.value }))}
-                      className="text-xs font-bold text-slate-800 bg-transparent focus:outline-none focus:text-forest-700" 
+                      value={vendor.name} 
+                      onChange={(e) => setVendor({ ...vendor, name: e.target.value })}
+                      className="w-full text-xs font-bold border-b py-1 focus:border-forest-500 focus:outline-none" 
                     />
                   </div>
-                ))}
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase">Address Lines</label>
+                    <textarea 
+                      value={vendor.address} 
+                      rows={2}
+                      onChange={(e) => setVendor({ ...vendor, address: e.target.value })}
+                      className="w-full text-xs border-b py-1 focus:border-forest-500 focus:outline-none resize-none" 
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">GST/PAN No.</label>
+                      <input 
+                        type="text" 
+                        value={vendor.gstNo} 
+                        onChange={(e) => setVendor({ ...vendor, gstNo: e.target.value })}
+                        className="w-full text-xs border-b py-1 focus:border-forest-500 focus:outline-none" 
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">Mobile No.</label>
+                      <input 
+                        type="text" 
+                        value={vendor.mobile} 
+                        onChange={(e) => setVendor({ ...vendor, mobile: e.target.value })}
+                        className="w-full text-xs border-b py-1 focus:border-forest-500 focus:outline-none" 
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">Email Id</label>
+                      <input 
+                        type="text" 
+                        value={vendor.email} 
+                        onChange={(e) => setVendor({ ...vendor, email: e.target.value })}
+                        className="w-full text-xs border-b py-1 focus:border-forest-500 focus:outline-none" 
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Billing Address Details */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
+                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider border-b pb-1.5">
+                    Billing Address Details
+                  </h3>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase">Billing Name</label>
+                    <input 
+                      type="text" 
+                      value={billing.name} 
+                      onChange={(e) => setBilling({ ...billing, name: e.target.value })}
+                      className="w-full text-xs font-bold border-b py-1 focus:border-forest-500 focus:outline-none" 
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase">Address Lines</label>
+                    <textarea 
+                      value={billing.address} 
+                      rows={2}
+                      onChange={(e) => setBilling({ ...billing, address: e.target.value })}
+                      className="w-full text-xs border-b py-1 focus:border-forest-500 focus:outline-none resize-none" 
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">GST/PAN No.</label>
+                      <input 
+                        type="text" 
+                        value={billing.gstNo} 
+                        onChange={(e) => setBilling({ ...billing, gstNo: e.target.value })}
+                        className="w-full text-xs border-b py-1 focus:border-forest-500 focus:outline-none" 
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">Mobile No.</label>
+                      <input 
+                        type="text" 
+                        value={billing.mobile} 
+                        onChange={(e) => setBilling({ ...billing, mobile: e.target.value })}
+                        className="w-full text-xs border-b py-1 focus:border-forest-500 focus:outline-none" 
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">Email Id</label>
+                      <input 
+                        type="text" 
+                        value={billing.email} 
+                        onChange={(e) => setBilling({ ...billing, email: e.target.value })}
+                        className="w-full text-xs border-b py-1 focus:border-forest-500 focus:outline-none" 
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Delivery Address Details */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
+                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider border-b pb-1.5">
+                    Delivery Address Details
+                  </h3>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase">Delivery Name</label>
+                    <input 
+                      type="text" 
+                      value={delivery.name} 
+                      onChange={(e) => setDelivery({ ...delivery, name: e.target.value })}
+                      className="w-full text-xs font-bold border-b py-1 focus:border-forest-500 focus:outline-none" 
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase">Address Lines</label>
+                    <textarea 
+                      value={delivery.address} 
+                      rows={2}
+                      onChange={(e) => setDelivery({ ...delivery, address: e.target.value })}
+                      className="w-full text-xs border-b py-1 focus:border-forest-500 focus:outline-none resize-none" 
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">GST/PAN No.</label>
+                      <input 
+                        type="text" 
+                        value={delivery.gstNo} 
+                        onChange={(e) => setDelivery({ ...delivery, gstNo: e.target.value })}
+                        className="w-full text-xs border-b py-1 focus:border-forest-500 focus:outline-none" 
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">Mobile No.</label>
+                      <input 
+                        type="text" 
+                        value={delivery.mobile} 
+                        onChange={(e) => setDelivery({ ...delivery, mobile: e.target.value })}
+                        className="w-full text-xs border-b py-1 focus:border-forest-500 focus:outline-none" 
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">Email Id</label>
+                      <input 
+                        type="text" 
+                        value={delivery.email} 
+                        onChange={(e) => setDelivery({ ...delivery, email: e.target.value })}
+                        className="w-full text-xs border-b py-1 focus:border-forest-500 focus:outline-none" 
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
+            )}
+
+            {/* TAB CONTENT 2: PO META */}
+            {activeTab === "billing" && (
+              <div className="space-y-4">
+                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
+                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider border-b pb-1.5">
+                    Purchase Order Metadata
+                  </h3>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">P.O. Number</label>
+                      <input 
+                        type="text" 
+                        value={poNumber} 
+                        onChange={(e) => setPoNumber(e.target.value)} 
+                        className="w-full text-xs font-bold border-b py-1 focus:border-forest-500 focus:outline-none" 
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">PO Dated</label>
+                      <input 
+                        type="text" 
+                        value={poDate} 
+                        onChange={(e) => setPoDate(e.target.value)} 
+                        className="w-full text-xs font-semibold border-b py-1 focus:border-forest-500 focus:outline-none" 
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">Payment Terms</label>
+                      <input 
+                        type="text" 
+                        value={paymentTerms} 
+                        onChange={(e) => setPaymentTerms(e.target.value)} 
+                        className="w-full text-xs border-b py-1 focus:border-forest-500 focus:outline-none" 
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">DELIVERY Terms</label>
+                      <input 
+                        type="text" 
+                        value={deliveryTerms} 
+                        onChange={(e) => setDeliveryTerms(e.target.value)} 
+                        className="w-full text-xs border-b py-1 focus:border-forest-500 focus:outline-none" 
+                      />
+                    </div>
+
+                    <div className="col-span-2">
+                      <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">Authorized Signatory Name</label>
+                      <input 
+                        type="text" 
+                        value={authorizedSignatory} 
+                        onChange={(e) => setAuthorizedSignatory(e.target.value)} 
+                        className="w-full text-xs font-bold border-b py-1 focus:border-forest-500 focus:outline-none" 
+                      />
+                    </div>
+
+                    <div className="col-span-2">
+                      <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">Terms & Conditions Text</label>
+                      <textarea 
+                        value={termsAndConditions} 
+                        rows={4}
+                        onChange={(e) => setTermsAndConditions(e.target.value)} 
+                        className="w-full text-xs border border-slate-200 rounded-xl p-2.5 focus:border-forest-500 focus:outline-none resize-none font-sans" 
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB CONTENT 3: ROWS OVERRIDES */}
+            {activeTab === "details" && (
+              <div className="space-y-4">
+                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
+                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider border-b pb-1.5">
+                    Item Columns & Override Defaults
+                  </h3>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">HSN Code</label>
+                      <input 
+                        type="text" 
+                        value={hsnCode} 
+                        onChange={(e) => setHsnCode(e.target.value)} 
+                        className="w-full text-xs font-bold border-b py-1 focus:border-forest-500 focus:outline-none" 
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">Packing Size (kg)</label>
+                      <input 
+                        type="number" 
+                        value={packingSize} 
+                        onChange={(e) => setPackingSize(Number(e.target.value) || 0)} 
+                        className="w-full text-xs font-bold border-b py-1 focus:border-forest-500 focus:outline-none" 
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">GST %</label>
+                      <input 
+                        type="number" 
+                        value={gstPercent} 
+                        onChange={(e) => setGstPercent(Number(e.target.value) || 0)} 
+                        className="w-full text-xs font-bold border-b py-1 focus:border-forest-500 focus:outline-none" 
+                      />
+                    </div>
+
+                    {calcs.activeSlips.length <= 1 && (
+                      <>
+                        <div className="col-span-2 border-t border-slate-100 pt-3">
+                          <p className="text-[10px] font-bold text-blue-600 uppercase mb-2">Single Item Row Manual Overrides</p>
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">Override Crop</label>
+                          <input 
+                            type="text" 
+                            placeholder="e.g. PB-1"
+                            value={manualCrop} 
+                            onChange={(e) => setManualCrop(e.target.value)} 
+                            className="w-full text-xs border-b py-1 focus:border-forest-500 focus:outline-none" 
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">Override Variety</label>
+                          <input 
+                            type="text" 
+                            value={manualVariety} 
+                            onChange={(e) => setManualVariety(e.target.value)} 
+                            className="w-full text-xs border-b py-1 focus:border-forest-500 focus:outline-none" 
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">Override Rate (₹/Qtl)</label>
+                          <input 
+                            type="number" 
+                            placeholder="Auto"
+                            value={manualRate} 
+                            onChange={(e) => setManualRate(e.target.value === "" ? "" : Number(e.target.value))} 
+                            className="w-full text-xs font-semibold border-b py-1 focus:border-forest-500 focus:outline-none" 
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">Override Net Qty (Qtl)</label>
+                          <input 
+                            type="number" 
+                            placeholder="Auto"
+                            value={manualNetQty} 
+                            onChange={(e) => setManualNetQty(e.target.value === "" ? "" : Number(e.target.value))} 
+                            className="w-full text-xs font-semibold border-b py-1 focus:border-forest-500 focus:outline-none" 
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    <div className="col-span-2 border-t border-slate-100 pt-3">
+                      <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">Override Total Bags</label>
+                      <input 
+                        type="number" 
+                        placeholder="Auto sum of slips"
+                        value={poBags || ""} 
+                        onChange={(e) => setPoBags(Number(e.target.value) || 0)} 
+                        className="w-full text-xs font-bold border-b py-1 focus:border-forest-500 focus:outline-none" 
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB CONTENT 4: TAXES AND EXPENSES */}
+            {activeTab === "calculations" && (
+              <div className="space-y-4">
+                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
+                  <div className="border-b pb-1.5 flex justify-between items-center">
+                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                      Tax & Expenses Calculations
+                    </h3>
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        setOverrides({
+                          mandiTax: "", hammali: "", commission: "", sutli: "", otherExpenses: "", bonus: "", freight: "", roundOff: "", finalAmount: ""
+                        });
+                      }}
+                      className="text-[9px] text-red-600 bg-red-50 hover:bg-red-100 font-bold px-2 py-0.5 rounded transition-all"
+                    >
+                      Clear Overrides
+                    </button>
+                  </div>
+
+                  <div className="space-y-3">
+                    
+                    {/* Mandi Tax */}
+                    <div className="grid grid-cols-3 gap-2 items-end border-b border-slate-50 pb-2">
+                      <div className="col-span-1">
+                        <label className="text-[10px] font-bold text-slate-500 block mb-0.5">Mandi Tax %</label>
+                        <input 
+                          type="number" 
+                          value={rates.mandiTaxPercent} 
+                          onChange={(e) => setRates({ ...rates, mandiTaxPercent: parseFloat(e.target.value) || 0 })}
+                          className="w-full text-xs border-b py-0.5 focus:outline-none" 
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-[10px] font-bold text-blue-600 block mb-0.5">Mandi Tax Amt (Override)</label>
+                        <input 
+                          type="number" 
+                          placeholder={`Auto (₹${calcs.mandiTax.toFixed(2)})`}
+                          value={overrides.mandiTax} 
+                          onChange={(e) => setOverrides({ ...overrides, mandiTax: e.target.value === "" ? "" : Number(e.target.value) })}
+                          className="w-full text-xs border-b py-0.5 font-bold focus:outline-none text-right" 
+                        />
+                      </div>
+                    </div>
+
+                    {/* Hammali */}
+                    <div className="grid grid-cols-3 gap-2 items-end border-b border-slate-50 pb-2">
+                      <div className="col-span-1">
+                        <label className="text-[10px] font-bold text-slate-500 block mb-0.5">Hammali/Bag (₹)</label>
+                        <input 
+                          type="number" 
+                          value={rates.hammaliRate} 
+                          onChange={(e) => setRates({ ...rates, hammaliRate: parseFloat(e.target.value) || 0 })}
+                          className="w-full text-xs border-b py-0.5 focus:outline-none" 
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-[10px] font-bold text-blue-600 block mb-0.5">Hammali Amt (Override)</label>
+                        <input 
+                          type="number" 
+                          placeholder={`Auto (₹${calcs.hammali.toFixed(2)})`}
+                          value={overrides.hammali} 
+                          onChange={(e) => setOverrides({ ...overrides, hammali: e.target.value === "" ? "" : Number(e.target.value) })}
+                          className="w-full text-xs border-b py-0.5 font-bold focus:outline-none text-right" 
+                        />
+                      </div>
+                    </div>
+
+                    {/* Commission */}
+                    <div className="grid grid-cols-3 gap-2 items-end border-b border-slate-50 pb-2">
+                      <div className="col-span-1">
+                        <label className="text-[10px] font-bold text-slate-500 block mb-0.5">Commission %</label>
+                        <input 
+                          type="number" 
+                          value={rates.commissionPercent} 
+                          onChange={(e) => setRates({ ...rates, commissionPercent: parseFloat(e.target.value) || 0 })}
+                          className="w-full text-xs border-b py-0.5 focus:outline-none" 
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-[10px] font-bold text-blue-600 block mb-0.5">Commission Amt (Override)</label>
+                        <input 
+                          type="number" 
+                          placeholder={`Auto (₹${calcs.commission.toFixed(2)})`}
+                          value={overrides.commission} 
+                          onChange={(e) => setOverrides({ ...overrides, commission: e.target.value === "" ? "" : Number(e.target.value) })}
+                          className="w-full text-xs border-b py-0.5 font-bold focus:outline-none text-right" 
+                        />
+                      </div>
+                    </div>
+
+                    {/* Sutli */}
+                    <div className="grid grid-cols-3 gap-2 items-end border-b border-slate-50 pb-2">
+                      <div className="col-span-1">
+                        <label className="text-[10px] font-bold text-slate-500 block mb-0.5">Sutli/Bag (₹)</label>
+                        <input 
+                          type="number" 
+                          value={rates.sutliRate} 
+                          onChange={(e) => setRates({ ...rates, sutliRate: parseFloat(e.target.value) || 0 })}
+                          className="w-full text-xs border-b py-0.5 focus:outline-none" 
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-[10px] font-bold text-blue-600 block mb-0.5">Sutli Amt (Override)</label>
+                        <input 
+                          type="number" 
+                          placeholder={`Auto (₹${calcs.sutli.toFixed(2)})`}
+                          value={overrides.sutli} 
+                          onChange={(e) => setOverrides({ ...overrides, sutli: e.target.value === "" ? "" : Number(e.target.value) })}
+                          className="w-full text-xs border-b py-0.5 font-bold focus:outline-none text-right" 
+                        />
+                      </div>
+                    </div>
+
+                    {/* Bonus */}
+                    <div className="grid grid-cols-3 gap-2 items-end border-b border-slate-50 pb-2">
+                      <div className="col-span-1">
+                        <label className="text-[10px] font-bold text-slate-500 block mb-0.5">Bonus/Qtl (₹)</label>
+                        <input 
+                          type="number" 
+                          value={rates.bonusRate} 
+                          onChange={(e) => setRates({ ...rates, bonusRate: parseFloat(e.target.value) || 0 })}
+                          className="w-full text-xs border-b py-0.5 focus:outline-none" 
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-[10px] font-bold text-blue-600 block mb-0.5">Bonus Amt (Override)</label>
+                        <input 
+                          type="number" 
+                          placeholder={`Auto (₹${calcs.bonus.toFixed(2)})`}
+                          value={overrides.bonus} 
+                          onChange={(e) => setOverrides({ ...overrides, bonus: e.target.value === "" ? "" : Number(e.target.value) })}
+                          className="w-full text-xs border-b py-0.5 font-bold focus:outline-none text-right" 
+                        />
+                      </div>
+                    </div>
+
+                    {/* Freight */}
+                    <div className="grid grid-cols-3 gap-2 items-end border-b border-slate-50 pb-2">
+                      <div className="col-span-1">
+                        <label className="text-[10px] font-bold text-slate-500 block mb-0.5">Freight/Qtl (₹)</label>
+                        <input 
+                          type="number" 
+                          value={rates.freightRate} 
+                          onChange={(e) => setRates({ ...rates, freightRate: parseFloat(e.target.value) || 0 })}
+                          className="w-full text-xs border-b py-0.5 focus:outline-none" 
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-[10px] font-bold text-blue-600 block mb-0.5">Freight Amt (Override)</label>
+                        <input 
+                          type="number" 
+                          placeholder={`Auto (₹${calcs.freight.toFixed(2)})`}
+                          value={overrides.freight} 
+                          onChange={(e) => setOverrides({ ...overrides, freight: e.target.value === "" ? "" : Number(e.target.value) })}
+                          className="w-full text-xs border-b py-0.5 font-bold focus:outline-none text-right" 
+                        />
+                      </div>
+                    </div>
+
+                    {/* Other Expenses */}
+                    <div className="grid grid-cols-3 gap-2 items-end border-b border-slate-50 pb-2">
+                      <div className="col-span-1">
+                        <label className="text-[10px] font-bold text-slate-500 block mb-0.5">Other Exp (₹)</label>
+                        <input 
+                          type="number" 
+                          value={rates.otherExpenses} 
+                          onChange={(e) => setRates({ ...rates, otherExpenses: parseFloat(e.target.value) || 0 })}
+                          className="w-full text-xs border-b py-0.5 focus:outline-none" 
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-[10px] font-bold text-blue-600 block mb-0.5">Other Exp Amt (Override)</label>
+                        <input 
+                          type="number" 
+                          placeholder={`Auto (₹${calcs.otherExpenses.toFixed(2)})`}
+                          value={overrides.otherExpenses} 
+                          onChange={(e) => setOverrides({ ...overrides, otherExpenses: e.target.value === "" ? "" : Number(e.target.value) })}
+                          className="w-full text-xs border-b py-0.5 font-bold focus:outline-none text-right" 
+                        />
+                      </div>
+                    </div>
+
+                    {/* Round Off */}
+                    <div>
+                      <label className="text-[10px] font-bold text-blue-600 block mb-0.5">Round Off (Override)</label>
+                      <input 
+                        type="number" 
+                        step="any"
+                        placeholder={`Auto (₹${calcs.roundOff.toFixed(2)})`}
+                        value={overrides.roundOff} 
+                        onChange={(e) => setOverrides({ ...overrides, roundOff: e.target.value === "" ? "" : Number(e.target.value) })}
+                        className="w-full text-xs border-b py-0.5 font-bold focus:outline-none text-right" 
+                      />
+                    </div>
+
+                    {/* Final Amount */}
+                    <div>
+                      <label className="text-[10px] font-bold text-red-600 block mb-0.5">Final Total Amount (Override)</label>
+                      <input 
+                        type="number" 
+                        placeholder={`Auto (₹${calcs.finalAmount.toLocaleString("en-IN")})`}
+                        value={overrides.finalAmount} 
+                        onChange={(e) => setOverrides({ ...overrides, finalAmount: e.target.value === "" ? "" : Number(e.target.value) })}
+                        className="w-full text-sm border-b py-0.5 font-extrabold focus:outline-none text-right text-red-700 bg-red-50 px-2 rounded" 
+                      />
+                    </div>
+
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Desktop Actions */}
+            <div className="hidden xl:flex pt-4 pb-12 justify-end gap-3">
+              <button 
+                onClick={handlePrint} 
+                className="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-semibold flex items-center gap-2 hover:bg-slate-50 transition-all bg-white shadow-sm"
+              >
+                <Printer size={18} /> Print PO
+              </button>
+              <button 
+                onClick={handleSave} 
+                disabled={saving} 
+                className="px-6 py-2.5 bg-forest-800 text-white font-semibold rounded-xl hover:bg-forest-700 active:bg-forest-900 transition-all disabled:opacity-50 flex items-center gap-2 shadow-md"
+              >
+                {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />} 
+                {saving ? "Saving..." : "Save PO"}
+              </button>
             </div>
 
-            {/* Desktop Action Buttons (Hidden on Mobile) */}
-            <div className="hidden xl:flex pt-4 pb-12 justify-end gap-3">
-              <button onClick={handlePrint} className="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-semibold flex items-center gap-2 hover:bg-slate-100 active:bg-slate-200 transition-all bg-white shadow-sm">
-                <Printer size={18} /> Print Final PO
-              </button>
-              <button onClick={handleSave} disabled={saving} className="px-6 py-2.5 bg-forest-600 text-white font-semibold rounded-xl hover:bg-forest-700 active:bg-forest-800 transition-all disabled:opacity-50 flex items-center gap-2 shadow-md">
-                {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />} 
-                {saving ? "Saving..." : "Save PO to DB"}
-              </button>
-            </div>
-            
           </div>
         )}
       </div>
 
-      {/* RIGHT SIDE: LIVE PREVIEW */}
-      <div className={`w-full xl:w-[55%] h-full xl:max-h-screen xl:overflow-y-auto overflow-x-auto print:overflow-visible print:h-auto print:max-h-none bg-slate-200/50 flex flex-col xl:items-center py-8 print:p-0 print:bg-white print:w-full print:block pb-40 xl:pb-8 ${mobileTab === 'edit' ? 'hidden xl:flex' : 'flex'}`}>
+      {/* RIGHT COLUMN: A4 PORTRAIT PREVIEW */}
+      <div className={`w-full xl:w-[55%] h-full xl:max-h-screen xl:overflow-y-auto overflow-x-auto print:overflow-visible print:h-auto print:max-h-none bg-slate-300/60 flex flex-col xl:items-center py-8 print:p-0 print:bg-white print:w-full print:block pb-40 xl:pb-8 ${mobileTab === 'edit' && (calcs.activeSlips.length > 0 || originalProcurement) ? 'hidden xl:flex' : 'flex'}`}>
         
         {loading ? (
-          <div className="w-[210mm] min-h-[297mm] mx-auto bg-white rounded-xl shadow-2xl skeleton" />
-        ) : poData ? (
-          <div id="printable-po" className="w-[210mm] min-w-[210mm] mx-auto bg-white text-black shadow-2xl print:shadow-none p-4 sm:p-6 md:p-8 print:p-0 text-[10px] sm:text-[11px] font-sans leading-tight transform origin-top xl:scale-[0.8] 2xl:scale-100 print:scale-100 print:transform-none transition-transform">
+          <div className="w-[210mm] min-h-[297mm] mx-auto bg-white rounded-xl shadow-2xl flex items-center justify-center">
+            <div className="flex flex-col items-center gap-3 text-slate-400">
+              <Loader2 size={36} className="animate-spin text-forest-600" />
+              <p className="text-sm font-semibold">Generating live preview...</p>
+            </div>
+          </div>
+        ) : calcs.activeSlips.length > 0 || originalProcurement ? (
+          <div id="printable-po" className="w-[210mm] min-w-[210mm] mx-auto bg-white text-black shadow-2xl print:shadow-none p-6 print:p-0 text-[11px] leading-tight transform origin-top xl:scale-[0.8] 2xl:scale-95 print:scale-100 print:transform-none transition-transform font-sans">
             
             <style>{`
               @media print {
-                @page { size: A4 portrait; margin: 0mm; }
+                @page { size: A4 portrait; margin: 8mm; }
                 body { -webkit-print-color-adjust: exact; print-color-adjust: exact; margin: 0; padding: 0; background: white !important; }
                 body * { visibility: hidden; }
                 #printable-po, #printable-po * { visibility: visible; }
@@ -702,330 +1511,726 @@ function POMakerForm() {
                   position: absolute !important;
                   left: 0 !important;
                   top: 0 !important;
-                  width: 210mm !important;
-                  min-height: 297mm !important;
-                  padding: 10mm !important;
-                  box-sizing: border-box !important;
+                  width: 100% !important;
+                  padding: 0 !important;
                   margin: 0 !important;
                   transform: none !important;
                   box-shadow: none !important;
                   border: none !important;
                   background: white !important;
                 }
-                .print-exact-a4 { width: 100% !important; max-width: none !important; }
+              }
+              .po-grid-border {
+                border: 1.5px solid black;
+              }
+              .po-cell-border-r {
+                border-right: 1.5px solid black;
+              }
+              .po-cell-border-b {
+                border-bottom: 1.5px solid black;
+              }
+              .po-cell-border-t {
+                border-top: 1.5px solid black;
+              }
+              .po-table-cell-border {
+                border-right: 1px solid black;
+                border-bottom: 1px solid black;
               }
             `}</style>
 
-            <div className="border-[1.5px] border-black print-exact-a4 flex flex-col min-h-[277mm]">
-              {/* Header */}
-              <div className="flex items-center border-b-[1.5px] border-black p-1.5 h-14">
-                <div className="w-[20%]">
-                  {/* LOGO Placeholder matching SHARSID style */}
-                  <div className="text-amber-600 font-serif font-black italic text-xl tracking-wider px-2">FarmerERP</div>
-                </div>
-                <div className="w-[60%] text-center">
-                  <h2 className="text-xl font-bold uppercase tracking-wide">PURCHASE ORDER</h2>
-                  <h3 className="text-base font-bold">{companyName || "Sharsid Overseas Pvt Ltd"}</h3>
-                </div>
-                <div className="w-[20%]"></div>
-              </div>
-
-              {/* Info Grid - Vender / PO No */}
-              <div className="flex border-b-[1.5px] border-black">
-                {/* Left: Vender */}
-                <div className="w-1/2 border-r-[1.5px] border-black p-1.5 space-y-0.5">
-                  <p className="font-bold">Vender:</p>
-                  <p className="font-bold uppercase">{supplierName || "AMBA GRAINS PRIVATE LIMITED"}</p>
-                  <p className="uppercase">{supplierLocation || "JIND ROAD, NEAR ITI, KAITHAL, KAITHAL, Haryana, 136027"}</p>
-                  <p>GSTIN: 06AAGCA3319R1ZD</p>
-                </div>
-                {/* Right: PO / Payment */}
-                <div className="w-1/2 flex flex-col">
-                  <div className="flex border-b-[1.5px] border-black h-1/2">
-                    <div className="w-[70%] border-r-[1.5px] border-black p-1.5 flex items-center">
-                      <span className="font-bold mr-1">P.O. No.:</span> {poNumber || "SOPL/25-26/14"}
-                    </div>
-                    <div className="w-[30%] p-1.5 flex items-center">
-                      <span className="mr-1">Dated:</span> {new Date().toLocaleDateString('en-GB')}
-                    </div>
-                  </div>
-                  <div className="p-1.5 space-y-0.5 flex-1 flex flex-col justify-center">
-                    <p><span className="font-bold">Payment Terms:</span> {paymentDuration} day after delivery</p>
-                    <p><span className="font-bold">ORIGIN:</span> INDIAN ORIGIN</p>
-                    <p><span className="font-bold">DELIVERY:</span> (Ex-Mill)</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Billing / Delivery Addresses */}
-              <div className="flex border-b-[1.5px] border-black h-20">
-                <div className="w-1/2 border-r-[1.5px] border-black p-1.5 space-y-0.5">
-                  <p className="font-bold">Billing Address:</p>
-                  <p className="font-bold uppercase">{companyName || "SHARSID OVERSEAS PVT LTD"}</p>
-                  <p className="uppercase whitespace-pre-wrap leading-tight">{companyAddress || "SURVEY NO. 47/1, GODOWN NO. 6, BHARPARA, KIDANA, GANDHIDHAM, KUCHCHH, GUJARAT-370205\nGSTIN: 24AAXCS2256A1ZD"}</p>
-                </div>
-                <div className="w-1/2 p-1.5 space-y-0.5">
-                  <p className="font-bold">Delivery Address:</p>
-                  <p className="font-bold uppercase">{companyName || "SHARSID OVERSEAS PVT LTD"}</p>
-                  <p className="uppercase whitespace-pre-wrap leading-tight">{companyAddress || "SURVEY NO. 47/1, GODOWN NO. 6, BHARPARA, KIDANA, GANDHIDHAM, KUCHCHH, GUJARAT-370205"}</p>
-                </div>
-              </div>
-
-              {/* Items Table */}
-              <table className="w-full text-center border-collapse">
-                <thead>
-                  <tr className="border-b-[1.5px] border-black font-bold bg-white text-[10px]">
-                    <th className="border-r border-black p-1">Sr. No.</th>
-                    <th className="border-r border-black p-1">HSN Code</th>
-                    <th className="border-r border-black p-1 w-[35%]">Description of Goods</th>
-                    <th className="border-r border-black p-1">Packing</th>
-                    <th className="border-r border-black p-1">Unit</th>
-                    <th className="border-r border-black p-1">No. of<br/>Bag</th>
-                    <th className="border-r border-black p-1">Quantity<br/>(MT)</th>
-                    <th className="border-r border-black p-1">Rate</th>
-                    <th className="border-r border-black p-1">GST%</th>
-                    <th className="p-1">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {allSelectedProcurements.length > 1 ? (
-                    <>
-                      {allSelectedProcurements.map((proc, idx) => {
-                        const rowAmount = proc.netQuantity * proc.rate;
-                        return (
-                          <tr key={proc.slipId} className="border-b border-black">
-                            <td className="border-r border-black p-1">{idx + 1}</td>
-                            <td className="border-r border-black p-1">{hsnCode}</td>
-                            <td className="border-r border-black p-1 text-left font-semibold uppercase px-2 text-[9px]">
-                              {proc.crop} {proc.variety}<br/>
-                              <span className="font-normal text-[8px]">{proc.farmerName}</span>
-                            </td>
-                            <td className="border-r border-black p-1">{packingSize ? packingSize.toFixed(2) : ""}</td>
-                            <td className="border-r border-black p-1">kg</td>
-                            <td className="border-r border-black p-1">{proc.bags}</td>
-                            <td className="border-r border-black p-1">{(proc.netQuantity / 10).toFixed(2)}</td>
-                            <td className="border-r border-black p-1">{proc.rate?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                            <td className="border-r border-black p-1">{gstPercent > 0 ? `${gstPercent}%` : ""}</td>
-                            <td className="p-1">₹ {rowAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                          </tr>
-                        );
-                      })}
-                      {/* Spacer */}
-                      <tr className="h-2 border-b-[1.5px] border-black">
-                        <td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td></td>
-                      </tr>
-                      <tr className="border-b border-black">
-                        <td colSpan={9} className="border-r border-black font-bold p-0.5">Total</td>
-                        <td className="p-0.5">₹ {allSelectedProcurements.reduce((s: number, p: any) => s + (p.netQuantity * p.rate), 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                      </tr>
-                    </>
-                  ) : (
-                    <>
-                      <tr className="border-b-[1.5px] border-black">
-                        <td className="border-r border-black p-1">1</td>
-                        <td className="border-r border-black p-1">{hsnCode}</td>
-                        <td className="border-r border-black p-1 text-left font-semibold uppercase px-2">{manualCrop || originalProcurement?.crop} {manualVariety || originalProcurement?.variety}</td>
-                        <td className="border-r border-black p-1">{packingSize ? packingSize.toFixed(2) : ""}</td>
-                        <td className="border-r border-black p-1">kg</td>
-                        <td className="border-r border-black p-1">{poBags || ""}</td>
-                        <td className="border-r border-black p-1">{calcs?.netQuantity ? (calcs.netQuantity / 10).toFixed(2) : ""}</td>
-                        <td className="border-r border-black p-1">{calcs?.rate ? calcs.rate.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : ""}</td>
-                        <td className="border-r border-black p-1">{gstPercent > 0 ? `${gstPercent}%` : ""}</td>
-                        <td className="p-1">{calcs?.subtotal ? `₹ ${calcs.subtotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : ""}</td>
-                      </tr>
-                      {/* Empty spacer row mimicking image */}
-                      <tr className="h-2 border-b-[1.5px] border-black">
-                        <td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td></td>
-                      </tr>
-                      <tr className="border-b border-black">
-                        <td colSpan={9} className="border-r border-black font-bold p-0.5">Total</td>
-                        <td className="p-0.5">₹ {calcs?.subtotal.toLocaleString("en-IN", { minimumFractionDigits: 2 }) || "0.00"}</td>
-                      </tr>
-                    </>
-                  )}
-                  {gstPercent > 0 && (
-                    <tr className="border-b border-black">
-                      <td colSpan={9} className="border-r border-black font-bold p-0.5">GST ({gstPercent}%)</td>
-                      <td className="p-0.5">₹ {calcs?.gstAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 }) || "0.00"}</td>
-                    </tr>
-                  )}
-                  <tr className="border-b-[1.5px] border-black">
-                    <td colSpan={9} className="border-r border-black font-bold text-right p-0.5">Amount Total</td>
-                    <td className="p-0.5 font-bold">₹ {calcs?.subtotalWithGst.toLocaleString("en-IN", { minimumFractionDigits: 2 }) || "0.00"}</td>
-                  </tr>
-                  {calcs && (calcs.totalAdditions > 0 || calcs.totalDeductions > 0) && (
-                    <>
-                      {calcs.totalAdditions > 0 && (
-                        <tr className="border-b-[1.5px] border-black text-green-700">
-                          <td colSpan={9} className="border-r border-black text-right p-0.5">Additions (+)</td>
-                          <td className="p-0.5">₹ {calcs.totalAdditions.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                        </tr>
-                      )}
-                      {calcs.totalDeductions > 0 && (
-                        <tr className="border-b-[1.5px] border-black text-red-700">
-                          <td colSpan={9} className="border-r border-black text-right p-0.5">Deductions (-)</td>
-                          <td className="p-0.5">₹ {calcs.totalDeductions.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                        </tr>
-                      )}
-                    </>
-                  )}
-                  <tr className="border-b-[1.5px] border-black">
-                    <td colSpan={9} className="border-r border-black text-right p-0.5">Round Off(±)</td>
-                    <td className="p-0.5">₹ -</td>
-                  </tr>
-                  <tr className="border-b-[1.5px] border-black bg-slate-50/20">
-                    <td colSpan={9} className="border-r border-black font-bold text-right p-1 px-2 text-[11px]">Final Amount</td>
-                    <td className="p-1 font-bold text-[11px]">₹ {calcs?.finalTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 }) || "0.00"}</td>
-                  </tr>
-                </tbody>
-              </table>
-
-              {/* Terms & Conditions */}
-              <div className="p-1.5 pb-2 text-[9px] sm:text-[10px]">
-                <p className="font-bold mb-0.5">Terms & Conditions :</p>
-                <p className="mb-1.5 leading-tight uppercase">THE INSTRUMENT CONTAINS ALL THE TERMS AND CONDITIONS WITH RESPECT TO PURCHASE OF THE MATERIAL OR SERVICES NAMED HEREIN.<br/>NO MODIFICATION OR AMENDMENT TO SHALL HAVE ANY FORCE OR EFFECT UNLESS CONFIRMED BY BUYERS IN WRITING.</p>
+            <div className="po-grid-border flex flex-col min-h-[268mm] justify-between">
+              <div>
                 
-                {/* Deductions Table */}
-                <table className="w-[65%] border-collapse border border-black mb-2 font-semibold">
+                {/* 1. LOGO & HEADER ROW */}
+                <div className="flex po-cell-border-b h-14 items-center">
+                  <div className="w-[20%] po-cell-border-r h-full flex items-center justify-center p-1">
+                    {/* LOGO BOX */}
+                    <div className="font-serif font-black italic text-base tracking-wide border-2 border-black p-1 text-center leading-none uppercase">
+                      LOGO
+                    </div>
+                  </div>
+                  <div className="w-[60%] text-center">
+                    <h1 className="text-lg font-black tracking-widest uppercase">PURCHASE ORDER</h1>
+                    <h2 className="text-sm font-bold uppercase">{billing.name || "XYZ Pvt Ltd"}</h2>
+                  </div>
+                  <div className="w-[20%] h-full"></div>
+                </div>
+
+                {/* 2. VENDOR & METADATA GRID */}
+                <div className="flex po-cell-border-b">
+                  
+                  {/* Left Column: Vendor Address block */}
+                  <div className="w-1/2 po-cell-border-r p-2 space-y-1">
+                    <p className="font-bold underline uppercase text-[10px] text-slate-700">Vender:</p>
+                    <p className="font-black text-xs uppercase">{vendor.name || "ABC PVT LTD"}</p>
+                    <p className="uppercase leading-tight text-[10px] whitespace-pre-wrap font-medium">{vendor.address || "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}</p>
+                    <div className="pt-0.5 space-y-0.5 text-[10px]">
+                      <p><span className="font-bold">GST/PAN No.:</span> {vendor.gstNo || "xxxxxxxxxxxxx"}</p>
+                      <p><span className="font-bold">Mobile no.:</span> {vendor.mobile || "xxxxxxxxxxx"}</p>
+                      <p><span className="font-bold">Email Id:</span> {vendor.email || "xxxxxxxxxxx"}</p>
+                    </div>
+                  </div>
+
+                  {/* Right Column: PO info & Payment/Delivery */}
+                  <div className="w-1/2 flex flex-col">
+                    <div className="flex po-cell-border-b h-7">
+                      <div className="w-[65%] po-cell-border-r p-1.5 flex items-center font-bold">
+                        P.O. No.: <span className="font-black text-slate-800 ml-1 font-mono">{poNumber || "PO/JK/25-26-01"}</span>
+                      </div>
+                      <div className="w-[35%] p-1.5 flex items-center">
+                        Dated: <span className="ml-1 font-bold">{poDate}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="p-2 space-y-1 flex-1 flex flex-col justify-center text-[10px]">
+                      <p><span className="font-bold">Payment Terms:</span> {paymentTerms}</p>
+                      <p><span className="font-bold">DELIVERY:</span> {deliveryTerms || "-"}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. BILLING & DELIVERY ADDRESS ROW */}
+                <div className="flex po-cell-border-b h-24">
+                  {/* Billing Address */}
+                  <div className="w-1/2 po-cell-border-r p-2 space-y-0.5">
+                    <p className="font-bold underline text-[10px] text-slate-700">Billing Address:</p>
+                    <p className="font-bold uppercase text-[10px]">{billing.name || "XYZ PVT LTD"}</p>
+                    <p className="uppercase leading-none text-[9.5px] whitespace-pre-wrap font-medium">{billing.address || "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}</p>
+                    <div className="text-[9.5px] pt-1 font-medium text-slate-700">
+                      <p><span className="font-semibold">GST/PAN:</span> {billing.gstNo || "xxxxxxxxxxxxx"}</p>
+                      <p><span className="font-semibold">Mobile:</span> {billing.mobile || "xxxxxxxxxxx"}</p>
+                      <p><span className="font-semibold">Email:</span> {billing.email || "xxxxxxxxxxx"}</p>
+                    </div>
+                  </div>
+                  
+                  {/* Delivery Address */}
+                  <div className="w-1/2 p-2 space-y-0.5">
+                    <p className="font-bold underline text-[10px] text-slate-700">Delivery Address:</p>
+                    <p className="font-bold uppercase text-[10px]">{delivery.name || "XYZ PVT LTD"}</p>
+                    <p className="uppercase leading-none text-[9.5px] whitespace-pre-wrap font-medium">{delivery.address || "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}</p>
+                    <div className="text-[9.5px] pt-1 font-medium text-slate-700">
+                      <p><span className="font-semibold">GST/PAN:</span> {delivery.gstNo || "xxxxxxxxxxxxx"}</p>
+                      <p><span className="font-semibold">Mobile:</span> {delivery.mobile || "xxxxxxxxxxx"}</p>
+                      <p><span className="font-semibold">Email:</span> {delivery.email || "xxxxxxxxxxx"}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. ITEMS TABLE */}
+                <table className="w-full text-center border-collapse">
+                  <thead>
+                    <tr className="po-cell-border-b font-bold bg-slate-50 text-[10px]">
+                      <th className="po-table-cell-border p-1 w-[6%]">Sr. No.</th>
+                      <th className="po-table-cell-border p-1 w-[40%] text-left px-2">Farmer Name & Code</th>
+                      <th className="po-table-cell-border p-1 w-[18%]">Description</th>
+                      <th className="po-table-cell-border p-1 w-[8%]">Packing</th>
+                      <th className="po-table-cell-border p-1 w-[10%]">No. of Bag</th>
+                      <th className="po-table-cell-border p-1 w-[10%]">Quantity (Qtl.)</th>
+                      <th className="po-table-cell-border p-1 w-[12%] text-right pr-2">Rate</th>
+                      <th className="p-1 w-[14%] text-right pr-2">Amount</th>
+                    </tr>
+                  </thead>
                   <tbody>
-                    {items.map((item, i) => (
-                      <tr key={i}>
-                        <td className="border border-black p-0.5 px-1">{item.description}:</td>
-                        <td className="border border-black p-0.5 px-1 w-1/3">
-                          {item.value ? (
-                            item.calcType === 'PERCENTAGE' ? `${item.value.toFixed(2)}%` : 
-                            item.calcType === 'PER_QTL' ? (item.description.includes('DANA') ? `${item.value}g` : `₹${item.value}/Qtl`) : 
-                            `₹${item.value}`
-                          ) : ""}
-                        </td>
-                      </tr>
-                    ))}
-                    <tr>
-                      <td colSpan={2} className="border border-black p-0.5 text-center font-bold">
-                        Packed in {packingSize || 50} Kg New PP Bag
+                    {/* Rows */}
+                    {calcs.activeSlips.map((item: any, idx: number) => {
+                      const qty = item.netQuantity || 0;
+                      const rate = (calcs.activeSlips.length === 1 && manualRate !== "") ? Number(manualRate) : (item.rate || 0);
+                      const displayQty = (calcs.activeSlips.length === 1 && manualNetQty !== "") ? Number(manualNetQty) : qty;
+                      const displayBags = (calcs.activeSlips.length === 1 && poBags > 0) ? poBags : (item.bags || 0);
+                      
+                      const amount = displayQty * rate;
+                      
+                      return (
+                        <tr key={item.slipId} className="text-[10px]">
+                          <td className="po-table-cell-border p-1">{idx + 1}</td>
+                          <td className="po-table-cell-border p-1 text-left px-2">
+                            <span className="font-bold">{item.farmerName || item.farmer?.name || "Unknown Farmer"}</span>
+                            <span className="block text-[9px] text-slate-500 font-medium">Code:{item.farmerCode || "—"}</span>
+                          </td>
+                          <td className="po-table-cell-border p-1 uppercase text-slate-700">
+                            {idx === 0 && manualCrop ? manualCrop : item.crop} {idx === 0 && manualVariety ? manualVariety : item.variety}
+                          </td>
+                          <td className="po-table-cell-border p-1">{packingSize} kg</td>
+                          <td className="po-table-cell-border p-1 font-mono">{displayBags.toFixed(2)}</td>
+                          <td className="po-table-cell-border p-1 font-mono">{displayQty.toFixed(2)}</td>
+                          <td className="po-table-cell-border p-1 text-right pr-2 font-mono">
+                            {rate.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="border-b border-black p-1 text-right pr-2 font-mono font-semibold">
+                            ₹{amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                      );
+                    })}
+
+                    {/* Dummy blank spacer row matching the image template */}
+                    <tr className="h-5">
+                      <td className="po-table-cell-border"></td>
+                      <td className="po-table-cell-border"></td>
+                      <td className="po-table-cell-border"></td>
+                      <td className="po-table-cell-border"></td>
+                      <td className="po-table-cell-border"></td>
+                      <td className="po-table-cell-border"></td>
+                      <td className="po-table-cell-border"></td>
+                      <td className="border-b border-black"></td>
+                    </tr>
+
+                    {/* Table Totals Row */}
+                    <tr className="font-bold text-[10px] bg-slate-50/30 po-cell-border-b">
+                      <td colSpan={4} className="po-table-cell-border p-1 font-bold text-center">Total</td>
+                      <td className="po-table-cell-border p-1 font-mono">{calcs.totalBags.toFixed(2)}</td>
+                      <td className="po-table-cell-border p-1 font-mono">{calcs.totalQty.toFixed(2)}</td>
+                      <td className="po-table-cell-border p-1"></td>
+                      <td className="p-1 text-right pr-2 font-mono font-bold">
+                        ₹{calcs.subtotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </td>
                     </tr>
+
+                    {/* 5. TAXES & CALCULATIONS (Tucked to bottom right) */}
+                    <tr className="text-[10px]">
+                      <td colSpan={4} className="border-r border-black align-top p-2 text-left">
+                        {/* Empty spacing box */}
+                      </td>
+                      <td colSpan={3} className="po-table-cell-border p-1 text-right font-semibold pr-2">
+                        Mandi Tax/Qtl. ({rates.mandiTaxPercent}%)
+                      </td>
+                      <td className="border-b border-black p-1 text-right pr-2 font-mono">
+                        ₹{calcs.mandiTax.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+
+                    <tr className="text-[10px]">
+                      <td colSpan={4} className="border-r border-black align-top p-2 text-left"></td>
+                      <td colSpan={3} className="po-table-cell-border p-1 text-right font-semibold pr-2">
+                        Hammali/Bag (₹{rates.hammaliRate})
+                      </td>
+                      <td className="border-b border-black p-1 text-right pr-2 font-mono">
+                        ₹{calcs.hammali.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+
+                    <tr className="text-[10px]">
+                      <td colSpan={4} className="border-r border-black align-top p-2 text-left"></td>
+                      <td colSpan={3} className="po-table-cell-border p-1 text-right font-semibold pr-2">
+                        Commission/Qtl. ({rates.commissionPercent}%)
+                      </td>
+                      <td className="border-b border-black p-1 text-right pr-2 font-mono">
+                        ₹{calcs.commission.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+
+                    <tr className="text-[10px]">
+                      <td colSpan={4} className="border-r border-black align-top p-2 text-left"></td>
+                      <td colSpan={3} className="po-table-cell-border p-1 text-right font-semibold pr-2">
+                        Sutli/Bag (₹{rates.sutliRate})
+                      </td>
+                      <td className="border-b border-black p-1 text-right pr-2 font-mono">
+                        ₹{calcs.sutli.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+
+                    <tr className="text-[10px]">
+                      <td colSpan={4} className="border-r border-black align-top p-2 text-left"></td>
+                      <td colSpan={3} className="po-table-cell-border p-1 text-right font-semibold pr-2">
+                        Other Expenses
+                      </td>
+                      <td className="border-b border-black p-1 text-right pr-2 font-mono">
+                        {calcs.otherExpenses > 0 ? `₹${calcs.otherExpenses.toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : "-"}
+                      </td>
+                    </tr>
+
+                    <tr className="text-[10px]">
+                      <td colSpan={4} className="border-r border-black align-top p-2 text-left"></td>
+                      <td colSpan={3} className="po-table-cell-border p-1 text-right font-semibold pr-2">
+                        Bonus/Qtl (₹{rates.bonusRate})
+                      </td>
+                      <td className="border-b border-black p-1 text-right pr-2 font-mono">
+                        ₹{calcs.bonus.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+
+                    <tr className="text-[10px]">
+                      <td colSpan={4} className="border-r border-black align-top p-2 text-left"></td>
+                      <td colSpan={3} className="po-table-cell-border p-1 text-right font-semibold pr-2">
+                        Freight/Qtl (₹{rates.freightRate})
+                      </td>
+                      <td className="border-b border-black p-1 text-right pr-2 font-mono">
+                        ₹{calcs.freight.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+
+                    <tr className="text-[10px]">
+                      <td colSpan={4} className="border-r border-black align-top p-2 text-left"></td>
+                      <td colSpan={3} className="po-table-cell-border p-1 text-right font-semibold pr-2">
+                        Round Off(±)
+                      </td>
+                      <td className="border-b border-black p-1 text-right pr-2 font-mono">
+                        ₹{calcs.roundOff.toFixed(2)}
+                      </td>
+                    </tr>
+
+                    <tr className="font-bold text-[10.5px] bg-slate-50/40">
+                      <td colSpan={4} className="border-r border-black align-top p-2 text-left"></td>
+                      <td colSpan={3} className="po-table-cell-border p-1.5 text-right font-bold pr-2">
+                        Final Amount
+                      </td>
+                      <td className="border-b border-black p-1.5 text-right pr-2 font-mono font-black text-xs">
+                        ₹{calcs.finalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+
                   </tbody>
                 </table>
-
-                {/* Sensorial characteristics */}
-                <p className="font-bold mb-1">Physical and sensorial characteristics:</p>
-                <table className="w-full border-collapse border border-black mb-2 text-left">
-                  <tbody>
-                    <tr className="font-bold text-center">
-                      <td className="border border-black p-0.5 w-1/4">Parameter</td>
-                      <td className="border border-black p-0.5 w-1/4">Value</td>
-                      <td className="border border-black p-0.5 w-1/4">Parameter</td>
-                      <td className="border border-black p-0.5 w-1/4">Value</td>
-                    </tr>
-                    <tr>
-                      <td className="border border-black p-0.5 px-1">Moisture</td>
-                      <td className="border border-black p-0.5 px-1">{params.moisture}</td>
-                      <td className="border border-black p-0.5 px-1">Paddy Grain Pieces/kg</td>
-                      <td className="border border-black p-0.5 px-1">{params.paddyGrain}</td>
-                    </tr>
-                    <tr>
-                      <td className="border border-black p-0.5 px-1">Broken</td>
-                      <td className="border border-black p-0.5 px-1">{params.broken}</td>
-                      <td className="border border-black p-0.5 px-1">Whiteness</td>
-                      <td className="border border-black p-0.5 px-1">{params.whiteness}</td>
-                    </tr>
-                    <tr>
-                      <td className="border border-black p-0.5 px-1">Damaged, Discolour</td>
-                      <td className="border border-black p-0.5 px-1">{params.damaged}</td>
-                      <td className="border border-black p-0.5 px-1">Foreign Matter/Other Seed</td>
-                      <td className="border border-black p-0.5 px-1">{params.foreignMatter}</td>
-                    </tr>
-                    <tr>
-                      <td className="border border-black p-0.5 px-1">Immature Grains</td>
-                      <td className="border border-black p-0.5 px-1">{params.immature}</td>
-                      <td className="border border-black p-0.5 px-1">Ferrous, Non-Ferrous/ Glass/Stone</td>
-                      <td className="border border-black p-0.5 px-1">{params.ferrous}</td>
-                    </tr>
-                    <tr>
-                      <td className="border border-black p-0.5 px-1">Chalky Grain</td>
-                      <td className="border border-black p-0.5 px-1">{params.chalky}</td>
-                      <td className="border border-black p-0.5 px-1">Bad Smell</td>
-                      <td className="border border-black p-0.5 px-1">{params.badSmell}</td>
-                    </tr>
-                    <tr>
-                      <td className="border border-black p-0.5 px-1">Green Grain</td>
-                      <td className="border border-black p-0.5 px-1">{params.green}</td>
-                      <td className="border border-black p-0.5 px-1">Material Appearance</td>
-                      <td className="border border-black p-0.5 px-1">{params.materialAppearance}</td>
-                    </tr>
-                    <tr>
-                      <td className="border border-black p-0.5 px-1">Red Grain</td>
-                      <td className="border border-black p-0.5 px-1">{params.red}</td>
-                      <td className="border border-black p-0.5 px-1">Infestation Live/dead</td>
-                      <td className="border border-black p-0.5 px-1">{params.infestation}</td>
-                    </tr>
-                    <tr>
-                      <td className="border border-black p-0.5 px-1">Avg. Grain Length (Minimum)</td>
-                      <td className="border border-black p-0.5 px-1">{params.avgLength}</td>
-                      <td className="border border-black p-0.5 px-1">Purity (Minimum)</td>
-                      <td className="border border-black p-0.5 px-1">{params.purity}</td>
-                    </tr>
-                    <tr>
-                      <td className="border border-black p-0.5 px-1">Admixture/Other Grains (Field)</td>
-                      <td className="border border-black p-0.5 px-1">{params.admixture}</td>
-                      <td className="border border-black p-0.5 px-1"></td>
-                      <td className="border border-black p-0.5 px-1"></td>
-                    </tr>
-                    <tr className="!bg-yellow-300 font-bold print:bg-yellow-300" style={{ backgroundColor: '#fde047', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
-                      <td className="border border-black p-0.5 px-1">Aflatoxin</td>
-                      <td className="border border-black p-0.5 px-1">{params.aflatoxin}</td>
-                      <td className="border border-black p-0.5 px-1">Ochratoxin</td>
-                      <td className="border border-black p-0.5 px-1">{params.ochratoxin}</td>
-                    </tr>
-                  </tbody>
-                </table>
-
-                <p className="font-bold mb-1">REMARKS: <span className="font-normal">Pesticide pass condition, no tolerance limit accepted</span></p>
-                <p className="text-red-600 font-bold mb-2">If the initial sample fails to meet specified standards, the costs of all subsequent sampling, inspection, and testing shall be deducted from the Vendor's invoice.</p>
               </div>
 
-              {/* Footer Signature Block */}
-              <div className="flex justify-between p-1.5 border-t-[1.5px] border-black mt-auto bg-white">
-                <div className="w-[60%] text-[7px] text-justify space-y-0.5 pr-4">
-                  <p className="font-bold uppercase">SANCTIONS COMPLIANCE</p>
-                  <p>The Buyer has adopted a procedure, which can be consulted on the website www.sharsid.com, by which it has undertaken to comply with the laws on Sanctions imposed by national and international Governments and Bodies, applicable to its business activities, therefore the Seller is required, during the performance of this purchase contract, to undertake to comply with all applicable laws and regulations on economic and trade Sanctions imposed by any relevant governmental authority, including, but not limited to, Sanctions imposed by the United States, the European Union, the United Kingdom, the United Nations and any other relevant Governmental Body.</p>
-                  <p>In the event of any violation of Sanction laws or subjection to Sanctions, the Buyer shall have the right to immediately terminate this purchase contract without any additional liability, without prejudice to the right to claim damages.</p>
+              {/* 6. BOTTOM ROW: TOTAL IN WORDS, T&C & SIGNATORY */}
+              <div className="po-cell-border-t">
+                
+                {/* Total amount in words block */}
+                <div className="p-2 po-cell-border-b text-[10px]">
+                  <span className="font-bold">Total amount in words:</span> <span className="font-semibold uppercase text-slate-800 ml-1">{numberToWords(calcs.finalAmount)}</span>
                 </div>
-                <div className="w-[40%] flex flex-col items-center justify-end pb-1 relative">
-                  {/* Stamp */}
-                  <div className="absolute top-0 right-10 w-20 h-20 border-2 border-blue-800 rounded-full flex flex-col items-center justify-center opacity-40 rotate-[-15deg] pointer-events-none">
-                    <span className="text-blue-800 font-bold text-[7px] text-center uppercase">{companyName || "SHARSID"}</span>
-                    <span className="text-blue-800 font-bold text-[7px] text-center uppercase">PVT LTD</span>
+
+                <div className="flex min-h-24">
+                  {/* Left Side: Terms and Conditions */}
+                  <div className="w-[65%] po-cell-border-r p-2 space-y-1 text-[9.5px]">
+                    <p className="font-bold text-slate-700">Terms & Conditions :</p>
+                    <p className="uppercase leading-normal font-medium text-slate-600 whitespace-pre-wrap">{termsAndConditions}</p>
                   </div>
-                  <p className="font-bold uppercase text-[9px] mt-16 relative z-10">FOR {companyName || "SHARSID OVERSEAS PVT LTD"}</p>
+                  
+                  {/* Right Side: Signatory Box */}
+                  <div className="w-[35%] flex flex-col justify-between items-center p-2">
+                    <p className="font-bold text-[10px] text-center">For {authorizedSignatory || "XYZ Pvt Ltd"}.</p>
+                    <p className="font-bold text-[10.5px] text-slate-800 underline uppercase tracking-wide">Authorized Signatory</p>
+                  </div>
+                </div>
+
+                {/* Computer generated disclaimer */}
+                <div className="p-1 border-t-[1px] border-black text-center text-[8.5px] font-semibold text-slate-500 tracking-wider">
+                  This is Computer Generated Invoice
                 </div>
               </div>
+
             </div>
           </div>
-
-
-          
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-slate-400 p-8 h-full">
-            <FileText size={48} className="mb-4 opacity-50" />
-            <p>Enter a Slip ID on the left to start generating the PO document.</p>
+          <div className="flex-1 flex flex-col items-center justify-center text-slate-400 p-8 h-full bg-white max-w-[210mm] w-full mx-auto rounded-xl">
+            <FileText size={48} className="mb-4 opacity-30 text-forest-700" />
+            <p className="font-semibold text-slate-700 text-sm">Select an Adhatiya or Fetch a Slip ID to begin</p>
+            <p className="text-xs text-slate-500 text-center max-w-sm mt-1">
+              Select an agent from the database to load their vendor coordinates and check matching procurements.
+            </p>
           </div>
         )}
       </div>
 
-      {/* MOBILE STICKY ACTION BAR - GLOBAL */}
-      {poData && (
+      {/* MOBILE STICKY ACTION BAR */}
+      {(calcs.activeSlips.length > 0 || originalProcurement) && (
         <div className="xl:hidden fixed bottom-[52px] left-0 right-0 p-4 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-[0_-4px_10px_-1px_rgba(0,0,0,0.1)] z-50 flex justify-between gap-3 print:hidden">
-          <button onClick={handlePrint} className="flex-1 justify-center px-4 py-3 rounded-xl border border-slate-300 text-slate-700 font-semibold flex items-center justify-center gap-2 hover:bg-slate-100 active:bg-slate-200 transition-all bg-white shadow-sm">
+          <button 
+            onClick={handlePrint} 
+            className="flex-1 justify-center px-4 py-3 rounded-xl border border-slate-300 text-slate-700 font-semibold flex items-center justify-center gap-2 hover:bg-slate-100 transition-all bg-white shadow-sm"
+          >
             <Printer size={18} /> Print PO
           </button>
-          <button onClick={handleSave} disabled={saving} className="flex-1 justify-center px-4 py-3 bg-forest-600 text-white font-semibold rounded-xl hover:bg-forest-700 active:bg-forest-800 transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-md">
+          <button 
+            onClick={handleSave} 
+            disabled={saving} 
+            className="flex-1 justify-center px-4 py-3 bg-forest-800 text-white font-semibold rounded-xl hover:bg-forest-700 active:bg-forest-900 transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-md"
+          >
             {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />} 
             {saving ? "Saving..." : "Save PO"}
           </button>
         </div>
       )}
+
+      {/* MODAL 1: DATABASE MANAGER FOR ADHATIYAS */}
+      {showCrudModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowCrudModal(false)} />
+          <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl p-6 overflow-hidden max-h-[85vh] flex flex-col justify-between">
+            <div>
+              <div className="flex justify-between items-center border-b pb-3 mb-4">
+                <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                  <Users size={18} className="text-forest-700" />
+                  Manage Adhatiyas Database
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCrudName("");
+                    setCrudAddress("");
+                    setCrudVillage("");
+                    setCrudBlock("");
+                    setCrudPinCode("");
+                    setCrudState("");
+                    setCrudDistrict("");
+                    setCrudMandi("");
+                    setStateSearch("");
+                    setDistrictSearch("");
+                    setMandiSearch("");
+                    setCrudGst("");
+                    setCrudMobile("");
+                    setCrudEmail("");
+                    setEditingAdhatiyaId(null);
+                    setShowAddModal(true);
+                  }}
+                  className="px-3 py-1.5 bg-forest-700 text-white text-xs font-bold rounded-xl hover:bg-forest-800 flex items-center gap-1"
+                >
+                  <Plus size={14} />
+                  Add New
+                </button>
+              </div>
+
+              {/* List of current Adhatiyas */}
+              <div className="overflow-y-auto max-h-[50vh] pr-1 space-y-2">
+                {dbAdhatiyas.length === 0 ? (
+                  <p className="text-center text-xs text-slate-400 py-8">No Adhatiyas in database. Create one now!</p>
+                ) : (
+                  dbAdhatiyas.map((ad) => (
+                    <div key={ad.id} className="p-3 border border-slate-100 rounded-2xl flex items-start justify-between bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                      <div className="text-xs space-y-0.5">
+                        <p className="font-bold text-slate-800 text-sm">{ad.name}</p>
+                        <p className="text-slate-500">
+                          {[
+                            ad.address,
+                            [ad.village, ad.block].filter(Boolean).join(", "),
+                            [ad.district, ad.state].filter(Boolean).join(", ") + (ad.pinCode ? ` - ${ad.pinCode}` : ""),
+                            ad.mandi ? `Mandi: ${ad.mandi}` : ""
+                          ].filter(Boolean).join(", ")}
+                        </p>
+                        <p className="text-[10px] text-slate-400 font-mono">
+                          GST: {ad.gstNo || "—"} • Mob: {ad.mobile || "—"} • Email: {ad.email || "—"}
+                        </p>
+                      </div>
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingAdhatiyaId(ad.id);
+                            setCrudName(ad.name);
+                            setCrudAddress(ad.address || "");
+                            setCrudVillage(ad.village || "");
+                            setCrudBlock(ad.block || "");
+                            setCrudPinCode(ad.pinCode || "");
+                            setCrudState(ad.state || "");
+                            setCrudDistrict(ad.district || "");
+                            setCrudMandi(ad.mandi || "");
+                            setStateSearch(ad.state || "");
+                            setDistrictSearch(ad.district || "");
+                            setMandiSearch(ad.mandi || "");
+                            setCrudGst(ad.gstNo || "");
+                            setCrudMobile(ad.mobile || "");
+                            setCrudEmail(ad.email || "");
+                            setShowAddModal(true);
+                          }}
+                          className="p-1 text-slate-500 hover:text-blue-600 hover:bg-white rounded"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteAdhatiya(ad.id)}
+                          className="p-1 text-slate-400 hover:text-red-600 hover:bg-white rounded"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="border-t pt-4 mt-4 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowCrudModal(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl"
+              >
+                Close Manager
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: ADD / EDIT ADHATIYA FORM */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowAddModal(false)} />
+          <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl p-6 overflow-y-auto max-h-[90vh]">
+            <h3 className="text-sm font-bold text-slate-800 border-b pb-3 mb-4 uppercase tracking-wider">
+              {editingAdhatiyaId ? "Edit Adhatiya Details" : "Create New Adhatiya Record"}
+            </h3>
+            
+            <form onSubmit={handleSaveAdhatiya} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Adhatiya Name*</label>
+                <input 
+                  type="text" 
+                  required
+                  value={crudName} 
+                  onChange={(e) => setCrudName(e.target.value)} 
+                  className="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                  placeholder="e.g. ABC Pvt Ltd"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Address (Street / House No.)*</label>
+                <input 
+                  type="text" 
+                  required
+                  value={crudAddress} 
+                  onChange={(e) => setCrudAddress(e.target.value)} 
+                  className="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                  placeholder="e.g. Near Mandi Road"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Village*</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={crudVillage} 
+                    onChange={(e) => setCrudVillage(e.target.value)} 
+                    className="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                    placeholder="Village Name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Block*</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={crudBlock} 
+                    onChange={(e) => setCrudBlock(e.target.value)} 
+                    className="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                    placeholder="Block / Taluka"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Pin Code</label>
+                <input 
+                  type="text" 
+                  value={crudPinCode} 
+                  onChange={(e) => setCrudPinCode(e.target.value)} 
+                  className="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                  placeholder="6-digit pin code"
+                  maxLength={6}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="relative combobox-state">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">State Search*</label>
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
+                    <input
+                      value={stateSearch}
+                      onChange={(e) => {
+                        setStateSearch(e.target.value);
+                        setShowStateDropdown(true);
+                      }}
+                      onFocus={() => {
+                        setStateSearch(crudState);
+                        setShowStateDropdown(true);
+                      }}
+                      placeholder="Search State..."
+                      className="w-full pl-7 pr-7 py-2 border rounded-xl focus:ring-2 focus:ring-forest-500/20 focus:outline-none"
+                    />
+                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={13} />
+                  </div>
+                  {showStateDropdown && (
+                    <div className="absolute z-[70] w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden">
+                      <div className="max-h-36 overflow-y-auto p-1">
+                        {filteredStates.length > 0 ? (
+                          filteredStates.map((s) => (
+                            <div
+                              key={s}
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                setCrudState(s);
+                                setStateSearch(s);
+                                setCrudDistrict("");
+                                setDistrictSearch("");
+                                setCrudMandi("");
+                                setMandiSearch("");
+                                setShowStateDropdown(false);
+                              }}
+                              className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer transition-colors text-[11px] ${crudState === s ? 'bg-forest-50 text-forest-700 font-semibold' : 'text-slate-700 hover:bg-slate-100'}`}
+                            >
+                              <span className="truncate pr-1">{s}</span>
+                              {crudState === s && <Check size={12} />}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="px-3 py-2 text-[10px] text-slate-500 text-center">No states</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="relative combobox-district">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">District Search*</label>
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
+                    <input
+                      value={districtSearch}
+                      onChange={(e) => {
+                        setDistrictSearch(e.target.value);
+                        setShowDistrictDropdown(true);
+                      }}
+                      onFocus={() => {
+                        setDistrictSearch(crudDistrict);
+                        setShowDistrictDropdown(true);
+                      }}
+                      disabled={!crudState}
+                      placeholder={crudState ? "Search District..." : "Select State"}
+                      className="w-full pl-7 pr-7 py-2 border rounded-xl focus:ring-2 focus:ring-forest-500/20 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={13} />
+                  </div>
+                  {showDistrictDropdown && (
+                    <div className="absolute z-[70] w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden">
+                      <div className="max-h-36 overflow-y-auto p-1">
+                        {filteredDistricts.length > 0 ? (
+                          filteredDistricts.map((d) => (
+                            <div
+                              key={d}
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                setCrudDistrict(d);
+                                setDistrictSearch(d);
+                                setCrudMandi("");
+                                setMandiSearch("");
+                                setShowDistrictDropdown(false);
+                              }}
+                              className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer transition-colors text-[11px] ${crudDistrict === d ? 'bg-forest-50 text-forest-700 font-semibold' : 'text-slate-700 hover:bg-slate-100'}`}
+                            >
+                              <span className="truncate pr-1">{d}</span>
+                              {crudDistrict === d && <Check size={12} />}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="px-3 py-2 text-[10px] text-slate-500 text-center">No districts</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="relative combobox-mandi">
+                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Mandi Search*</label>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
+                  <input
+                    value={mandiSearch}
+                    onChange={(e) => {
+                      setMandiSearch(e.target.value);
+                      setShowMandiDropdown(true);
+                    }}
+                    onFocus={() => {
+                      setMandiSearch(crudMandi);
+                      setShowMandiDropdown(true);
+                    }}
+                    disabled={!crudDistrict}
+                    placeholder={crudDistrict ? "Search Mandi..." : "Select District"}
+                    className="w-full pl-7 pr-7 py-2 border rounded-xl focus:ring-2 focus:ring-forest-500/20 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                  />
+                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={13} />
+                </div>
+                {showMandiDropdown && (
+                  <div className="absolute z-[70] w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden">
+                    <div className="max-h-36 overflow-y-auto p-1">
+                      {filteredMandis.length > 0 ? (
+                        filteredMandis.map((m) => (
+                          <div
+                            key={m.mandiName}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              setCrudMandi(m.mandiName);
+                              setMandiSearch(m.mandiName);
+                              setShowMandiDropdown(false);
+                            }}
+                            className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer transition-colors text-[11px] ${crudMandi === m.mandiName ? 'bg-forest-50 text-forest-700 font-semibold' : 'text-slate-700 hover:bg-slate-100'}`}
+                          >
+                            <div className="flex flex-col">
+                              <span>{m.mandiName}</span>
+                              <span className="text-[9px] text-slate-400 font-medium">{m.district}, {m.state}</span>
+                            </div>
+                            {crudMandi === m.mandiName && <Check size={12} />}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="px-3 py-2 text-[10px] text-slate-500 text-center">No mandis</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">GST/PAN No.</label>
+                <input 
+                  type="text" 
+                  value={crudGst} 
+                  onChange={(e) => setCrudGst(e.target.value)} 
+                  className="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                  placeholder="e.g. 06AAGCA3319R1ZD"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Mobile No.</label>
+                  <input 
+                    type="text" 
+                    value={crudMobile} 
+                    onChange={(e) => setCrudMobile(e.target.value)} 
+                    className="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                    placeholder="e.g. 9876543210"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Email Id</label>
+                  <input 
+                    type="email" 
+                    value={crudEmail} 
+                    onChange={(e) => setCrudEmail(e.target.value)} 
+                    className="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                    placeholder="e.g. contact@agent.com"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-3 justify-end text-xs border-t mt-3">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-forest-700 text-white font-bold rounded-xl hover:bg-forest-800"
+                >
+                  Save Record
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

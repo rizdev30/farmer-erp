@@ -144,14 +144,13 @@ export async function getApprovedProcurementsByAdhatiya(adhatiyaName: string) {
 
   const procurements = await prisma.procurement.findMany({
     where: {
-      agentName: {
+      adtiyaName: {
         contains: adhatiyaName,
         mode: "insensitive"
       },
       status: {
         in: ["APPROVED", "PENDING_L3"] // Approved by L2 (PENDING_L3) or fully APPROVED
       },
-      // If L3 PO MAKER is assigned specific states/users, we should ideally filter, but for now simple search works
     },
     include: {
       farmer: true
@@ -164,3 +163,108 @@ export async function getApprovedProcurementsByAdhatiya(adhatiyaName: string) {
 
   return procurements;
 }
+
+export async function getAdhatiyas(query?: string) {
+  const user = await getSessionUser();
+  if (!user.roles.includes("L3_PO_MAKER") && !user.roles.includes("L4_ADMIN") && !user.isSuperAdmin) {
+    throw new Error("Unauthorized");
+  }
+
+  if (!query) {
+    return await prisma.adhatiya.findMany({
+      orderBy: { name: "asc" }
+    });
+  }
+
+  return await prisma.adhatiya.findMany({
+    where: {
+      name: {
+        contains: query,
+        mode: "insensitive"
+      }
+    },
+    orderBy: { name: "asc" }
+  });
+}
+
+export async function saveAdhatiya(data: { 
+  id?: number; 
+  name: string; 
+  address?: string; 
+  village?: string;
+  block?: string;
+  pinCode?: string;
+  state?: string;
+  district?: string;
+  mandi?: string;
+  gstNo?: string; 
+  mobile?: string; 
+  email?: string;
+}) {
+  const user = await getSessionUser();
+  if (!user.roles.includes("L3_PO_MAKER") && !user.roles.includes("L4_ADMIN") && !user.isSuperAdmin) {
+    throw new Error("Unauthorized");
+  }
+
+  const { id, name, address, village, block, pinCode, state, district, mandi, gstNo, mobile, email } = data;
+
+  if (id) {
+    const updated = await prisma.adhatiya.update({
+      where: { id },
+      data: {
+        name,
+        address: address || "",
+        village: village || "",
+        block: block || "",
+        pinCode: pinCode || "",
+        state: state || "",
+        district: district || "",
+        mandi: mandi || "",
+        gstNo: gstNo || "",
+        mobile: mobile || "",
+        email: email || "",
+      }
+    });
+    await logAuditAction(user.userId, "ADAHATIYA_UPDATED", `Updated Adhatiya ${name}`);
+    return updated;
+  } else {
+    const existing = await prisma.adhatiya.findUnique({
+      where: { name }
+    });
+    if (existing) {
+      throw new Error(`Adhatiya with name "${name}" already exists.`);
+    }
+
+    const created = await prisma.adhatiya.create({
+      data: {
+        name,
+        address: address || "",
+        village: village || "",
+        block: block || "",
+        pinCode: pinCode || "",
+        state: state || "",
+        district: district || "",
+        mandi: mandi || "",
+        gstNo: gstNo || "",
+        mobile: mobile || "",
+        email: email || "",
+      }
+    });
+    await logAuditAction(user.userId, "ADAHATIYA_CREATED", `Created Adhatiya ${name}`);
+    return created;
+  }
+}
+
+export async function deleteAdhatiya(id: number) {
+  const user = await getSessionUser();
+  if (!user.roles.includes("L4_ADMIN") && !user.isSuperAdmin) {
+    throw new Error("Unauthorized");
+  }
+
+  const deleted = await prisma.adhatiya.delete({
+    where: { id }
+  });
+  await logAuditAction(user.userId, "ADAHATIYA_DELETED", `Deleted Adhatiya ID ${id}`);
+  return deleted;
+}
+
