@@ -114,7 +114,7 @@ export async function savePO(data: any) {
   }
 }
 
-export async function getPOHistory() {
+export async function getPOHistory(limit?: number) {
   const user = await getSessionUser();
   if (!user.roles.includes("L3_PO_MAKER") && !user.roles.includes("L4_ADMIN") && !user.isSuperAdmin) {
     throw new Error("Unauthorized");
@@ -122,6 +122,7 @@ export async function getPOHistory() {
 
   return await prisma.purchaseOrder.findMany({
     orderBy: { createdAt: "desc" },
+    take: limit ?? 50,
     include: {
       procurement: {
         select: {

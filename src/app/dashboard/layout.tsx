@@ -82,15 +82,15 @@ function NavigationWrapper({ isMobile, setSidebarOpen, sidebarOpen }: { isMobile
                 href={item.href}
                 className={`
                   flex flex-col items-center justify-center w-full h-full space-y-0.5
-                  transition-colors duration-200
+                  transition-all duration-100 active:scale-95 touch-manipulation
                   ${
                     isActive
-                      ? "text-forest-600"
+                      ? "text-forest-600 font-bold"
                       : "text-slate-400 hover:text-slate-600 active:text-slate-800"
                   }
                 `}
               >
-                <item.icon size={20} className={isActive ? "text-forest-600" : ""} />
+                <item.icon size={20} className={isActive ? "text-forest-600 animate-pulse" : ""} />
                 <span className="text-[10px] font-medium">{item.label}</span>
               </Link>
             );
@@ -113,10 +113,10 @@ function NavigationWrapper({ isMobile, setSidebarOpen, sidebarOpen }: { isMobile
             onClick={() => setSidebarOpen && setSidebarOpen(false)}
             className={`
               flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium
-              transition-all duration-200 group relative
+              transition-all duration-100 group relative active:scale-98 touch-manipulation
               ${
                 isActive
-                  ? "bg-white/15 text-white shadow-sm"
+                  ? "bg-white/15 text-white shadow-sm font-semibold"
                   : "text-forest-200/70 hover:text-white hover:bg-white/8"
               }
             `}
@@ -156,6 +156,48 @@ function DashboardLayoutContent({
   const { data: session, status } = useSession();
   const router = useRouter();
 
+  const [navState, setNavState] = useState<"idle" | "loading" | "complete">("idle");
+
+  useEffect(() => {
+    if (navState === "loading") {
+      setNavState("complete");
+      const timer = setTimeout(() => setNavState("idle"), 400);
+      return () => clearTimeout(timer);
+    }
+  }, [pathname]);
+
+  useEffect(() => {
+    const handleAnchorClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const anchor = target.closest("a");
+      if (anchor) {
+        const href = anchor.getAttribute("href");
+        if (
+          href &&
+          href.startsWith("/") &&
+          !href.startsWith("#") &&
+          anchor.target !== "_blank" &&
+          !e.defaultPrevented &&
+          e.button === 0 &&
+          !e.metaKey &&
+          !e.ctrlKey &&
+          !e.shiftKey &&
+          !e.altKey
+        ) {
+          const currentUrl = window.location.pathname + window.location.search;
+          if (currentUrl !== href) {
+            setNavState("loading");
+          }
+        }
+      }
+    };
+
+    document.addEventListener("click", handleAnchorClick);
+    return () => {
+      document.removeEventListener("click", handleAnchorClick);
+    };
+  }, []);
+
   useEffect(() => {
     if (status === "unauthenticated") {
       router.replace("/login");
@@ -181,6 +223,19 @@ function DashboardLayoutContent({
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#f5f5f7]">
+      {navState !== "idle" && (
+        <div 
+          className="fixed top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-forest-500 via-emerald-400 to-forest-600 z-[9999]"
+          style={{
+            transform: navState === "loading" ? "scaleX(0.75)" : "scaleX(1)",
+            transformOrigin: "left",
+            opacity: navState === "complete" ? 0 : 1,
+            transitionProperty: "transform, opacity",
+            transitionDuration: navState === "loading" ? "8000ms" : "300ms",
+            transitionTimingFunction: navState === "loading" ? "cubic-bezier(0.05, 0.8, 0.1, 1)" : "ease-out",
+          }}
+        />
+      )}
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/30 backdrop-fade md:hidden"

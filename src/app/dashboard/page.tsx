@@ -81,15 +81,41 @@ function VDiv() {
 // ─────────────────────────────────────────────────────────────
 // Info card wrapper (clickable)
 // ─────────────────────────────────────────────────────────────
-function InfoCard({ icon, title, iconBg, children, loading, onClick, className = "" }: {
+function InfoCard({ icon, title, iconBg, children, loading, onClick, href, className = "" }: {
   icon: React.ReactNode; title: string; iconBg: string;
-  children: React.ReactNode; loading?: boolean; onClick?: () => void; className?: string;
+  children: React.ReactNode; loading?: boolean; onClick?: () => void; href?: string; className?: string;
 }) {
+  if (href) {
+    return (
+      <Link 
+        href={href} 
+        className={`glass-card rounded-2xl p-4 flex flex-col gap-3 text-left w-full cursor-pointer hover:bg-slate-50/50 transition-all active:scale-[0.98] active:bg-slate-100/50 ${className}`}
+      >
+        <div className="flex items-center gap-2.5">
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${iconBg}`}>{icon}</div>
+          <span className="text-sm font-bold text-slate-700">{title}</span>
+        </div>
+        {loading ? (
+          <div className="flex gap-3 animate-pulse">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex-1 space-y-1.5">
+                <div className="h-3 bg-slate-200 rounded w-10 mx-auto" />
+                <div className="h-5 bg-slate-200 rounded w-14 mx-auto" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="flex items-start justify-around gap-1 w-full">{children}</div>
+        )}
+      </Link>
+    );
+  }
+
   const Component = onClick ? "button" : "div";
   return (
     <Component 
       onClick={onClick} 
-      className={`glass-card rounded-2xl p-4 flex flex-col gap-3 text-left w-full ${onClick ? "cursor-pointer hover:bg-slate-50/50 transition-colors active:bg-slate-100/50" : ""} ${className}`}
+      className={`glass-card rounded-2xl p-4 flex flex-col gap-3 text-left w-full ${onClick ? "cursor-pointer hover:bg-slate-50/50 transition-all active:scale-[0.98] active:bg-slate-100/50" : ""} ${className}`}
     >
       <div className="flex items-center gap-2.5">
         <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${iconBg}`}>{icon}</div>
@@ -158,7 +184,7 @@ function ThreeCards({ s, loading, onTodayClick, onSlipClick, onTotalClick, hideT
           title="Total Purchase" 
           iconBg="bg-emerald-100" 
           loading={loading}
-          onClick={onTotalClick}
+          href="/dashboard/history"
         >
           <StatRow label="Bags"        value={fmt(s.totalBags)} />
           <VDiv />

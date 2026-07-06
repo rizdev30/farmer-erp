@@ -391,12 +391,12 @@ export default function PORecordsPage() {
                             >
                               <CheckCircle size={13} /> Approve/Bill
                             </button>
-                            <button
-                              onClick={() => router.push(`/dashboard/po-maker?slipId=${rec.slipId}`)}
-                              className="px-2.5 py-1.5 text-slate-500 hover:text-forest-700 hover:bg-forest-50 border border-slate-200 hover:border-forest-200 rounded-lg transition-colors inline-flex items-center gap-1 text-xs font-bold shadow-sm"
+                            <Link
+                              href={`/dashboard/po-maker?slipId=${rec.slipId}`}
+                              className="px-2.5 py-1.5 text-slate-500 hover:text-forest-700 hover:bg-forest-50 border border-slate-200 hover:border-forest-200 rounded-lg transition-all active:scale-[0.96] inline-flex items-center gap-1 text-xs font-bold shadow-sm"
                             >
                               <Edit3 size={13} /> Edit
-                            </button>
+                            </Link>
                           </>
                         )}
                       </div>
