@@ -31,6 +31,7 @@ export default function ReceiptPage() {
       const res = await getProcurementBySlipId(slipId);
       if (res.error) throw new Error(res.error);
       const data = res.data;
+      if (!data) throw new Error("Record not found");
       // Pre-fill edit forms
       setEditRate(data.rate);
       setEditDeduction(data.deduction);

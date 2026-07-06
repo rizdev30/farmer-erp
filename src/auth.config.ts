@@ -27,8 +27,17 @@ export const authConfig = {
           });
           
           if (!dbUser || !dbUser.active || !dbUser.activeSessions.includes(token.sessionId as string)) {
-            // This session was invalidated, return empty token to force logout
-            return {} as any;
+            // This session was invalidated — mark token so the session callback
+            // returns null, causing the client to see "unauthenticated" status
+            token.invalidated = true;
+            // Clear all user data from the token
+            token.id = undefined;
+            token.name = undefined;
+            token.email = undefined;
+            token.sessionId = undefined;
+            token.roles = undefined;
+            token.isSuperAdmin = undefined;
+            return token;
           }
         } catch (err) {
           console.error("Session validation error:", err);
@@ -37,6 +46,12 @@ export const authConfig = {
       return token;
     },
     async session({ session, token }) {
+      // If token was invalidated, return an empty session that the client
+      // will detect as invalid (no user name/email → SessionGuard kicks in)
+      if (token.invalidated) {
+        return null as any;
+      }
+
       if (session.user) {
         session.user.id = token.id as string;
         session.user.roles = (token.roles as string[]) || [];

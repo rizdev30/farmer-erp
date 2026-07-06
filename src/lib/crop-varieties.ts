@@ -6,6 +6,7 @@ export const CROP_VARIETIES = [
   "Sarbati",
   "T.Basmati",
   "Type-3",
+  "Basmati",
 ] as const;
 
 export type CropVariety = (typeof CROP_VARIETIES)[number];
