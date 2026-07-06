@@ -7,12 +7,14 @@ import {
 } from "@/app/actions/procurement";
 import { CROP_VARIETIES } from "@/lib/crop-varieties";
 import { searchFarmers } from "@/app/actions/farmers";
+import { getAdhatiyas } from "@/app/actions/po";
 import PurchaseSlip from "@/components/PurchaseSlip";
 import {
   Search,
   Scale,
   Loader2,
   User,
+  Users,
   ShoppingCart,
   Shield,
   Check,
@@ -70,6 +72,26 @@ export default function ProcurementPage() {
   const [error, setError] = useState("");
 
   const [receipt, setReceipt] = useState<Extract<ProcurementReceipt, { success: true }> | null>(null);
+
+  const [dbAdhatiyas, setDbAdhatiyas] = useState<any[]>([]);
+  const [showAdhatiyaDropdown, setShowAdhatiyaDropdown] = useState(false);
+  const [loadingAdhatiyas, setLoadingAdhatiyas] = useState(false);
+
+  const loadAdhatiyas = async (query = "") => {
+    setLoadingAdhatiyas(true);
+    try {
+      const res = await getAdhatiyas(query);
+      setDbAdhatiyas(res);
+    } catch (e) {
+      console.error("Failed to load Adhatiyas:", e);
+    } finally {
+      setLoadingAdhatiyas(false);
+    }
+  };
+
+  useEffect(() => {
+    loadAdhatiyas();
+  }, []);
 
   const { data: session } = useSession();
   const isAdmin = (session?.user as any)?.roles?.includes("L4_ADMIN") || (session?.user as any)?.isSuperAdmin;
@@ -167,6 +189,9 @@ export default function ProcurementPage() {
       const target = event.target as HTMLElement;
       if (!target.closest('.combobox-crop') && !target.closest('.combobox-variety')) {
         setActiveDropdown(null);
+      }
+      if (!target.closest('.combobox-adhatiya')) {
+        setShowAdhatiyaDropdown(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -531,19 +556,63 @@ export default function ProcurementPage() {
             2. Additional Details
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
+            <div className="relative combobox-adhatiya">
               <label className="block text-xs font-medium text-slate-500 mb-1.5">
                 Adtiya Name
               </label>
-              <input
-                type="text"
-                value={adtiyaName}
-                onChange={(e) => setAdtiyaName(e.target.value)}
-                placeholder="Enter Adtiya Name"
-                className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-                  text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
-                  transition-all text-base ${ringClass}`}
-              />
+              <div className="relative">
+                <Users size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={adtiyaName}
+                  onChange={(e) => {
+                    setAdtiyaName(e.target.value);
+                    loadAdhatiyas(e.target.value);
+                    setShowAdhatiyaDropdown(true);
+                  }}
+                  onFocus={() => setShowAdhatiyaDropdown(true)}
+                  placeholder="Search or enter Adtiya Name"
+                  className={`w-full pl-9 pr-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                    text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
+                    transition-all text-base ${ringClass} font-semibold`}
+                />
+                
+                {/* Dropdown */}
+                {showAdhatiyaDropdown && (
+                  <div className="absolute z-50 mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-xl max-h-60 overflow-y-auto p-1.5">
+                    {loadingAdhatiyas && (
+                      <div className="p-3 text-xs text-slate-400 flex items-center gap-2">
+                        <Loader2 size={14} className="animate-spin" /> Searching...
+                      </div>
+                    )}
+                    {!loadingAdhatiyas && dbAdhatiyas.length === 0 && (
+                      <div className="p-3 text-xs text-slate-500 text-center">
+                        No Adhatiya named &quot;{adtiyaName}&quot; found
+                      </div>
+                    )}
+                    {dbAdhatiyas.map((ad) => (
+                      <div
+                        key={ad.id}
+                        onClick={() => {
+                          setAdtiyaName(ad.name);
+                          setShowAdhatiyaDropdown(false);
+                        }}
+                        className="p-2.5 hover:bg-slate-50 rounded-lg cursor-pointer flex justify-between items-center text-xs group"
+                      >
+                        <div className="text-left">
+                          <p className="font-bold text-slate-800">{ad.name}</p>
+                          <p className="text-[10px] text-slate-400 truncate max-w-[200px]">
+                            {[ad.mandiName, ad.district, ad.state].filter(Boolean).join(", ") || "No Location"}
+                          </p>
+                        </div>
+                        <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-mono group-hover:bg-forest-50 group-hover:text-forest-700">
+                          Select
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-500 mb-1.5">
