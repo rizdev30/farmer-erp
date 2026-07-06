@@ -567,6 +567,42 @@ export async function getProcurementBySlipId(slipId: string) {
  * Get monthly summary for cross-verification.
  * Groups procurement data by month with totals.
  */
+/**
+ * Fetch previous procurements for a specific farmer/trader by farmer ID.
+ * Returns the most recent records to auto-populate crop details.
+ */
+export async function getProcurementsByFarmer(farmerId: number, category?: string) {
+  const user = await getSessionUser();
+
+  const where: any = { farmerId };
+
+  if (category === "TRADER") {
+    where.status = { in: ["APPROVED", "PENDING_L3"] };
+  }
+
+  if (!user.roles.includes("L4_ADMIN") && !user.isSuperAdmin) {
+    where.agentId = user.userId;
+  }
+
+  const records = await prisma.procurement.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    take: 5,
+    select: {
+      crop: true,
+      variety: true,
+      rate: true,
+      bags: true,
+      packingSize: true,
+      grossQuantity: true,
+      deduction: true,
+      bones: true,
+    },
+  });
+
+  return records;
+}
+
 export async function getMonthlySummary(filters?: { agentId?: string }) {
   const user = await getSessionUser();
 

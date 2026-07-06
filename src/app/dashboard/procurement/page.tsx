@@ -36,7 +36,7 @@ import { addToSyncQueue, detectNetworkQuality, getQueueCount } from "@/lib/offli
 import { invalidateCache, setCacheData, prefetchCache } from "@/lib/swr-cache";
 import { useToast } from "@/components/Toast";
 import { getDashboardStats } from "@/app/actions/dashboard";
-import { getProcurementHistory } from "@/app/actions/procurement";
+import { getProcurementHistory, getProcurementsByFarmer } from "@/app/actions/procurement";
 
 interface Farmer {
   id: number;
@@ -369,6 +369,29 @@ export default function ProcurementPage() {
 
     return () => { cancelled = true; };
   }, [debouncedFarmerQuery, categoryFilter]);
+
+  // Auto-populate crop items from last procurement when farmer is selected
+  useEffect(() => {
+    if (!selectedFarmer) return;
+    getProcurementsByFarmer(selectedFarmer.id, categoryFilter)
+      .then((records: any[]) => {
+        if (records.length > 0) {
+          const last = records[0];
+          setCropItems([{
+            id: Date.now().toString(),
+            crop: last.crop,
+            variety: last.variety || "",
+            bags: last.bags?.toString() || "",
+            packingSize: last.packingSize?.toString() || "",
+            grossQuantity: last.grossQuantity?.toString() || "",
+            deduction: last.deduction?.toString() || "",
+            rate: last.rate?.toString() || "",
+            bones: last.bones?.toString() || "",
+          }]);
+        }
+      })
+      .catch(() => {});
+  }, [selectedFarmer, categoryFilter]);
 
   // Offline queue count (from IndexedDB via NetworkStatusMonitor)
   const [offlineCount, setOfflineCount] = useState(0);

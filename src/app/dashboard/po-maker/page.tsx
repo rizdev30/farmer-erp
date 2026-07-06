@@ -201,7 +201,7 @@ function POMakerForm() {
   const [termsAndConditions, setTermsAndConditions] = useState(
     "THE INSTRUMENT CONTAINS ALL THE TERMS AND CONDITIONS WITH RESPECT TO PURCHASE OF THE MATERIAL OR SERVICES NAMED HEREIN.\nNO MODIFICATION OR AMENDMENT SHALL HAVE ANY FORCE OR EFFECT UNLESS CONFIRMED BY BUYERS IN WRITING."
   );
-  const [authorizedSignatory, setAuthorizedSignatory] = useState("Farmer ERP Solutions Pvt. Ltd.");
+  const [authorizedSignatory, setAuthorizedSignatory] = useState("Farmer ERP Pvt Ltd");
 
   // Address Blocks
   const [vendor, setVendor] = useState({
@@ -213,7 +213,7 @@ function POMakerForm() {
   });
   
   const [billing, setBilling] = useState({
-    name: "Farmer ERP Solutions Pvt. Ltd.",
+    name: "Farmer ERP Pvt Ltd",
     address: "12, Krishi Bhawan Complex, Sector 4, Gandhinagar, Gujarat - 382010",
     gstNo: "GSTIN: 24AAACF1234A1Z5",
     mobile: "Mobile: +91 98765 43210",
@@ -221,7 +221,7 @@ function POMakerForm() {
   });
 
   const [delivery, setDelivery] = useState({
-    name: "Farmer ERP Solutions Pvt. Ltd.",
+    name: "Farmer ERP Pvt Ltd",
     address: "12, Krishi Bhawan Complex, Sector 4, Gandhinagar, Gujarat - 382010",
     gstNo: "GSTIN: 24AAACF1234A1Z5",
     mobile: "Mobile: +91 98765 43210",
@@ -1590,18 +1590,18 @@ function POMakerForm() {
                   <div className="w-[20%] po-cell-border-r h-full flex items-center justify-center p-2">
                     {/* FARMER ERP LOGO */}
                     <div className="flex items-center gap-1.5 select-none">
-                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-600 to-teal-700 flex items-center justify-center text-white font-extrabold text-[13px] shadow-sm">
-                        FE
+                      <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-emerald-600 to-emerald-700 flex items-center justify-center text-white font-extrabold text-[11px] shadow-sm leading-tight p-1">
+                        FARMER<br/>ERP
                       </div>
-                      <div className="text-left leading-none">
-                        <span className="text-[10px] font-black text-slate-800 tracking-tighter block">FARMER</span>
-                        <span className="text-[8px] font-extrabold text-emerald-600 tracking-wider">ERP</span>
+                      <div className="text-left leading-tight">
+                        <span className="text-[9px] font-black text-slate-800 tracking-tight block">FARMER ERP</span>
+                        <span className="text-[6.5px] font-bold text-emerald-600 tracking-wider block">Pvt Ltd</span>
                       </div>
                     </div>
                   </div>
                   <div className="w-[60%] text-center">
                     <h1 className="text-lg font-black tracking-widest uppercase text-slate-800">PURCHASE ORDER</h1>
-                    <h2 className="text-xs font-bold uppercase text-slate-600">{billing.name || "Farmer ERP Solutions Pvt. Ltd."}</h2>
+                    <h2 className="text-xs font-bold uppercase text-slate-600">{billing.name || "Farmer ERP Pvt Ltd"}</h2>
                   </div>
                   <div className="w-[20%] border-l-[1.5px] border-black h-full flex items-center justify-center p-1 print-hide">
                     {poStatus === "BILLED" ? (
@@ -1623,11 +1623,11 @@ function POMakerForm() {
                   <div className="w-1/2 po-cell-border-r p-2 space-y-1">
                     <p className="font-bold underline uppercase text-xs text-slate-700">Vender:</p>
                     <p className="font-black text-sm uppercase">{vendor.name || "ABC PVT LTD"}</p>
-                    <p className="uppercase leading-tight text-xs whitespace-pre-wrap font-medium">{vendor.address || "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}</p>
+                    <p className="uppercase leading-tight text-xs whitespace-pre-wrap font-medium">{vendor.address || "123, Kisan Market, Near Railway Station\nSector-12, Gandhinagar, Gujarat - 382010"}</p>
                     <div className="pt-0.5 space-y-0.5 text-xs">
-                      <p><span className="font-bold">GST/PAN No.:</span> {vendor.gstNo || "xxxxxxxxxxxxx"}</p>
-                      <p><span className="font-bold">Mobile no.:</span> {vendor.mobile || "xxxxxxxxxxx"}</p>
-                      <p><span className="font-bold">Email Id:</span> {vendor.email || "xxxxxxxxxxx"}</p>
+                      <p><span className="font-bold">GST/PAN No.:</span> {vendor.gstNo || "24ABCDE1234F1Z5"}</p>
+                      <p><span className="font-bold">Mobile no.:</span> {vendor.mobile || "+91 98765 43210"}</p>
+                      <p><span className="font-bold">Email Id:</span> {vendor.email || "vendor@example.com"}</p>
                     </div>
                   </div>
 
@@ -1654,24 +1654,24 @@ function POMakerForm() {
                   {/* Billing Address */}
                   <div className="w-1/2 po-cell-border-r p-2 space-y-0.5">
                     <p className="font-bold underline text-xs text-slate-700">Billing Address:</p>
-                    <p className="font-bold uppercase text-xs">{billing.name || "Farmer ERP Solutions Pvt. Ltd."}</p>
-                    <p className="uppercase leading-none text-xs whitespace-pre-wrap font-medium">{billing.address || "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}</p>
+                    <p className="font-bold uppercase text-xs">{billing.name || "Farmer ERP Pvt Ltd"}</p>
+                    <p className="uppercase leading-none text-xs whitespace-pre-wrap font-medium">{billing.address || "12, Krishi Bhawan Complex, Sector 4\nGandhinagar, Gujarat - 382010"}</p>
                     <div className="text-xs pt-1 font-medium text-slate-700">
-                      <p><span className="font-semibold">GST/PAN:</span> {billing.gstNo || "xxxxxxxxxxxxx"}</p>
-                      <p><span className="font-semibold">Mobile:</span> {billing.mobile || "xxxxxxxxxxx"}</p>
-                      <p><span className="font-semibold">Email:</span> {billing.email || "xxxxxxxxxxx"}</p>
+                      <p><span className="font-semibold">GST/PAN:</span> {billing.gstNo || "24AAACF1234A1Z5"}</p>
+                      <p><span className="font-semibold">Mobile:</span> {billing.mobile || "+91 98765 43210"}</p>
+                      <p><span className="font-semibold">Email:</span> {billing.email || "contact@farmererp.com"}</p>
                     </div>
                   </div>
                   
                   {/* Delivery Address */}
                   <div className="w-1/2 p-2 space-y-0.5">
                     <p className="font-bold underline text-xs text-slate-700">Delivery Address:</p>
-                    <p className="font-bold uppercase text-xs">{delivery.name || "Farmer ERP Solutions Pvt. Ltd."}</p>
-                    <p className="uppercase leading-none text-xs whitespace-pre-wrap font-medium">{delivery.address || "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}</p>
+                    <p className="font-bold uppercase text-xs">{delivery.name || "Farmer ERP Pvt Ltd"}</p>
+                    <p className="uppercase leading-none text-xs whitespace-pre-wrap font-medium">{delivery.address || "12, Krishi Bhawan Complex, Sector 4\nGandhinagar, Gujarat - 382010"}</p>
                     <div className="text-xs pt-1 font-medium text-slate-700">
-                      <p><span className="font-semibold">GST/PAN:</span> {delivery.gstNo || "xxxxxxxxxxxxx"}</p>
-                      <p><span className="font-semibold">Mobile:</span> {delivery.mobile || "xxxxxxxxxxx"}</p>
-                      <p><span className="font-semibold">Email:</span> {delivery.email || "xxxxxxxxxxx"}</p>
+                      <p><span className="font-semibold">GST/PAN:</span> {delivery.gstNo || "24AAACF1234A1Z5"}</p>
+                      <p><span className="font-semibold">Mobile:</span> {delivery.mobile || "+91 98765 43210"}</p>
+                      <p><span className="font-semibold">Email:</span> {delivery.email || "contact@farmererp.com"}</p>
                     </div>
                   </div>
                 </div>
@@ -1859,7 +1859,7 @@ function POMakerForm() {
                   
                   {/* Right Side: Signatory Box */}
                   <div className="w-[35%] flex flex-col justify-between items-center p-2 relative min-h-[112px]">
-                    <p className="font-bold text-xs text-center leading-tight">For {authorizedSignatory || "Farmer ERP Solutions Pvt. Ltd."}</p>
+                    <p className="font-bold text-xs text-center leading-tight">For {authorizedSignatory || "Farmer ERP Pvt Ltd"}</p>
                     
                     {/* FARMER ERP STAMP */}
                     <div className="my-1 border-2 border-double border-blue-600/80 rounded-full w-[70px] h-[70px] flex flex-col items-center justify-center rotate-[-10deg] scale-90 select-none opacity-85 pointer-events-none font-mono bg-white/40 shadow-sm print:opacity-100">
