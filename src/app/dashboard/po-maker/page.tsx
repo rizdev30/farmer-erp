@@ -11,7 +11,7 @@ import {
   deleteAdhatiya 
 } from "@/app/actions/po";
 import { 
-  FileText, Search, Plus, Trash2, Save, Printer, Loader2, Users, PlusCircle, Building, Settings, Check, HelpCircle, ChevronDown
+  FileText, Search, Plus, Trash2, Save, Printer, Loader2, Users, PlusCircle, Building, Settings, Check, HelpCircle, ChevronDown, ChevronRight, MapPin, Truck, Receipt
 } from "lucide-react";
 import { useToast } from "@/components/Toast";
 import LoadingSkeleton from "./loading";
@@ -75,6 +75,7 @@ function POMakerForm() {
 
   // UI States
   const [activeTab, setActiveTab] = useState<"adhatiya" | "billing" | "details" | "calculations">("adhatiya");
+  const [openAddressSection, setOpenAddressSection] = useState<"vendor" | "billing" | "delivery" | null>("vendor");
   const [mobileTab, setMobileTab] = useState<"edit" | "preview">("edit");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -183,6 +184,8 @@ function POMakerForm() {
   const [selectedSlipIds, setSelectedSlipIds] = useState<Set<string>>(new Set());
   const [originalProcurement, setOriginalProcurement] = useState<any>(null);
   const [poBags, setPoBags] = useState(0);
+  const [slipOverrides, setSlipOverrides] = useState<Record<string, number>>({});
+  const [poStatus, setPoStatus] = useState("SAVED");
 
   // PO Document States
   const [poNumber, setPoNumber] = useState("");
@@ -341,6 +344,10 @@ function POMakerForm() {
         }
       } catch (err) {
         console.error("Error parsing saved items:", err);
+      }
+
+      if (data.status) {
+        setPoStatus(data.status);
       }
 
     } catch (error: any) {
@@ -517,7 +524,18 @@ function POMakerForm() {
     
     // If no slips selected but we have a single primary loaded procurement, use it
     const activeSlips = selectedSlips.length > 0 
-      ? selectedSlips 
+      ? selectedSlips.map(s => {
+          const overriddenBags = slipOverrides[s.slipId];
+          if (overriddenBags !== undefined) {
+            const bags = Math.max(0, Math.min(s.remainingBags || s.bags, overriddenBags));
+            const baseRemainingBags = s.remainingBags || s.bags || 1;
+            const baseRemainingQty = s.remainingQty !== undefined ? s.remainingQty : s.netQuantity;
+            const qty = Math.max(0, Math.round((baseRemainingQty / baseRemainingBags) * bags * 100) / 100);
+            const total = Math.round((qty * s.rate) * 100) / 100;
+            return { ...s, bags, netQuantity: qty, total };
+          }
+          return s;
+        }) 
       : (originalProcurement ? [originalProcurement] : []);
 
     let totalBags = 0;
@@ -581,7 +599,7 @@ function POMakerForm() {
       roundOff,
       finalAmount
     };
-  }, [procurementSlips, selectedSlipIds, originalProcurement, poBags, manualNetQty, manualRate, rates, overrides]);
+  }, [procurementSlips, selectedSlipIds, originalProcurement, poBags, manualNetQty, manualRate, rates, overrides, slipOverrides]);
 
   // Handle Save PO to Database
   const handleSave = async () => {
@@ -672,7 +690,7 @@ function POMakerForm() {
   };
 
   return (
-    <div className="max-w-[100vw] mx-auto min-h-screen flex flex-col xl:flex-row pb-24 xl:pb-0 overflow-hidden print:overflow-visible print:h-auto print:block bg-slate-50">
+    <div className="max-w-[100vw] mx-auto min-h-screen flex flex-col xl:flex-row pb-24 xl:pb-0 overflow-hidden print:overflow-visible print:h-auto print:block bg-[#f5f5f7]">
       
       {/* MOBILE PREVIEW/EDITOR TOGGLE */}
       {(calcs.activeSlips.length > 0 || originalProcurement) && (
@@ -693,7 +711,7 @@ function POMakerForm() {
       )}
 
       {/* LEFT COLUMN: EDIT FORM */}
-      <div className={`w-full xl:w-[45%] h-full xl:max-h-screen xl:overflow-y-auto p-4 md:p-6 space-y-6 border-r border-slate-200 print:hidden pb-32 xl:pb-6 bg-slate-100/90 ${mobileTab === 'preview' ? 'hidden xl:block' : 'block'}`}>
+      <div className={`w-full xl:w-[45%] h-full xl:max-h-screen xl:overflow-y-auto p-4 md:p-6 space-y-6 border-r border-slate-200 print:hidden pb-32 xl:pb-6 bg-[#f5f5f7] ${mobileTab === 'preview' ? 'hidden xl:block' : 'block'}`}>
         
         {/* Header Title */}
         <div className="flex items-center gap-3">
@@ -727,7 +745,7 @@ function POMakerForm() {
                     setShowAdhatiyaDropdown(true);
                   }}
                   onFocus={() => setShowAdhatiyaDropdown(true)}
-                  className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-forest-500/20 focus:border-forest-500 transition-all text-sm font-semibold text-slate-800"
+                  className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:outline-none focus:ring-2 focus:ring-forest-500/20 focus:border-forest-500 transition-all text-sm font-semibold text-slate-800"
                 />
                 
                 {/* Search Dropdown */}
@@ -800,7 +818,7 @@ function POMakerForm() {
                   placeholder="Or load by Slip ID directly (e.g. UP-26...)"
                   value={slipIdInput}
                   onChange={(e) => setSlipIdInput(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-forest-500/20 focus:border-forest-500 transition-all text-xs font-semibold"
+                  className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:outline-none focus:ring-2 focus:ring-forest-500/20 focus:border-forest-500 transition-all text-xs font-semibold"
                 />
               </div>
               <button
@@ -913,168 +931,161 @@ function POMakerForm() {
 
             {/* TAB CONTENT 1: ADDRESS BLOCKS */}
             {activeTab === "adhatiya" && (
-              <div className="space-y-4">
-                {/* Vendor Address Details */}
-                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
-                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider border-b pb-1.5">
-                    Vendor (Adhatiya / Seller) Details
-                  </h3>
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase">Vendor Name</label>
-                    <input 
-                      type="text" 
-                      value={vendor.name} 
-                      onChange={(e) => setVendor({ ...vendor, name: e.target.value })}
-                      className="w-full text-xs font-bold border-b py-1 focus:border-forest-500 focus:outline-none" 
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase">Address Lines</label>
-                    <textarea 
-                      value={vendor.address} 
-                      rows={2}
-                      onChange={(e) => setVendor({ ...vendor, address: e.target.value })}
-                      className="w-full text-xs border-b py-1 focus:border-forest-500 focus:outline-none resize-none" 
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase">GST/PAN No.</label>
-                      <input 
-                        type="text" 
-                        value={vendor.gstNo} 
-                        onChange={(e) => setVendor({ ...vendor, gstNo: e.target.value })}
-                        className="w-full text-xs border-b py-1 focus:border-forest-500 focus:outline-none" 
-                      />
+              <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+
+                {/* ── 1. Vendor (Adhatiya / Seller) ── */}
+                <button
+                  type="button"
+                  onClick={() => setOpenAddressSection(openAddressSection === "vendor" ? null : "vendor")}
+                  className={`w-full flex items-center justify-between px-5 py-3.5 text-left transition-colors ${
+                    openAddressSection === "vendor" ? "bg-forest-50/60" : "hover:bg-slate-50"
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
+                      openAddressSection === "vendor" ? "bg-forest-100 text-forest-600" : "bg-slate-100 text-slate-400"
+                    }`}>
+                      <Building size={14} />
                     </div>
                     <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase">Mobile No.</label>
-                      <input 
-                        type="text" 
-                        value={vendor.mobile} 
-                        onChange={(e) => setVendor({ ...vendor, mobile: e.target.value })}
-                        className="w-full text-xs border-b py-1 focus:border-forest-500 focus:outline-none" 
-                      />
+                      <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Vendor / Seller</span>
+                      {openAddressSection !== "vendor" && vendor.name && (
+                        <p className="text-[10px] text-slate-400 truncate max-w-[180px]">{vendor.name}</p>
+                      )}
                     </div>
-                    <div className="col-span-2">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase">Email Id</label>
-                      <input 
-                        type="text" 
-                        value={vendor.email} 
-                        onChange={(e) => setVendor({ ...vendor, email: e.target.value })}
-                        className="w-full text-xs border-b py-1 focus:border-forest-500 focus:outline-none" 
-                      />
+                  </div>
+                  <ChevronDown size={16} className={`text-slate-400 transition-transform duration-200 ${openAddressSection === "vendor" ? "rotate-180" : ""}`} />
+                </button>
+
+                <div className={`transition-all duration-200 ease-in-out overflow-hidden ${openAddressSection === "vendor" ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0"}`}>
+                  <div className="px-5 pb-4 pt-3 space-y-3 border-t border-slate-100">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Vendor Name</label>
+                      <input type="text" value={vendor.name} onChange={(e) => setVendor({ ...vendor, name: e.target.value })} className="w-full text-xs font-bold px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Address Lines</label>
+                      <textarea value={vendor.address} rows={2} onChange={(e) => setVendor({ ...vendor, address: e.target.value })} className="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all resize-none" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">GST/PAN No.</label>
+                        <input type="text" value={vendor.gstNo} onChange={(e) => setVendor({ ...vendor, gstNo: e.target.value })} className="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Mobile No.</label>
+                        <input type="text" value={vendor.mobile} onChange={(e) => setVendor({ ...vendor, mobile: e.target.value })} className="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all" />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Email Id</label>
+                        <input type="text" value={vendor.email} onChange={(e) => setVendor({ ...vendor, email: e.target.value })} className="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all" />
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Billing Address Details */}
-                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
-                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider border-b pb-1.5">
-                    Billing Address Details
-                  </h3>
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase">Billing Name</label>
-                    <input 
-                      type="text" 
-                      value={billing.name} 
-                      onChange={(e) => setBilling({ ...billing, name: e.target.value })}
-                      className="w-full text-xs font-bold border-b py-1 focus:border-forest-500 focus:outline-none" 
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase">Address Lines</label>
-                    <textarea 
-                      value={billing.address} 
-                      rows={2}
-                      onChange={(e) => setBilling({ ...billing, address: e.target.value })}
-                      className="w-full text-xs border-b py-1 focus:border-forest-500 focus:outline-none resize-none" 
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase">GST/PAN No.</label>
-                      <input 
-                        type="text" 
-                        value={billing.gstNo} 
-                        onChange={(e) => setBilling({ ...billing, gstNo: e.target.value })}
-                        className="w-full text-xs border-b py-1 focus:border-forest-500 focus:outline-none" 
-                      />
+                {/* ── 2. Billing Address ── */}
+                <button
+                  type="button"
+                  onClick={() => setOpenAddressSection(openAddressSection === "billing" ? null : "billing")}
+                  className={`w-full flex items-center justify-between px-5 py-3.5 text-left border-t border-slate-100 transition-colors ${
+                    openAddressSection === "billing" ? "bg-blue-50/60" : "hover:bg-slate-50"
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
+                      openAddressSection === "billing" ? "bg-blue-100 text-blue-600" : "bg-slate-100 text-slate-400"
+                    }`}>
+                      <Receipt size={14} />
                     </div>
                     <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase">Mobile No.</label>
-                      <input 
-                        type="text" 
-                        value={billing.mobile} 
-                        onChange={(e) => setBilling({ ...billing, mobile: e.target.value })}
-                        className="w-full text-xs border-b py-1 focus:border-forest-500 focus:outline-none" 
-                      />
+                      <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Billing Address</span>
+                      {openAddressSection !== "billing" && billing.name && (
+                        <p className="text-[10px] text-slate-400 truncate max-w-[180px]">{billing.name}</p>
+                      )}
                     </div>
-                    <div className="col-span-2">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase">Email Id</label>
-                      <input 
-                        type="text" 
-                        value={billing.email} 
-                        onChange={(e) => setBilling({ ...billing, email: e.target.value })}
-                        className="w-full text-xs border-b py-1 focus:border-forest-500 focus:outline-none" 
-                      />
+                  </div>
+                  <ChevronDown size={16} className={`text-slate-400 transition-transform duration-200 ${openAddressSection === "billing" ? "rotate-180" : ""}`} />
+                </button>
+
+                <div className={`transition-all duration-200 ease-in-out overflow-hidden ${openAddressSection === "billing" ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0"}`}>
+                  <div className="px-5 pb-4 pt-3 space-y-3 border-t border-slate-100">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Billing Name</label>
+                      <input type="text" value={billing.name} onChange={(e) => setBilling({ ...billing, name: e.target.value })} className="w-full text-xs font-bold px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Address Lines</label>
+                      <textarea value={billing.address} rows={2} onChange={(e) => setBilling({ ...billing, address: e.target.value })} className="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all resize-none" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">GST/PAN No.</label>
+                        <input type="text" value={billing.gstNo} onChange={(e) => setBilling({ ...billing, gstNo: e.target.value })} className="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Mobile No.</label>
+                        <input type="text" value={billing.mobile} onChange={(e) => setBilling({ ...billing, mobile: e.target.value })} className="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all" />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Email Id</label>
+                        <input type="text" value={billing.email} onChange={(e) => setBilling({ ...billing, email: e.target.value })} className="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all" />
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Delivery Address Details */}
-                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
-                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider border-b pb-1.5">
-                    Delivery Address Details
-                  </h3>
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase">Delivery Name</label>
-                    <input 
-                      type="text" 
-                      value={delivery.name} 
-                      onChange={(e) => setDelivery({ ...delivery, name: e.target.value })}
-                      className="w-full text-xs font-bold border-b py-1 focus:border-forest-500 focus:outline-none" 
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase">Address Lines</label>
-                    <textarea 
-                      value={delivery.address} 
-                      rows={2}
-                      onChange={(e) => setDelivery({ ...delivery, address: e.target.value })}
-                      className="w-full text-xs border-b py-1 focus:border-forest-500 focus:outline-none resize-none" 
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase">GST/PAN No.</label>
-                      <input 
-                        type="text" 
-                        value={delivery.gstNo} 
-                        onChange={(e) => setDelivery({ ...delivery, gstNo: e.target.value })}
-                        className="w-full text-xs border-b py-1 focus:border-forest-500 focus:outline-none" 
-                      />
+                {/* ── 3. Delivery Address ── */}
+                <button
+                  type="button"
+                  onClick={() => setOpenAddressSection(openAddressSection === "delivery" ? null : "delivery")}
+                  className={`w-full flex items-center justify-between px-5 py-3.5 text-left border-t border-slate-100 transition-colors ${
+                    openAddressSection === "delivery" ? "bg-amber-50/60" : "hover:bg-slate-50"
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
+                      openAddressSection === "delivery" ? "bg-amber-100 text-amber-600" : "bg-slate-100 text-slate-400"
+                    }`}>
+                      <Truck size={14} />
                     </div>
                     <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase">Mobile No.</label>
-                      <input 
-                        type="text" 
-                        value={delivery.mobile} 
-                        onChange={(e) => setDelivery({ ...delivery, mobile: e.target.value })}
-                        className="w-full text-xs border-b py-1 focus:border-forest-500 focus:outline-none" 
-                      />
+                      <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Delivery Address</span>
+                      {openAddressSection !== "delivery" && delivery.name && (
+                        <p className="text-[10px] text-slate-400 truncate max-w-[180px]">{delivery.name}</p>
+                      )}
                     </div>
-                    <div className="col-span-2">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase">Email Id</label>
-                      <input 
-                        type="text" 
-                        value={delivery.email} 
-                        onChange={(e) => setDelivery({ ...delivery, email: e.target.value })}
-                        className="w-full text-xs border-b py-1 focus:border-forest-500 focus:outline-none" 
-                      />
+                  </div>
+                  <ChevronDown size={16} className={`text-slate-400 transition-transform duration-200 ${openAddressSection === "delivery" ? "rotate-180" : ""}`} />
+                </button>
+
+                <div className={`transition-all duration-200 ease-in-out overflow-hidden ${openAddressSection === "delivery" ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0"}`}>
+                  <div className="px-5 pb-4 pt-3 space-y-3 border-t border-slate-100">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Delivery Name</label>
+                      <input type="text" value={delivery.name} onChange={(e) => setDelivery({ ...delivery, name: e.target.value })} className="w-full text-xs font-bold px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Address Lines</label>
+                      <textarea value={delivery.address} rows={2} onChange={(e) => setDelivery({ ...delivery, address: e.target.value })} className="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all resize-none" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">GST/PAN No.</label>
+                        <input type="text" value={delivery.gstNo} onChange={(e) => setDelivery({ ...delivery, gstNo: e.target.value })} className="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all" />
+                    </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Mobile No.</label>
+                        <input type="text" value={delivery.mobile} onChange={(e) => setDelivery({ ...delivery, mobile: e.target.value })} className="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all" />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Email Id</label>
+                        <input type="text" value={delivery.email} onChange={(e) => setDelivery({ ...delivery, email: e.target.value })} className="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all" />
+                      </div>
                     </div>
                   </div>
                 </div>
+
               </div>
             )}
 
@@ -1468,13 +1479,15 @@ function POMakerForm() {
 
             {/* Desktop Actions */}
             <div className="hidden xl:flex pt-4 pb-12 justify-end gap-3">
+            {poStatus === "BILLED" && (
               <button 
                 onClick={handlePrint} 
                 className="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-semibold flex items-center gap-2 hover:bg-slate-50 transition-all bg-white shadow-sm"
               >
                 <Printer size={18} /> Print PO
               </button>
-              <button 
+            )}
+            <button 
                 onClick={handleSave} 
                 disabled={saving} 
                 className="px-6 py-2.5 bg-forest-800 text-white font-semibold rounded-xl hover:bg-forest-700 active:bg-forest-900 transition-all disabled:opacity-50 flex items-center gap-2 shadow-md"
@@ -1519,6 +1532,10 @@ function POMakerForm() {
                   border: none !important;
                   background: white !important;
                 }
+                .print-hide, .print-hide * {
+                  visibility: hidden !important;
+                  display: none !important;
+                }
               }
               .po-grid-border {
                 border: 1.5px solid black;
@@ -1553,7 +1570,17 @@ function POMakerForm() {
                     <h1 className="text-lg font-black tracking-widest uppercase">PURCHASE ORDER</h1>
                     <h2 className="text-sm font-bold uppercase">{billing.name || "XYZ Pvt Ltd"}</h2>
                   </div>
-                  <div className="w-[20%] h-full"></div>
+                  <div className="w-[20%] border-l-[1.5px] border-black h-full flex items-center justify-center p-1 print-hide">
+                    {poStatus === "BILLED" ? (
+                      <div className="border-2 border-emerald-600 text-emerald-600 font-extrabold text-[11px] px-2 py-0.5 rounded uppercase tracking-wider font-sans rotate-[-3deg] shadow-sm">
+                        APPROVED
+                      </div>
+                    ) : (
+                      <div className="border-2 border-red-600 text-red-600 font-extrabold text-[11px] px-2 py-0.5 rounded uppercase tracking-wider font-sans rotate-[-3deg] shadow-sm">
+                        DRAFT
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* 2. VENDOR & METADATA GRID */}
@@ -1827,12 +1854,14 @@ function POMakerForm() {
       {/* MOBILE STICKY ACTION BAR */}
       {(calcs.activeSlips.length > 0 || originalProcurement) && (
         <div className="xl:hidden fixed bottom-[52px] left-0 right-0 p-4 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-[0_-4px_10px_-1px_rgba(0,0,0,0.1)] z-50 flex justify-between gap-3 print:hidden">
-          <button 
-            onClick={handlePrint} 
-            className="flex-1 justify-center px-4 py-3 rounded-xl border border-slate-300 text-slate-700 font-semibold flex items-center justify-center gap-2 hover:bg-slate-100 transition-all bg-white shadow-sm"
-          >
-            <Printer size={18} /> Print PO
-          </button>
+          {poStatus === "BILLED" && (
+            <button 
+              onClick={handlePrint} 
+              className="flex-1 justify-center px-4 py-3 rounded-xl border border-slate-300 text-slate-700 font-semibold flex items-center justify-center gap-2 hover:bg-slate-100 transition-all bg-white shadow-sm"
+            >
+              <Printer size={18} /> Print PO
+            </button>
+          )}
           <button 
             onClick={handleSave} 
             disabled={saving} 
@@ -1972,7 +2001,7 @@ function POMakerForm() {
                   required
                   value={crudName} 
                   onChange={(e) => setCrudName(e.target.value)} 
-                  className="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                  className="w-full px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
                   placeholder="e.g. ABC Pvt Ltd"
                 />
               </div>
@@ -1984,7 +2013,7 @@ function POMakerForm() {
                   required
                   value={crudAddress} 
                   onChange={(e) => setCrudAddress(e.target.value)} 
-                  className="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                  className="w-full px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
                   placeholder="e.g. Near Mandi Road"
                 />
               </div>
@@ -1997,7 +2026,7 @@ function POMakerForm() {
                     required
                     value={crudVillage} 
                     onChange={(e) => setCrudVillage(e.target.value)} 
-                    className="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                    className="w-full px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
                     placeholder="Village Name"
                   />
                 </div>
@@ -2008,7 +2037,7 @@ function POMakerForm() {
                     required
                     value={crudBlock} 
                     onChange={(e) => setCrudBlock(e.target.value)} 
-                    className="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                    className="w-full px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
                     placeholder="Block / Taluka"
                   />
                 </div>
@@ -2020,7 +2049,7 @@ function POMakerForm() {
                   type="text" 
                   value={crudPinCode} 
                   onChange={(e) => setCrudPinCode(e.target.value)} 
-                  className="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                  className="w-full px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
                   placeholder="6-digit pin code"
                   maxLength={6}
                 />
@@ -2183,7 +2212,7 @@ function POMakerForm() {
                   type="text" 
                   value={crudGst} 
                   onChange={(e) => setCrudGst(e.target.value)} 
-                  className="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                  className="w-full px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
                   placeholder="e.g. 06AAGCA3319R1ZD"
                 />
               </div>
@@ -2195,7 +2224,7 @@ function POMakerForm() {
                     type="text" 
                     value={crudMobile} 
                     onChange={(e) => setCrudMobile(e.target.value)} 
-                    className="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                    className="w-full px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
                     placeholder="e.g. 9876543210"
                   />
                 </div>
@@ -2205,7 +2234,7 @@ function POMakerForm() {
                     type="email" 
                     value={crudEmail} 
                     onChange={(e) => setCrudEmail(e.target.value)} 
-                    className="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                    className="w-full px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
                     placeholder="e.g. contact@agent.com"
                   />
                 </div>

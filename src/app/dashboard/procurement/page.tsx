@@ -494,7 +494,7 @@ export default function ProcurementPage() {
             </div>
           ) : (
             <div className="relative">
-              <div className={`flex items-center gap-2 px-4 py-3 rounded-xl border border-slate-200 bg-white/60 focus-within:outline-none focus-within:ring-2 transition-all ${categoryFilter === "TRADER" ? "focus-within:ring-blue-500/30 focus-within:border-blue-500" : "focus-within:ring-forest-500/30 focus-within:border-forest-500"}`}>
+              <div className={`flex items-center gap-2 px-4 py-3 rounded-xl border border-slate-200 bg-[#f5f5f7] focus-within:outline-none focus-within:ring-2 transition-all ${categoryFilter === "TRADER" ? "focus-within:ring-blue-500/30 focus-within:border-blue-500" : "focus-within:ring-forest-500/30 focus-within:border-forest-500"}`}>
                 <Search size={16} className="text-slate-400" />
                 <input
                   value={farmerQuery}
@@ -572,8 +572,8 @@ export default function ProcurementPage() {
                   }}
                   onFocus={() => setShowAdhatiyaDropdown(true)}
                   placeholder="Search or enter Adtiya Name"
-                  className={`w-full pl-9 pr-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-                    text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
+                  className={`w-full pl-9 pr-4 py-3 rounded-xl border border-slate-200 bg-[#f5f5f7]
+                  text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
                     transition-all text-base ${ringClass} font-semibold`}
                 />
                 
@@ -623,7 +623,7 @@ export default function ProcurementPage() {
                 value={lotNo}
                 onChange={(e) => setLotNo(e.target.value)}
                 placeholder="Enter Lot No."
-                className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-[#f5f5f7]
                   text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
                   transition-all text-base ${ringClass}`}
               />
@@ -675,8 +675,8 @@ export default function ProcurementPage() {
                           setActiveDropdown({ index, type: 'crop' });
                         }}
                         placeholder="Search Crop..."
-                        className={`w-full pl-9 pr-8 py-3 rounded-xl border border-slate-200 bg-white/60 
-                          text-slate-800 placeholder:text-slate-400 
+                        className={`w-full pl-9 pr-8 py-3 rounded-xl border border-slate-200 bg-[#f5f5f7]
+                  text-slate-800 placeholder:text-slate-400 
                           focus:outline-none focus:ring-2 ${ringClass} 
                           transition-all text-sm font-medium`}
                       />
@@ -724,8 +724,8 @@ export default function ProcurementPage() {
                           setActiveDropdown({ index, type: 'variety' });
                         }}
                         placeholder="Search Variety..."
-                        className={`w-full pl-9 pr-8 py-3 rounded-xl border border-slate-200 bg-white/60 
-                          text-slate-800 placeholder:text-slate-400 
+                        className={`w-full pl-9 pr-8 py-3 rounded-xl border border-slate-200 bg-[#f5f5f7]
+                  text-slate-800 placeholder:text-slate-400 
                           focus:outline-none focus:ring-2 ${ringClass} 
                           transition-all text-sm font-medium`}
                       />
@@ -779,8 +779,8 @@ export default function ProcurementPage() {
                       }}
                       placeholder="0"
                       min="0"
-                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-                        text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
+                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-[#f5f5f7]
+                  text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
                         transition-all text-base ${ringClass}`}
                     />
                   </div>
@@ -802,8 +802,8 @@ export default function ProcurementPage() {
                       }}
                       placeholder="0"
                       min="0"
-                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-                        text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
+                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-[#f5f5f7]
+                  text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
                         transition-all text-base ${ringClass}`}
                     />
                   </div>
@@ -821,8 +821,8 @@ export default function ProcurementPage() {
                       placeholder="0.00"
                       step="0.01"
                       min="0"
-                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-                        text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
+                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-[#f5f5f7]
+                  text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
                         transition-all text-base ${ringClass}`}
                     />
                   </div>
@@ -840,8 +840,8 @@ export default function ProcurementPage() {
                       placeholder="0.00"
                       step="0.01"
                       min="0"
-                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-                        text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
+                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-[#f5f5f7]
+                  text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
                         transition-all text-base ${ringClass}`}
                     />
                   </div>
@@ -861,8 +861,8 @@ export default function ProcurementPage() {
                         placeholder="0.00"
                         step="0.01"
                         min="0"
-                        className={`w-full pl-8 pr-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-                          text-slate-800 placeholder:text-slate-400 
+                        className={`w-full pl-8 pr-4 py-3 rounded-xl border border-slate-200 bg-[#f5f5f7]
+                  text-slate-800 placeholder:text-slate-400 
                           focus:outline-none focus:ring-2 transition-all text-base ${ringClass}`}
                       />
                     </div>
@@ -881,8 +881,8 @@ export default function ProcurementPage() {
                       placeholder="0"
                       step="0.01"
                       min="0"
-                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
-                        text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
+                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-[#f5f5f7]
+                  text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
                         transition-all text-base ${ringClass}`}
                     />
                   </div>
@@ -911,7 +911,7 @@ export default function ProcurementPage() {
         </div>
 
         {/* Live Total */}
-        <div className="glass-card rounded-2xl p-6 border-2 border-forest-200/50 bg-gradient-to-br from-forest-50/80 to-white">
+        <div className="glass-card rounded-2xl p-6 border border-slate-200/60 bg-white">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-forest-100 rounded-xl flex items-center justify-center">

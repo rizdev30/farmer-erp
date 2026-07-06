@@ -164,7 +164,7 @@ function DashboardLayoutContent({
 
   if (status === "unauthenticated" || status === "loading") {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-slate-50">
+      <div className="flex h-screen w-full items-center justify-center bg-[#f5f5f7]">
         <div className="flex flex-col items-center gap-4">
           <div className="w-14 h-14 bg-forest-100 rounded-2xl flex items-center justify-center shadow-inner animate-pulse">
             <Sprout className="w-8 h-8 text-forest-300" strokeWidth={2.5} />
@@ -180,7 +180,7 @@ function DashboardLayoutContent({
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50">
+    <div className="flex h-screen overflow-hidden bg-[#f5f5f7]">
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/30 backdrop-fade md:hidden"

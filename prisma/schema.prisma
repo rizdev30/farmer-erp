@@ -175,6 +175,8 @@ model PurchaseOrder {
   paymentDuration  Int      @default(0) // 10, 20, 30 days
   paymentDate      DateTime?
   
+  status           String   @default("SAVED") // SAVED, BILLED
+  
   // Meta
   createdById      String   @default("")
   createdAt        DateTime @default(now())

@@ -161,7 +161,50 @@ export async function getApprovedProcurementsByAdhatiya(adhatiyaName: string) {
     take: 50
   });
 
-  return procurements;
+  // Fetch all Purchase Orders to compute already billed bags/quantities
+  const purchaseOrders = await prisma.purchaseOrder.findMany({
+    select: {
+      slipId: true,
+      items: true
+    }
+  });
+
+  const billedMap = new Map<string, { bags: number; qty: number }>();
+  for (const po of purchaseOrders) {
+    let itemsObj: any = po.items;
+    if (typeof itemsObj === "string") {
+      try { itemsObj = JSON.parse(itemsObj); } catch (e) { itemsObj = {}; }
+    }
+    const list = itemsObj?.selectedProcurements || [];
+    for (const item of list) {
+      if (item.slipId) {
+        const prev = billedMap.get(item.slipId) || { bags: 0, qty: 0 };
+        billedMap.set(item.slipId, {
+          bags: prev.bags + (Number(item.bags) || 0),
+          qty: prev.qty + (Number(item.netQuantity) || 0)
+        });
+      }
+    }
+  }
+
+  const results = procurements.map(proc => {
+    const billed = billedMap.get(proc.slipId) || { bags: 0, qty: 0 };
+    const remainingBags = Math.max(0, proc.bags - billed.bags);
+    const remainingQty = Math.max(0, Math.round((proc.netQuantity - billed.qty) * 100) / 100);
+    return {
+      ...proc,
+      originalBags: proc.bags,
+      originalNetQuantity: proc.netQuantity,
+      remainingBags,
+      remainingQty,
+      // override initial values for selection
+      bags: remainingBags,
+      netQuantity: remainingQty,
+      total: Math.round((remainingQty * proc.rate) * 100) / 100
+    };
+  });
+
+  return results.filter(r => r.remainingBags > 0);
 }
 
 export async function getAdhatiyas(query?: string) {
@@ -202,7 +245,8 @@ export async function saveAdhatiya(data: {
   email?: string;
 }) {
   const user = await getSessionUser();
-  if (!user.roles.includes("L3_PO_MAKER") && !user.roles.includes("L4_ADMIN") && !user.isSuperAdmin) {
+  // Any logged-in user (including L1 Agents/L2 Managers) can save or create an Adhatiya in the database
+  if (!user.userId) {
     throw new Error("Unauthorized");
   }
 
@@ -266,5 +310,20 @@ export async function deleteAdhatiya(id: number) {
   });
   await logAuditAction(user.userId, "ADAHATIYA_DELETED", `Deleted Adhatiya ID ${id}`);
   return deleted;
+}
+
+export async function markPOAsBilled(slipId: string) {
+  const user = await getSessionUser();
+  if (!user.roles.includes("L3_PO_MAKER") && !user.isSuperAdmin) {
+    throw new Error("Unauthorized");
+  }
+
+  const updated = await prisma.purchaseOrder.update({
+    where: { slipId },
+    data: { status: "BILLED" }
+  });
+
+  await logAuditAction(user.userId, "PO_BILLED", `Marked PO ${updated.poNumber} as BILLED/APPROVED`);
+  return updated;
 }
 
