@@ -97,7 +97,13 @@ function POMakerForm() {
   const [crudGst, setCrudGst] = useState("");
   const [crudMobile, setCrudMobile] = useState("");
   const [crudEmail, setCrudEmail] = useState("");
-    const [editingAdhatiyaId, setEditingAdhatiyaId] = useState<number | null>(null);
+  const [editingAdhatiyaId, setEditingAdhatiyaId] = useState<number | null>(null);
+
+  // Delete confirmation state variables
+  const [adhatiyaToDelete, setAdhatiyaToDelete] = useState<{ id: number; name: string } | null>(null);
+  const [deleteStep, setDeleteStep] = useState<number>(0); // 0 = closed, 1 = warning, 2 = captcha, 3 = final
+  const [captchaCode, setCaptchaCode] = useState<string>("");
+  const [captchaInput, setCaptchaInput] = useState<string>("");
 
   // Cascading location states for Adhatiya CRUD
   const [mandisData, setMandisData] = useState<{state: string; district: string; mandiName: string}[]>([]);
@@ -195,7 +201,7 @@ function POMakerForm() {
   const [termsAndConditions, setTermsAndConditions] = useState(
     "THE INSTRUMENT CONTAINS ALL THE TERMS AND CONDITIONS WITH RESPECT TO PURCHASE OF THE MATERIAL OR SERVICES NAMED HEREIN.\nNO MODIFICATION OR AMENDMENT SHALL HAVE ANY FORCE OR EFFECT UNLESS CONFIRMED BY BUYERS IN WRITING."
   );
-  const [authorizedSignatory, setAuthorizedSignatory] = useState("XYZ Pvt Ltd");
+  const [authorizedSignatory, setAuthorizedSignatory] = useState("Farmer ERP Solutions Pvt. Ltd.");
 
   // Address Blocks
   const [vendor, setVendor] = useState({
@@ -207,19 +213,19 @@ function POMakerForm() {
   });
   
   const [billing, setBilling] = useState({
-    name: "XYZ Pvt Ltd",
-    address: "123 Sample Address, Sample City, State 123456",
-    gstNo: "GST/PAN No.: xxxxxxxxxxxxx",
-    mobile: "Mobile no.: xxxxxxxxxxx",
-    email: "Email Id: xxxxxxxxxxx"
+    name: "Farmer ERP Solutions Pvt. Ltd.",
+    address: "12, Krishi Bhawan Complex, Sector 4, Gandhinagar, Gujarat - 382010",
+    gstNo: "GSTIN: 24AAACF1234A1Z5",
+    mobile: "Mobile: +91 98765 43210",
+    email: "Email: contact@farmererp.com"
   });
 
   const [delivery, setDelivery] = useState({
-    name: "XYZ Pvt Ltd",
-    address: "123 Sample Address, Sample City, State 123456",
-    gstNo: "GST/PAN No.: xxxxxxxxxxxxx",
-    mobile: "Mobile no.: xxxxxxxxxxx",
-    email: "Email Id: xxxxxxxxxxx"
+    name: "Farmer ERP Solutions Pvt. Ltd.",
+    address: "12, Krishi Bhawan Complex, Sector 4, Gandhinagar, Gujarat - 382010",
+    gstNo: "GSTIN: 24AAACF1234A1Z5",
+    mobile: "Mobile: +91 98765 43210",
+    email: "Email: contact@farmererp.com"
   });
 
   // Table parameters override
@@ -421,11 +427,11 @@ function POMakerForm() {
     e.preventDefault();
     if (!crudName.trim()) return;
 
-    if (!crudAddress.trim() || !crudVillage.trim() || !crudBlock.trim() || !crudState.trim() || !crudDistrict.trim() || !crudMandi.trim()) {
+    if (!crudAddress.trim() || !crudVillage.trim() || !crudBlock.trim() || !crudState.trim() || !crudDistrict.trim() || !crudMandi.trim() || !crudGst.trim() || !crudMobile.trim()) {
       addToast({
         type: "error",
         title: "Validation Error",
-        message: "Please fill all required location fields (*)."
+        message: "Please fill all required fields (*)."
       });
       return;
     }
@@ -483,10 +489,24 @@ function POMakerForm() {
     }
   };
 
-  // Delete Adhatiya Action
-  const handleDeleteAdhatiya = async (id: number) => {
-    if (!confirm("Are you sure you want to delete this Adhatiya from the database?")) return;
+  // Helper to generate 6-char verification code
+  const generateRandomCaptcha = () => {
+    const chars = "ABCDEFGHJKLMNOPQRSTUVWXYZ23456789";
+    let result = "";
+    for (let i = 0; i < 6; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  };
 
+  // Trigger Delete flow modal
+  const handleDeleteAdhatiya = (id: number, name: string) => {
+    setAdhatiyaToDelete({ id, name });
+    setDeleteStep(1);
+  };
+
+  // Confirm delete handler (final stage)
+  const handleDeleteAdhatiyaConfirmed = async (id: number) => {
     try {
       await deleteAdhatiya(id);
       addToast({
@@ -499,12 +519,19 @@ function POMakerForm() {
         setSelectedAdhatiyaId(null);
         setVendor({ name: "", address: "", gstNo: "", mobile: "", email: "" });
       }
+      setDeleteStep(0);
+      setAdhatiyaToDelete(null);
+      setCaptchaInput("");
     } catch (err: any) {
       addToast({
         type: "error",
         title: "Delete Failed",
         message: err.message || "Could not delete Adhatiya"
       });
+      // Reset delete flow on failure
+      setDeleteStep(0);
+      setAdhatiyaToDelete(null);
+      setCaptchaInput("");
     }
   };
 
@@ -965,7 +992,7 @@ function POMakerForm() {
                     </div>
                     <div>
                       <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Address Lines</label>
-                      <textarea value={vendor.address} rows={2} onChange={(e) => setVendor({ ...vendor, address: e.target.value })} className="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all resize-none" />
+                      <textarea value={vendor.address} rows={4} onChange={(e) => setVendor({ ...vendor, address: e.target.value })} className="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all resize-none" />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
@@ -1016,7 +1043,7 @@ function POMakerForm() {
                     </div>
                     <div>
                       <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Address Lines</label>
-                      <textarea value={billing.address} rows={2} onChange={(e) => setBilling({ ...billing, address: e.target.value })} className="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all resize-none" />
+                      <textarea value={billing.address} rows={4} onChange={(e) => setBilling({ ...billing, address: e.target.value })} className="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all resize-none" />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
@@ -1067,7 +1094,7 @@ function POMakerForm() {
                     </div>
                     <div>
                       <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Address Lines</label>
-                      <textarea value={delivery.address} rows={2} onChange={(e) => setDelivery({ ...delivery, address: e.target.value })} className="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all resize-none" />
+                      <textarea value={delivery.address} rows={4} onChange={(e) => setDelivery({ ...delivery, address: e.target.value })} className="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all resize-none" />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
@@ -1104,7 +1131,7 @@ function POMakerForm() {
                         type="text" 
                         value={poNumber} 
                         onChange={(e) => setPoNumber(e.target.value)} 
-                        className="w-full text-xs font-bold border-b py-1 focus:border-forest-500 focus:outline-none" 
+                        className="w-full text-xs font-bold px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all" 
                       />
                     </div>
                     
@@ -1114,7 +1141,7 @@ function POMakerForm() {
                         type="text" 
                         value={poDate} 
                         onChange={(e) => setPoDate(e.target.value)} 
-                        className="w-full text-xs font-semibold border-b py-1 focus:border-forest-500 focus:outline-none" 
+                        className="w-full text-xs font-semibold px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all" 
                       />
                     </div>
 
@@ -1124,7 +1151,7 @@ function POMakerForm() {
                         type="text" 
                         value={paymentTerms} 
                         onChange={(e) => setPaymentTerms(e.target.value)} 
-                        className="w-full text-xs border-b py-1 focus:border-forest-500 focus:outline-none" 
+                        className="w-full text-xs font-semibold px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all" 
                       />
                     </div>
 
@@ -1134,7 +1161,7 @@ function POMakerForm() {
                         type="text" 
                         value={deliveryTerms} 
                         onChange={(e) => setDeliveryTerms(e.target.value)} 
-                        className="w-full text-xs border-b py-1 focus:border-forest-500 focus:outline-none" 
+                        className="w-full text-xs font-semibold px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all" 
                       />
                     </div>
 
@@ -1144,7 +1171,7 @@ function POMakerForm() {
                         type="text" 
                         value={authorizedSignatory} 
                         onChange={(e) => setAuthorizedSignatory(e.target.value)} 
-                        className="w-full text-xs font-bold border-b py-1 focus:border-forest-500 focus:outline-none" 
+                        className="w-full text-xs font-bold px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all" 
                       />
                     </div>
 
@@ -1154,7 +1181,7 @@ function POMakerForm() {
                         value={termsAndConditions} 
                         rows={4}
                         onChange={(e) => setTermsAndConditions(e.target.value)} 
-                        className="w-full text-xs border border-slate-200 rounded-xl p-2.5 focus:border-forest-500 focus:outline-none resize-none font-sans" 
+                        className="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all resize-none font-sans" 
                       />
                     </div>
                   </div>
@@ -1172,32 +1199,32 @@ function POMakerForm() {
                   
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">HSN Code</label>
+                      <label className="text-[10px] font-bold text-slate-500 block mb-1.5 uppercase">HSN Code</label>
                       <input 
                         type="text" 
                         value={hsnCode} 
                         onChange={(e) => setHsnCode(e.target.value)} 
-                        className="w-full text-xs font-bold border-b py-1 focus:border-forest-500 focus:outline-none" 
+                        className="w-full text-xs font-bold px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all" 
                       />
                     </div>
 
                     <div>
-                      <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">Packing Size (kg)</label>
+                      <label className="text-[10px] font-bold text-slate-500 block mb-1.5 uppercase">Packing Size (kg)</label>
                       <input 
                         type="number" 
                         value={packingSize} 
                         onChange={(e) => setPackingSize(Number(e.target.value) || 0)} 
-                        className="w-full text-xs font-bold border-b py-1 focus:border-forest-500 focus:outline-none" 
+                        className="w-full text-xs font-bold px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all" 
                       />
                     </div>
 
                     <div>
-                      <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">GST %</label>
+                      <label className="text-[10px] font-bold text-slate-500 block mb-1.5 uppercase">GST %</label>
                       <input 
                         type="number" 
                         value={gstPercent} 
                         onChange={(e) => setGstPercent(Number(e.target.value) || 0)} 
-                        className="w-full text-xs font-bold border-b py-1 focus:border-forest-500 focus:outline-none" 
+                        className="w-full text-xs font-bold px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all" 
                       />
                     </div>
 
@@ -1207,55 +1234,55 @@ function POMakerForm() {
                           <p className="text-[10px] font-bold text-blue-600 uppercase mb-2">Single Item Row Manual Overrides</p>
                         </div>
                         <div>
-                          <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">Override Crop</label>
+                          <label className="text-[10px] font-bold text-slate-500 block mb-1.5 uppercase">Override Crop</label>
                           <input 
                             type="text" 
                             placeholder="e.g. PB-1"
                             value={manualCrop} 
                             onChange={(e) => setManualCrop(e.target.value)} 
-                            className="w-full text-xs border-b py-1 focus:border-forest-500 focus:outline-none" 
+                            className="w-full text-xs font-semibold px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all" 
                           />
                         </div>
                         <div>
-                          <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">Override Variety</label>
+                          <label className="text-[10px] font-bold text-slate-500 block mb-1.5 uppercase">Override Variety</label>
                           <input 
                             type="text" 
                             value={manualVariety} 
                             onChange={(e) => setManualVariety(e.target.value)} 
-                            className="w-full text-xs border-b py-1 focus:border-forest-500 focus:outline-none" 
+                            className="w-full text-xs font-semibold px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all" 
                           />
                         </div>
                         <div>
-                          <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">Override Rate (₹/Qtl)</label>
+                          <label className="text-[10px] font-bold text-slate-500 block mb-1.5 uppercase">Override Rate (₹/Qtl)</label>
                           <input 
                             type="number" 
                             placeholder="Auto"
                             value={manualRate} 
                             onChange={(e) => setManualRate(e.target.value === "" ? "" : Number(e.target.value))} 
-                            className="w-full text-xs font-semibold border-b py-1 focus:border-forest-500 focus:outline-none" 
+                            className="w-full text-xs font-semibold px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all" 
                           />
                         </div>
                         <div>
-                          <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">Override Net Qty (Qtl)</label>
+                          <label className="text-[10px] font-bold text-slate-500 block mb-1.5 uppercase">Override Net Qty (Qtl)</label>
                           <input 
                             type="number" 
                             placeholder="Auto"
                             value={manualNetQty} 
                             onChange={(e) => setManualNetQty(e.target.value === "" ? "" : Number(e.target.value))} 
-                            className="w-full text-xs font-semibold border-b py-1 focus:border-forest-500 focus:outline-none" 
+                            className="w-full text-xs font-semibold px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all" 
                           />
                         </div>
                       </>
                     )}
 
                     <div className="col-span-2 border-t border-slate-100 pt-3">
-                      <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">Override Total Bags</label>
+                      <label className="text-[10px] font-bold text-slate-500 block mb-1.5 uppercase">Override Total Bags</label>
                       <input 
                         type="number" 
                         placeholder="Auto sum of slips"
                         value={poBags || ""} 
                         onChange={(e) => setPoBags(Number(e.target.value) || 0)} 
-                        className="w-full text-xs font-bold border-b py-1 focus:border-forest-500 focus:outline-none" 
+                        className="w-full text-xs font-bold px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all" 
                       />
                     </div>
                   </div>
@@ -1287,188 +1314,188 @@ function POMakerForm() {
                   <div className="space-y-3">
                     
                     {/* Mandi Tax */}
-                    <div className="grid grid-cols-3 gap-2 items-end border-b border-slate-50 pb-2">
+                    <div className="grid grid-cols-3 gap-2 items-center border-b border-slate-100 pb-2">
                       <div className="col-span-1">
-                        <label className="text-[10px] font-bold text-slate-500 block mb-0.5">Mandi Tax %</label>
+                        <label className="text-[10px] font-bold text-slate-500 block mb-1">Mandi Tax %</label>
                         <input 
                           type="number" 
                           value={rates.mandiTaxPercent} 
                           onChange={(e) => setRates({ ...rates, mandiTaxPercent: parseFloat(e.target.value) || 0 })}
-                          className="w-full text-xs border-b py-0.5 focus:outline-none" 
+                          className="w-full text-xs px-2 py-1.5 rounded-lg border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:outline-none transition-all" 
                         />
                       </div>
                       <div className="col-span-2">
-                        <label className="text-[10px] font-bold text-blue-600 block mb-0.5">Mandi Tax Amt (Override)</label>
+                        <label className="text-[10px] font-bold text-blue-600 block mb-1">Mandi Tax Amt (Override)</label>
                         <input 
                           type="number" 
                           placeholder={`Auto (₹${calcs.mandiTax.toFixed(2)})`}
                           value={overrides.mandiTax} 
                           onChange={(e) => setOverrides({ ...overrides, mandiTax: e.target.value === "" ? "" : Number(e.target.value) })}
-                          className="w-full text-xs border-b py-0.5 font-bold focus:outline-none text-right" 
+                          className="w-full text-xs px-2 py-1.5 rounded-lg border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:outline-none transition-all font-bold text-right" 
                         />
                       </div>
                     </div>
 
                     {/* Hammali */}
-                    <div className="grid grid-cols-3 gap-2 items-end border-b border-slate-50 pb-2">
+                    <div className="grid grid-cols-3 gap-2 items-center border-b border-slate-100 pb-2">
                       <div className="col-span-1">
-                        <label className="text-[10px] font-bold text-slate-500 block mb-0.5">Hammali/Bag (₹)</label>
+                        <label className="text-[10px] font-bold text-slate-500 block mb-1">Hammali/Bag (₹)</label>
                         <input 
                           type="number" 
                           value={rates.hammaliRate} 
                           onChange={(e) => setRates({ ...rates, hammaliRate: parseFloat(e.target.value) || 0 })}
-                          className="w-full text-xs border-b py-0.5 focus:outline-none" 
+                          className="w-full text-xs px-2 py-1.5 rounded-lg border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:outline-none transition-all" 
                         />
                       </div>
                       <div className="col-span-2">
-                        <label className="text-[10px] font-bold text-blue-600 block mb-0.5">Hammali Amt (Override)</label>
+                        <label className="text-[10px] font-bold text-blue-600 block mb-1">Hammali Amt (Override)</label>
                         <input 
                           type="number" 
                           placeholder={`Auto (₹${calcs.hammali.toFixed(2)})`}
                           value={overrides.hammali} 
                           onChange={(e) => setOverrides({ ...overrides, hammali: e.target.value === "" ? "" : Number(e.target.value) })}
-                          className="w-full text-xs border-b py-0.5 font-bold focus:outline-none text-right" 
+                          className="w-full text-xs px-2 py-1.5 rounded-lg border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:outline-none transition-all font-bold text-right" 
                         />
                       </div>
                     </div>
 
                     {/* Commission */}
-                    <div className="grid grid-cols-3 gap-2 items-end border-b border-slate-50 pb-2">
+                    <div className="grid grid-cols-3 gap-2 items-center border-b border-slate-100 pb-2">
                       <div className="col-span-1">
-                        <label className="text-[10px] font-bold text-slate-500 block mb-0.5">Commission %</label>
+                        <label className="text-[10px] font-bold text-slate-500 block mb-1">Commission %</label>
                         <input 
                           type="number" 
                           value={rates.commissionPercent} 
                           onChange={(e) => setRates({ ...rates, commissionPercent: parseFloat(e.target.value) || 0 })}
-                          className="w-full text-xs border-b py-0.5 focus:outline-none" 
+                          className="w-full text-xs px-2 py-1.5 rounded-lg border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:outline-none transition-all" 
                         />
                       </div>
                       <div className="col-span-2">
-                        <label className="text-[10px] font-bold text-blue-600 block mb-0.5">Commission Amt (Override)</label>
+                        <label className="text-[10px] font-bold text-blue-600 block mb-1">Commission Amt (Override)</label>
                         <input 
                           type="number" 
                           placeholder={`Auto (₹${calcs.commission.toFixed(2)})`}
                           value={overrides.commission} 
                           onChange={(e) => setOverrides({ ...overrides, commission: e.target.value === "" ? "" : Number(e.target.value) })}
-                          className="w-full text-xs border-b py-0.5 font-bold focus:outline-none text-right" 
+                          className="w-full text-xs px-2 py-1.5 rounded-lg border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:outline-none transition-all font-bold text-right" 
                         />
                       </div>
                     </div>
 
                     {/* Sutli */}
-                    <div className="grid grid-cols-3 gap-2 items-end border-b border-slate-50 pb-2">
+                    <div className="grid grid-cols-3 gap-2 items-center border-b border-slate-100 pb-2">
                       <div className="col-span-1">
-                        <label className="text-[10px] font-bold text-slate-500 block mb-0.5">Sutli/Bag (₹)</label>
+                        <label className="text-[10px] font-bold text-slate-500 block mb-1">Sutli/Bag (₹)</label>
                         <input 
                           type="number" 
                           value={rates.sutliRate} 
                           onChange={(e) => setRates({ ...rates, sutliRate: parseFloat(e.target.value) || 0 })}
-                          className="w-full text-xs border-b py-0.5 focus:outline-none" 
+                          className="w-full text-xs px-2 py-1.5 rounded-lg border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:outline-none transition-all" 
                         />
                       </div>
                       <div className="col-span-2">
-                        <label className="text-[10px] font-bold text-blue-600 block mb-0.5">Sutli Amt (Override)</label>
+                        <label className="text-[10px] font-bold text-blue-600 block mb-1">Sutli Amt (Override)</label>
                         <input 
                           type="number" 
                           placeholder={`Auto (₹${calcs.sutli.toFixed(2)})`}
                           value={overrides.sutli} 
                           onChange={(e) => setOverrides({ ...overrides, sutli: e.target.value === "" ? "" : Number(e.target.value) })}
-                          className="w-full text-xs border-b py-0.5 font-bold focus:outline-none text-right" 
+                          className="w-full text-xs px-2 py-1.5 rounded-lg border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:outline-none transition-all font-bold text-right" 
                         />
                       </div>
                     </div>
 
                     {/* Bonus */}
-                    <div className="grid grid-cols-3 gap-2 items-end border-b border-slate-50 pb-2">
+                    <div className="grid grid-cols-3 gap-2 items-center border-b border-slate-100 pb-2">
                       <div className="col-span-1">
-                        <label className="text-[10px] font-bold text-slate-500 block mb-0.5">Bonus/Qtl (₹)</label>
+                        <label className="text-[10px] font-bold text-slate-500 block mb-1">Bonus/Qtl (₹)</label>
                         <input 
                           type="number" 
                           value={rates.bonusRate} 
                           onChange={(e) => setRates({ ...rates, bonusRate: parseFloat(e.target.value) || 0 })}
-                          className="w-full text-xs border-b py-0.5 focus:outline-none" 
+                          className="w-full text-xs px-2 py-1.5 rounded-lg border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:outline-none transition-all" 
                         />
                       </div>
                       <div className="col-span-2">
-                        <label className="text-[10px] font-bold text-blue-600 block mb-0.5">Bonus Amt (Override)</label>
+                        <label className="text-[10px] font-bold text-blue-600 block mb-1">Bonus Amt (Override)</label>
                         <input 
                           type="number" 
                           placeholder={`Auto (₹${calcs.bonus.toFixed(2)})`}
                           value={overrides.bonus} 
                           onChange={(e) => setOverrides({ ...overrides, bonus: e.target.value === "" ? "" : Number(e.target.value) })}
-                          className="w-full text-xs border-b py-0.5 font-bold focus:outline-none text-right" 
+                          className="w-full text-xs px-2 py-1.5 rounded-lg border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:outline-none transition-all font-bold text-right" 
                         />
                       </div>
                     </div>
 
                     {/* Freight */}
-                    <div className="grid grid-cols-3 gap-2 items-end border-b border-slate-50 pb-2">
+                    <div className="grid grid-cols-3 gap-2 items-center border-b border-slate-100 pb-2">
                       <div className="col-span-1">
-                        <label className="text-[10px] font-bold text-slate-500 block mb-0.5">Freight/Qtl (₹)</label>
+                        <label className="text-[10px] font-bold text-slate-500 block mb-1">Freight/Qtl (₹)</label>
                         <input 
                           type="number" 
                           value={rates.freightRate} 
                           onChange={(e) => setRates({ ...rates, freightRate: parseFloat(e.target.value) || 0 })}
-                          className="w-full text-xs border-b py-0.5 focus:outline-none" 
+                          className="w-full text-xs px-2 py-1.5 rounded-lg border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:outline-none transition-all" 
                         />
                       </div>
                       <div className="col-span-2">
-                        <label className="text-[10px] font-bold text-blue-600 block mb-0.5">Freight Amt (Override)</label>
+                        <label className="text-[10px] font-bold text-blue-600 block mb-1">Freight Amt (Override)</label>
                         <input 
                           type="number" 
                           placeholder={`Auto (₹${calcs.freight.toFixed(2)})`}
                           value={overrides.freight} 
                           onChange={(e) => setOverrides({ ...overrides, freight: e.target.value === "" ? "" : Number(e.target.value) })}
-                          className="w-full text-xs border-b py-0.5 font-bold focus:outline-none text-right" 
+                          className="w-full text-xs px-2 py-1.5 rounded-lg border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:outline-none transition-all font-bold text-right" 
                         />
                       </div>
                     </div>
 
                     {/* Other Expenses */}
-                    <div className="grid grid-cols-3 gap-2 items-end border-b border-slate-50 pb-2">
+                    <div className="grid grid-cols-3 gap-2 items-center border-b border-slate-100 pb-2">
                       <div className="col-span-1">
-                        <label className="text-[10px] font-bold text-slate-500 block mb-0.5">Other Exp (₹)</label>
+                        <label className="text-[10px] font-bold text-slate-500 block mb-1">Other Exp (₹)</label>
                         <input 
                           type="number" 
                           value={rates.otherExpenses} 
                           onChange={(e) => setRates({ ...rates, otherExpenses: parseFloat(e.target.value) || 0 })}
-                          className="w-full text-xs border-b py-0.5 focus:outline-none" 
+                          className="w-full text-xs px-2 py-1.5 rounded-lg border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:outline-none transition-all" 
                         />
                       </div>
                       <div className="col-span-2">
-                        <label className="text-[10px] font-bold text-blue-600 block mb-0.5">Other Exp Amt (Override)</label>
+                        <label className="text-[10px] font-bold text-blue-600 block mb-1">Other Exp Amt (Override)</label>
                         <input 
                           type="number" 
                           placeholder={`Auto (₹${calcs.otherExpenses.toFixed(2)})`}
                           value={overrides.otherExpenses} 
                           onChange={(e) => setOverrides({ ...overrides, otherExpenses: e.target.value === "" ? "" : Number(e.target.value) })}
-                          className="w-full text-xs border-b py-0.5 font-bold focus:outline-none text-right" 
+                          className="w-full text-xs px-2 py-1.5 rounded-lg border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:outline-none transition-all font-bold text-right" 
                         />
                       </div>
                     </div>
 
                     {/* Round Off */}
                     <div>
-                      <label className="text-[10px] font-bold text-blue-600 block mb-0.5">Round Off (Override)</label>
+                      <label className="text-[10px] font-bold text-blue-600 block mb-1">Round Off (Override)</label>
                       <input 
                         type="number" 
                         step="any"
                         placeholder={`Auto (₹${calcs.roundOff.toFixed(2)})`}
                         value={overrides.roundOff} 
                         onChange={(e) => setOverrides({ ...overrides, roundOff: e.target.value === "" ? "" : Number(e.target.value) })}
-                        className="w-full text-xs border-b py-0.5 font-bold focus:outline-none text-right" 
+                        className="w-full text-xs px-2 py-1.5 rounded-lg border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:outline-none transition-all font-bold text-right" 
                       />
                     </div>
 
                     {/* Final Amount */}
                     <div>
-                      <label className="text-[10px] font-bold text-red-600 block mb-0.5">Final Total Amount (Override)</label>
+                      <label className="text-[10px] font-bold text-red-600 block mb-1">Final Total Amount (Override)</label>
                       <input 
                         type="number" 
                         placeholder={`Auto (₹${calcs.finalAmount.toLocaleString("en-IN")})`}
                         value={overrides.finalAmount} 
                         onChange={(e) => setOverrides({ ...overrides, finalAmount: e.target.value === "" ? "" : Number(e.target.value) })}
-                        className="w-full text-sm border-b py-0.5 font-extrabold focus:outline-none text-right text-red-700 bg-red-50 px-2 rounded" 
+                        className="w-full text-sm px-2 py-1.5 rounded-lg border border-red-300 bg-red-50 focus:bg-white focus:border-red-500 focus:outline-none transition-all font-extrabold text-right text-red-700" 
                       />
                     </div>
 
@@ -1559,16 +1586,22 @@ function POMakerForm() {
               <div>
                 
                 {/* 1. LOGO & HEADER ROW */}
-                <div className="flex po-cell-border-b h-14 items-center">
-                  <div className="w-[20%] po-cell-border-r h-full flex items-center justify-center p-1">
-                    {/* LOGO BOX */}
-                    <div className="font-serif font-black italic text-base tracking-wide border-2 border-black p-1 text-center leading-none uppercase">
-                      LOGO
+                <div className="flex po-cell-border-b h-16 items-center bg-slate-50/10">
+                  <div className="w-[20%] po-cell-border-r h-full flex items-center justify-center p-2">
+                    {/* FARMER ERP LOGO */}
+                    <div className="flex items-center gap-1.5 select-none">
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-600 to-teal-700 flex items-center justify-center text-white font-extrabold text-[13px] shadow-sm">
+                        FE
+                      </div>
+                      <div className="text-left leading-none">
+                        <span className="text-[10px] font-black text-slate-800 tracking-tighter block">FARMER</span>
+                        <span className="text-[8px] font-extrabold text-emerald-600 tracking-wider">ERP</span>
+                      </div>
                     </div>
                   </div>
                   <div className="w-[60%] text-center">
-                    <h1 className="text-lg font-black tracking-widest uppercase">PURCHASE ORDER</h1>
-                    <h2 className="text-sm font-bold uppercase">{billing.name || "XYZ Pvt Ltd"}</h2>
+                    <h1 className="text-lg font-black tracking-widest uppercase text-slate-800">PURCHASE ORDER</h1>
+                    <h2 className="text-xs font-bold uppercase text-slate-600">{billing.name || "Farmer ERP Solutions Pvt. Ltd."}</h2>
                   </div>
                   <div className="w-[20%] border-l-[1.5px] border-black h-full flex items-center justify-center p-1 print-hide">
                     {poStatus === "BILLED" ? (
@@ -1588,10 +1621,10 @@ function POMakerForm() {
                   
                   {/* Left Column: Vendor Address block */}
                   <div className="w-1/2 po-cell-border-r p-2 space-y-1">
-                    <p className="font-bold underline uppercase text-[10px] text-slate-700">Vender:</p>
-                    <p className="font-black text-xs uppercase">{vendor.name || "ABC PVT LTD"}</p>
-                    <p className="uppercase leading-tight text-[10px] whitespace-pre-wrap font-medium">{vendor.address || "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}</p>
-                    <div className="pt-0.5 space-y-0.5 text-[10px]">
+                    <p className="font-bold underline uppercase text-xs text-slate-700">Vender:</p>
+                    <p className="font-black text-sm uppercase">{vendor.name || "ABC PVT LTD"}</p>
+                    <p className="uppercase leading-tight text-xs whitespace-pre-wrap font-medium">{vendor.address || "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}</p>
+                    <div className="pt-0.5 space-y-0.5 text-xs">
                       <p><span className="font-bold">GST/PAN No.:</span> {vendor.gstNo || "xxxxxxxxxxxxx"}</p>
                       <p><span className="font-bold">Mobile no.:</span> {vendor.mobile || "xxxxxxxxxxx"}</p>
                       <p><span className="font-bold">Email Id:</span> {vendor.email || "xxxxxxxxxxx"}</p>
@@ -1601,15 +1634,15 @@ function POMakerForm() {
                   {/* Right Column: PO info & Payment/Delivery */}
                   <div className="w-1/2 flex flex-col">
                     <div className="flex po-cell-border-b h-7">
-                      <div className="w-[65%] po-cell-border-r p-1.5 flex items-center font-bold">
-                        P.O. No.: <span className="font-black text-slate-800 ml-1 font-mono">{poNumber || "PO/JK/25-26-01"}</span>
+                      <div className="w-[65%] po-cell-border-r p-1.5 flex items-center font-bold text-xs">
+                        P.O. No.: <span className="font-black text-slate-800 ml-1 font-mono text-sm">{poNumber || "PO/JK/25-26-01"}</span>
                       </div>
-                      <div className="w-[35%] p-1.5 flex items-center">
+                      <div className="w-[35%] p-1.5 flex items-center text-xs">
                         Dated: <span className="ml-1 font-bold">{poDate}</span>
                       </div>
                     </div>
                     
-                    <div className="p-2 space-y-1 flex-1 flex flex-col justify-center text-[10px]">
+                    <div className="p-2 space-y-1 flex-1 flex flex-col justify-center text-xs">
                       <p><span className="font-bold">Payment Terms:</span> {paymentTerms}</p>
                       <p><span className="font-bold">DELIVERY:</span> {deliveryTerms || "-"}</p>
                     </div>
@@ -1620,10 +1653,10 @@ function POMakerForm() {
                 <div className="flex po-cell-border-b h-24">
                   {/* Billing Address */}
                   <div className="w-1/2 po-cell-border-r p-2 space-y-0.5">
-                    <p className="font-bold underline text-[10px] text-slate-700">Billing Address:</p>
-                    <p className="font-bold uppercase text-[10px]">{billing.name || "XYZ PVT LTD"}</p>
-                    <p className="uppercase leading-none text-[9.5px] whitespace-pre-wrap font-medium">{billing.address || "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}</p>
-                    <div className="text-[9.5px] pt-1 font-medium text-slate-700">
+                    <p className="font-bold underline text-xs text-slate-700">Billing Address:</p>
+                    <p className="font-bold uppercase text-xs">{billing.name || "Farmer ERP Solutions Pvt. Ltd."}</p>
+                    <p className="uppercase leading-none text-xs whitespace-pre-wrap font-medium">{billing.address || "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}</p>
+                    <div className="text-xs pt-1 font-medium text-slate-700">
                       <p><span className="font-semibold">GST/PAN:</span> {billing.gstNo || "xxxxxxxxxxxxx"}</p>
                       <p><span className="font-semibold">Mobile:</span> {billing.mobile || "xxxxxxxxxxx"}</p>
                       <p><span className="font-semibold">Email:</span> {billing.email || "xxxxxxxxxxx"}</p>
@@ -1632,10 +1665,10 @@ function POMakerForm() {
                   
                   {/* Delivery Address */}
                   <div className="w-1/2 p-2 space-y-0.5">
-                    <p className="font-bold underline text-[10px] text-slate-700">Delivery Address:</p>
-                    <p className="font-bold uppercase text-[10px]">{delivery.name || "XYZ PVT LTD"}</p>
-                    <p className="uppercase leading-none text-[9.5px] whitespace-pre-wrap font-medium">{delivery.address || "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}</p>
-                    <div className="text-[9.5px] pt-1 font-medium text-slate-700">
+                    <p className="font-bold underline text-xs text-slate-700">Delivery Address:</p>
+                    <p className="font-bold uppercase text-xs">{delivery.name || "Farmer ERP Solutions Pvt. Ltd."}</p>
+                    <p className="uppercase leading-none text-xs whitespace-pre-wrap font-medium">{delivery.address || "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}</p>
+                    <div className="text-xs pt-1 font-medium text-slate-700">
                       <p><span className="font-semibold">GST/PAN:</span> {delivery.gstNo || "xxxxxxxxxxxxx"}</p>
                       <p><span className="font-semibold">Mobile:</span> {delivery.mobile || "xxxxxxxxxxx"}</p>
                       <p><span className="font-semibold">Email:</span> {delivery.email || "xxxxxxxxxxx"}</p>
@@ -1646,15 +1679,15 @@ function POMakerForm() {
                 {/* 4. ITEMS TABLE */}
                 <table className="w-full text-center border-collapse">
                   <thead>
-                    <tr className="po-cell-border-b font-bold bg-slate-50 text-[10px]">
-                      <th className="po-table-cell-border p-1 w-[6%]">Sr. No.</th>
-                      <th className="po-table-cell-border p-1 w-[40%] text-left px-2">Farmer Name & Code</th>
-                      <th className="po-table-cell-border p-1 w-[18%]">Description</th>
+                    <tr className="po-cell-border-b font-bold bg-slate-50 text-xs">
+                      <th className="po-table-cell-border p-1 w-[5%]">Sr. No.</th>
+                      <th className="po-table-cell-border p-1 w-[30%] text-left px-2">Farmer Name & Code</th>
+                      <th className="po-table-cell-border p-1 w-[15%]">Description</th>
                       <th className="po-table-cell-border p-1 w-[8%]">Packing</th>
                       <th className="po-table-cell-border p-1 w-[10%]">No. of Bag</th>
                       <th className="po-table-cell-border p-1 w-[10%]">Quantity (Qtl.)</th>
-                      <th className="po-table-cell-border p-1 w-[12%] text-right pr-2">Rate</th>
-                      <th className="p-1 w-[14%] text-right pr-2">Amount</th>
+                      <th className="po-table-cell-border p-1 w-[10%] text-right pr-2">Rate</th>
+                      <th className="p-1 w-[12%] text-right pr-2">Amount</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1668,11 +1701,11 @@ function POMakerForm() {
                       const amount = displayQty * rate;
                       
                       return (
-                        <tr key={item.slipId} className="text-[10px]">
+                        <tr key={item.slipId} className="text-xs">
                           <td className="po-table-cell-border p-1">{idx + 1}</td>
                           <td className="po-table-cell-border p-1 text-left px-2">
                             <span className="font-bold">{item.farmerName || item.farmer?.name || "Unknown Farmer"}</span>
-                            <span className="block text-[9px] text-slate-500 font-medium">Code:{item.farmerCode || "—"}</span>
+                            <span className="block text-[10px] text-slate-500 font-medium">Code:{item.farmerCode || "—"}</span>
                           </td>
                           <td className="po-table-cell-border p-1 uppercase text-slate-700">
                             {idx === 0 && manualCrop ? manualCrop : item.crop} {idx === 0 && manualVariety ? manualVariety : item.variety}
@@ -1691,7 +1724,7 @@ function POMakerForm() {
                     })}
 
                     {/* Dummy blank spacer row matching the image template */}
-                    <tr className="h-5">
+                    <tr className="h-6">
                       <td className="po-table-cell-border"></td>
                       <td className="po-table-cell-border"></td>
                       <td className="po-table-cell-border"></td>
@@ -1703,18 +1736,18 @@ function POMakerForm() {
                     </tr>
 
                     {/* Table Totals Row */}
-                    <tr className="font-bold text-[10px] bg-slate-50/30 po-cell-border-b">
-                      <td colSpan={4} className="po-table-cell-border p-1 font-bold text-center">Total</td>
-                      <td className="po-table-cell-border p-1 font-mono">{calcs.totalBags.toFixed(2)}</td>
-                      <td className="po-table-cell-border p-1 font-mono">{calcs.totalQty.toFixed(2)}</td>
-                      <td className="po-table-cell-border p-1"></td>
-                      <td className="p-1 text-right pr-2 font-mono font-bold">
+                    <tr className="font-bold text-xs bg-slate-50/30 po-cell-border-b">
+                      <td colSpan={4} className="po-table-cell-border p-1.5 font-bold text-center">Total</td>
+                      <td className="po-table-cell-border p-1.5 font-mono">{calcs.totalBags.toFixed(2)}</td>
+                      <td className="po-table-cell-border p-1.5 font-mono">{calcs.totalQty.toFixed(2)}</td>
+                      <td className="po-table-cell-border p-1.5"></td>
+                      <td className="p-1.5 text-right pr-2 font-mono font-bold">
                         ₹{calcs.subtotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </td>
                     </tr>
 
                     {/* 5. TAXES & CALCULATIONS (Tucked to bottom right) */}
-                    <tr className="text-[10px]">
+                    <tr className="text-xs">
                       <td colSpan={4} className="border-r border-black align-top p-2 text-left">
                         {/* Empty spacing box */}
                       </td>
@@ -1726,7 +1759,7 @@ function POMakerForm() {
                       </td>
                     </tr>
 
-                    <tr className="text-[10px]">
+                    <tr className="text-xs">
                       <td colSpan={4} className="border-r border-black align-top p-2 text-left"></td>
                       <td colSpan={3} className="po-table-cell-border p-1 text-right font-semibold pr-2">
                         Hammali/Bag (₹{rates.hammaliRate})
@@ -1736,7 +1769,7 @@ function POMakerForm() {
                       </td>
                     </tr>
 
-                    <tr className="text-[10px]">
+                    <tr className="text-xs">
                       <td colSpan={4} className="border-r border-black align-top p-2 text-left"></td>
                       <td colSpan={3} className="po-table-cell-border p-1 text-right font-semibold pr-2">
                         Commission/Qtl. ({rates.commissionPercent}%)
@@ -1746,7 +1779,7 @@ function POMakerForm() {
                       </td>
                     </tr>
 
-                    <tr className="text-[10px]">
+                    <tr className="text-xs">
                       <td colSpan={4} className="border-r border-black align-top p-2 text-left"></td>
                       <td colSpan={3} className="po-table-cell-border p-1 text-right font-semibold pr-2">
                         Sutli/Bag (₹{rates.sutliRate})
@@ -1756,7 +1789,7 @@ function POMakerForm() {
                       </td>
                     </tr>
 
-                    <tr className="text-[10px]">
+                    <tr className="text-xs">
                       <td colSpan={4} className="border-r border-black align-top p-2 text-left"></td>
                       <td colSpan={3} className="po-table-cell-border p-1 text-right font-semibold pr-2">
                         Other Expenses
@@ -1766,7 +1799,7 @@ function POMakerForm() {
                       </td>
                     </tr>
 
-                    <tr className="text-[10px]">
+                    <tr className="text-xs">
                       <td colSpan={4} className="border-r border-black align-top p-2 text-left"></td>
                       <td colSpan={3} className="po-table-cell-border p-1 text-right font-semibold pr-2">
                         Bonus/Qtl (₹{rates.bonusRate})
@@ -1776,7 +1809,7 @@ function POMakerForm() {
                       </td>
                     </tr>
 
-                    <tr className="text-[10px]">
+                    <tr className="text-xs">
                       <td colSpan={4} className="border-r border-black align-top p-2 text-left"></td>
                       <td colSpan={3} className="po-table-cell-border p-1 text-right font-semibold pr-2">
                         Freight/Qtl (₹{rates.freightRate})
@@ -1786,7 +1819,7 @@ function POMakerForm() {
                       </td>
                     </tr>
 
-                    <tr className="text-[10px]">
+                    <tr className="text-xs">
                       <td colSpan={4} className="border-r border-black align-top p-2 text-left"></td>
                       <td colSpan={3} className="po-table-cell-border p-1 text-right font-semibold pr-2">
                         Round Off(±)
@@ -1796,16 +1829,15 @@ function POMakerForm() {
                       </td>
                     </tr>
 
-                    <tr className="font-bold text-[10.5px] bg-slate-50/40">
+                    <tr className="font-bold text-xs bg-slate-50/40">
                       <td colSpan={4} className="border-r border-black align-top p-2 text-left"></td>
-                      <td colSpan={3} className="po-table-cell-border p-1.5 text-right font-bold pr-2">
+                      <td colSpan={3} className="po-table-cell-border p-1.5 text-right font-bold pr-2 text-sm">
                         Final Amount
                       </td>
-                      <td className="border-b border-black p-1.5 text-right pr-2 font-mono font-black text-xs">
+                      <td className="border-b border-black p-1.5 text-right pr-2 font-mono font-black text-sm text-slate-900">
                         ₹{calcs.finalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </td>
                     </tr>
-
                   </tbody>
                 </table>
               </div>
@@ -1814,21 +1846,31 @@ function POMakerForm() {
               <div className="po-cell-border-t">
                 
                 {/* Total amount in words block */}
-                <div className="p-2 po-cell-border-b text-[10px]">
-                  <span className="font-bold">Total amount in words:</span> <span className="font-semibold uppercase text-slate-800 ml-1">{numberToWords(calcs.finalAmount)}</span>
+                <div className="p-2 po-cell-border-b text-xs">
+                  <span className="font-bold">Total amount in words:</span> <span className="font-semibold uppercase text-slate-800 ml-1 text-xs">{numberToWords(calcs.finalAmount)}</span>
                 </div>
 
-                <div className="flex min-h-24">
+                <div className="flex min-h-28">
                   {/* Left Side: Terms and Conditions */}
-                  <div className="w-[65%] po-cell-border-r p-2 space-y-1 text-[9.5px]">
+                  <div className="w-[65%] po-cell-border-r p-2 space-y-1 text-xs">
                     <p className="font-bold text-slate-700">Terms & Conditions :</p>
                     <p className="uppercase leading-normal font-medium text-slate-600 whitespace-pre-wrap">{termsAndConditions}</p>
                   </div>
                   
                   {/* Right Side: Signatory Box */}
-                  <div className="w-[35%] flex flex-col justify-between items-center p-2">
-                    <p className="font-bold text-[10px] text-center">For {authorizedSignatory || "XYZ Pvt Ltd"}.</p>
-                    <p className="font-bold text-[10.5px] text-slate-800 underline uppercase tracking-wide">Authorized Signatory</p>
+                  <div className="w-[35%] flex flex-col justify-between items-center p-2 relative min-h-[112px]">
+                    <p className="font-bold text-xs text-center leading-tight">For {authorizedSignatory || "Farmer ERP Solutions Pvt. Ltd."}</p>
+                    
+                    {/* FARMER ERP STAMP */}
+                    <div className="my-1 border-2 border-double border-blue-600/80 rounded-full w-[70px] h-[70px] flex flex-col items-center justify-center rotate-[-10deg] scale-90 select-none opacity-85 pointer-events-none font-mono bg-white/40 shadow-sm print:opacity-100">
+                      <span className="text-[6.5px] font-black text-blue-700 tracking-wider leading-none">FARMER ERP</span>
+                      <div className="w-10 h-[0.5px] bg-blue-500/50 my-0.5"></div>
+                      <span className="text-[8px] font-extrabold text-blue-600 leading-none">STAMP</span>
+                      <div className="w-10 h-[0.5px] bg-blue-500/50 my-0.5"></div>
+                      <span className="text-[5.5px] text-blue-500 font-bold uppercase tracking-tight leading-none">AUTHORIZED</span>
+                    </div>
+
+                    <p className="font-bold text-xs text-slate-800 underline uppercase tracking-wide">Authorized Signatory</p>
                   </div>
                 </div>
 
@@ -1959,7 +2001,7 @@ function POMakerForm() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleDeleteAdhatiya(ad.id)}
+                          onClick={() => handleDeleteAdhatiya(ad.id, ad.name)}
                           className="p-1 text-slate-400 hover:text-red-600 hover:bg-white rounded"
                         >
                           Delete
@@ -2207,9 +2249,10 @@ function POMakerForm() {
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">GST/PAN No.</label>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">GST/PAN No.*</label>
                 <input 
                   type="text" 
+                  required
                   value={crudGst} 
                   onChange={(e) => setCrudGst(e.target.value)} 
                   className="w-full px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
@@ -2219,9 +2262,10 @@ function POMakerForm() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Mobile No.</label>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Mobile No.*</label>
                   <input 
                     type="text" 
+                    required
                     value={crudMobile} 
                     onChange={(e) => setCrudMobile(e.target.value)} 
                     className="w-full px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
@@ -2256,6 +2300,148 @@ function POMakerForm() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: DELETE ADHATIYA CONFIRMATION MODAL */}
+      {deleteStep > 0 && adhatiyaToDelete && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 text-left">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => {
+            setDeleteStep(0);
+            setAdhatiyaToDelete(null);
+            setCaptchaInput("");
+          }} />
+          <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl p-6 overflow-hidden">
+            {deleteStep === 1 && (
+              <div>
+                <h3 className="text-sm font-bold text-red-600 border-b border-red-100 pb-3 mb-4 uppercase tracking-wider flex items-center gap-2">
+                  <span>⚠️</span> Warning: Deleting Adhatiya
+                </h3>
+                <p className="text-xs text-slate-600 leading-relaxed mb-6">
+                  You are about to permanently delete the Adhatiya record for <strong className="text-slate-800 font-bold">{adhatiyaToDelete.name}</strong>.
+                  <br /><br />
+                  This action is highly destructive. Existing records, transactions, or purchase orders associated with this Adhatiya might be affected or lose their relationship context.
+                </p>
+                <div className="flex gap-3 justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeleteStep(0);
+                      setAdhatiyaToDelete(null);
+                    }}
+                    className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-bold rounded-xl transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const code = generateRandomCaptcha();
+                      setCaptchaCode(code);
+                      setCaptchaInput("");
+                      setDeleteStep(2);
+                    }}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-all"
+                  >
+                    Proceed Anyway
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {deleteStep === 2 && (
+              <div>
+                <h3 className="text-sm font-bold text-slate-800 border-b pb-3 mb-4 uppercase tracking-wider">
+                  Security Verification
+                </h3>
+                <p className="text-xs text-slate-600 leading-relaxed mb-4">
+                  To confirm you want to delete <strong className="text-slate-800 font-bold">{adhatiyaToDelete.name}</strong>, please type the following 6-character verification code:
+                </p>
+                
+                <div className="bg-slate-100 py-3 px-4 rounded-xl text-center mb-4 tracking-[0.3em] font-mono text-lg font-black text-slate-700 select-none border border-slate-200">
+                  {captchaCode}
+                </div>
+
+                <div className="mb-6">
+                  <input
+                    type="text"
+                    value={captchaInput}
+                    onChange={(e) => setCaptchaInput(e.target.value)}
+                    placeholder="Enter verification code"
+                    className="w-full px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:ring-2 focus:ring-red-500/20 focus:outline-none text-center font-mono font-bold text-sm tracking-widest text-slate-800"
+                  />
+                </div>
+
+                <div className="flex gap-3 justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeleteStep(0);
+                      setAdhatiyaToDelete(null);
+                      setCaptchaInput("");
+                    }}
+                    className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-bold rounded-xl transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (captchaInput.trim().toUpperCase() === captchaCode) {
+                        setDeleteStep(3);
+                      } else {
+                        addToast({
+                          type: "error",
+                          title: "Invalid Code",
+                          message: "The entered verification code did not match. Please try again."
+                        });
+                        setCaptchaCode(generateRandomCaptcha());
+                        setCaptchaInput("");
+                      }
+                    }}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl transition-all"
+                  >
+                    Verify Code
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {deleteStep === 3 && (
+              <div>
+                <h3 className="text-sm font-bold text-red-600 border-b border-red-100 pb-3 mb-4 uppercase tracking-wider">
+                  Final Confirmation
+                </h3>
+                <p className="text-xs text-slate-600 leading-relaxed mb-6 font-semibold">
+                  Are you absolutely sure you want to delete <strong className="text-slate-800 font-bold">{adhatiyaToDelete.name}</strong>?
+                  <br /><br />
+                  This is the final confirmation. There is no undo.
+                </p>
+                <div className="flex gap-3 justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeleteStep(0);
+                      setAdhatiyaToDelete(null);
+                      setCaptchaInput("");
+                    }}
+                    className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-bold rounded-xl transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleDeleteAdhatiyaConfirmed(adhatiyaToDelete.id);
+                    }}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-all"
+                  >
+                    Yes, Delete
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

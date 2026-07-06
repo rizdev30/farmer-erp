@@ -419,29 +419,29 @@ export default function FarmerRegistrationModal({
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
                       Full Name *
                     </label>
                     <input
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="Enter full name"
-                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                      className={`w-full px-4 py-3 text-sm font-bold rounded-xl border border-slate-200 bg-white/60 
                         text-slate-800 placeholder:text-slate-400 
                         focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
-                        transition-all duration-200 text-base`}
+                        transition-all duration-200`}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
                       Gender
                     </label>
                     <select
                       value={gender}
                       onChange={(e) => setGender(e.target.value)}
-                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                      className={`w-full px-4 py-3 text-sm font-bold rounded-xl border border-slate-200 bg-white/60 
                         text-slate-800 focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
-                        transition-all duration-200 text-base appearance-none`}
+                        transition-all duration-200 appearance-none`}
                     >
                       <option value="">Select Gender</option>
                       <option value="Male">Male</option>
@@ -452,48 +452,48 @@ export default function FarmerRegistrationModal({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
                     Father's Name *
                   </label>
                   <input
                     value={fatherName}
                     onChange={(e) => setFatherName(e.target.value)}
                     placeholder="Enter father's name"
-                    className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                    className={`w-full px-4 py-3 text-sm font-bold rounded-xl border border-slate-200 bg-white/60 
                       text-slate-800 placeholder:text-slate-400 
                       focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
-                      transition-all duration-200 text-base`}
+                      transition-all duration-200`}
                   />
                 </div>
 
                 {isTrader && (
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
                         Company *
                       </label>
                       <input
                         value={company}
                         onChange={(e) => setCompany(e.target.value)}
                         placeholder="Enter company name"
-                        className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                        className={`w-full px-4 py-3 text-sm font-bold rounded-xl border border-slate-200 bg-white/60 
                           text-slate-800 placeholder:text-slate-400 
                           focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
-                          transition-all duration-200 text-base`}
+                          transition-all duration-200`}
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
                         Promoter Name *
                       </label>
                       <input
                         value={promoterName}
                         onChange={(e) => setPromoterName(e.target.value)}
                         placeholder="Enter promoter's name"
-                        className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                        className={`w-full px-4 py-3 text-sm font-bold rounded-xl border border-slate-200 bg-white/60 
                           text-slate-800 placeholder:text-slate-400 
                           focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
-                          transition-all duration-200 text-base`}
+                          transition-all duration-200`}
                       />
                     </div>
                   </div>
@@ -501,7 +501,7 @@ export default function FarmerRegistrationModal({
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
                       {isTrader ? "Mobile Number *" : "Phone Number *"}
                     </label>
                     <input
@@ -509,24 +509,24 @@ export default function FarmerRegistrationModal({
                       onChange={(e) => setPhone(e.target.value)}
                       placeholder="10-digit phone"
                       type="tel"
-                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                      className={`w-full px-4 py-3 text-sm font-bold rounded-xl border border-slate-200 bg-white/60 
                         text-slate-800 placeholder:text-slate-400 
                         focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
-                        transition-all duration-200 text-base`}
+                        transition-all duration-200`}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
                       Project Name
                     </label>
                     <input
                       value={projectName}
                       onChange={(e) => setProjectName(e.target.value)}
                       placeholder="Project (Optional)"
-                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                      className={`w-full px-4 py-3 text-sm font-bold rounded-xl border border-slate-200 bg-white/60 
                         text-slate-800 placeholder:text-slate-400 
                         focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
-                        transition-all duration-200 text-base`}
+                        transition-all duration-200`}
                     />
                   </div>
                 </div>
@@ -534,17 +534,17 @@ export default function FarmerRegistrationModal({
                 {isTrader && (
                   <div className="grid grid-cols-1 gap-3">
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
                         PAN / GST Number *
                       </label>
                       <input
                         value={panGst}
                         onChange={(e) => setPanGst(e.target.value)}
                         placeholder="Enter PAN or GST number"
-                        className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                        className={`w-full px-4 py-3 text-sm font-bold rounded-xl border border-slate-200 bg-white/60 
                           text-slate-800 placeholder:text-slate-400 
                           focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
-                          transition-all duration-200 text-base`}
+                          transition-all duration-200`}
                       />
                     </div>
                   </div>
@@ -566,53 +566,53 @@ export default function FarmerRegistrationModal({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
                     Address *
                   </label>
                   <input
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
                     placeholder="Street Address / House No."
-                    className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                    className={`w-full px-4 py-3 text-sm font-bold rounded-xl border border-slate-200 bg-white/60 
                       text-slate-800 placeholder:text-slate-400 
                       focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
-                      transition-all duration-200 text-base`}
+                      transition-all duration-200`}
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
                       {isTrader ? "Village/City *" : "Village *"}
                     </label>
                     <input
                       value={village}
                       onChange={(e) => setVillage(e.target.value)}
                       placeholder="Village name"
-                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                      className={`w-full px-4 py-3 text-sm font-bold rounded-xl border border-slate-200 bg-white/60 
                         text-slate-800 placeholder:text-slate-400 
                         focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
-                        transition-all duration-200 text-base`}
+                        transition-all duration-200`}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
                       {isTrader ? "Block / Taluka *" : "Block *"}
                     </label>
                     <input
                       value={block}
                       onChange={(e) => setBlock(e.target.value)}
                       placeholder="Block / Taluka"
-                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                      className={`w-full px-4 py-3 text-sm font-bold rounded-xl border border-slate-200 bg-white/60 
                         text-slate-800 placeholder:text-slate-400 
                         focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
-                        transition-all duration-200 text-base`}
+                        transition-all duration-200`}
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
                     Pin Code
                   </label>
                   <input
@@ -620,15 +620,15 @@ export default function FarmerRegistrationModal({
                     onChange={(e) => setPinCode(e.target.value)}
                     placeholder="6-digit pin code"
                     maxLength={6}
-                    className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                    className={`w-full px-4 py-3 text-sm font-bold rounded-xl border border-slate-200 bg-white/60 
                       text-slate-800 placeholder:text-slate-400 
                       focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
-                      transition-all duration-200 text-sm`}
+                      transition-all duration-200`}
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="relative combobox-state">
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
                       State Search *
                     </label>
                     <div className="relative">
@@ -645,10 +645,10 @@ export default function FarmerRegistrationModal({
                           setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' }), 200);
                         }}
                         placeholder="Search State..."
-                        className={`w-full pl-9 pr-8 py-3 rounded-xl border border-slate-200 bg-white/60 
+                        className={`w-full pl-9 pr-8 py-3 text-sm font-bold rounded-xl border border-slate-200 bg-white/60 
                           text-slate-800 placeholder:text-slate-400 
                           focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
-                          transition-all duration-200 text-sm`}
+                          transition-all duration-200`}
                       />
                       <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
                     </div>
@@ -684,7 +684,7 @@ export default function FarmerRegistrationModal({
                   </div>
 
                   <div className="relative combobox-district">
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
                       District Search *
                     </label>
                     <div className="relative">
@@ -702,10 +702,10 @@ export default function FarmerRegistrationModal({
                         }}
                         disabled={!state}
                         placeholder={state ? "Search District..." : "Select State"}
-                        className={`w-full pl-9 pr-8 py-3 rounded-xl border border-slate-200 bg-white/60 
+                        className={`w-full pl-9 pr-8 py-3 text-sm font-bold rounded-xl border border-slate-200 bg-white/60 
                           text-slate-800 placeholder:text-slate-400 
                           focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
-                          transition-all duration-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed`}
+                          transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed`}
                       />
                       <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
                     </div>
@@ -740,28 +740,28 @@ export default function FarmerRegistrationModal({
                 </div>
 
                 <div className="relative combobox-mandi">
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
                       Mandi Search *
                     </label>
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                       <input
                         value={mandiSearch}
-                      onChange={(e) => {
-                        setMandiSearch(e.target.value);
-                        setShowMandiDropdown(true);
-                      }}
-                      onFocus={(e) => {
-                        setMandiSearch(town); // Reset search to current selection on focus
-                        setShowMandiDropdown(true);
-                        setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' }), 200);
-                      }}
+                        onChange={(e) => {
+                          setMandiSearch(e.target.value);
+                          setShowMandiDropdown(true);
+                        }}
+                        onFocus={(e) => {
+                          setMandiSearch(town);
+                          setShowMandiDropdown(true);
+                          setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' }), 200);
+                        }}
                         disabled={!district}
                         placeholder={district ? "Type to search..." : "Select District"}
-                        className={`w-full pl-9 pr-8 py-3 rounded-xl border border-slate-200 bg-white/60 
+                        className={`w-full pl-9 pr-8 py-3 text-sm font-bold rounded-xl border border-slate-200 bg-white/60 
                           text-slate-800 placeholder:text-slate-400
                           focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
-                          transition-all duration-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed`}
+                          transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed`}
                       />
                       <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
                     </div>
@@ -783,7 +783,7 @@ export default function FarmerRegistrationModal({
                             >
                               <div className="flex flex-col">
                                 <span>{m.mandiName}</span>
-                                <span className="text-[10px] text-slate-400 font-medium">{m.district}, {m.state}</span>
+                                <span className="text-xs text-slate-400 font-medium">{m.district}, {m.state}</span>
                               </div>
                               {town === m.mandiName && <Check size={16} />}
                             </div>
@@ -833,47 +833,47 @@ export default function FarmerRegistrationModal({
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
                         Bank Name
                       </label>
                       <input
                         value={bankName}
                         onChange={(e) => setBankName(e.target.value)}
                         placeholder="e.g. State Bank of India"
-                        className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                        className={`w-full px-4 py-3 text-sm font-bold rounded-xl border border-slate-200 bg-white/60 
                           text-slate-800 placeholder:text-slate-400 
                           focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
-                          transition-all duration-200 text-base`}
+                          transition-all duration-200`}
                       />
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
                           IFSC Code
                         </label>
                         <input
                           value={ifscCode}
                           onChange={(e) => setIfscCode(e.target.value.toUpperCase())}
                           placeholder="IFSC Code"
-                          className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                          className={`w-full px-4 py-3 text-sm font-bold rounded-xl border border-slate-200 bg-white/60 
                             text-slate-800 placeholder:text-slate-400 
                             focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
-                            transition-all duration-200 text-base`}
+                            transition-all duration-200`}
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
                           Account Number
                         </label>
                         <input
                           value={accountNumber}
                           onChange={(e) => setAccountNumber(e.target.value)}
                           placeholder="Account Number"
-                          className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/60 
+                          className={`w-full px-4 py-3 text-sm font-bold rounded-xl border border-slate-200 bg-white/60 
                             text-slate-800 placeholder:text-slate-400 
                             focus:outline-none focus:ring-2 ${t.ring} ${t.borderFocus} 
-                            transition-all duration-200 text-base`}
+                            transition-all duration-200`}
                         />
                       </div>
                     </div>

@@ -47,8 +47,8 @@ export async function getPOBySlipId(slipId: string) {
     slipId: procurement.slipId,
     supplierName: procurement.farmerName || procurement.farmer?.name || "",
     supplierLocation: procurement.village || procurement.farmer?.village || procurement.farmer?.town || "",
-    companyName: "Farmer ERP",
-    companyAddress: "123 Sample Address, Sample City, State 123456",
+    companyName: "Farmer ERP Solutions Pvt. Ltd.",
+    companyAddress: "12, Krishi Bhawan Complex, Sector 4, Gandhinagar, Gujarat - 382010",
     items: [],
     paymentDuration: 10,
     paymentDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
@@ -101,8 +101,8 @@ export async function savePO(data: any) {
         items: items ? (items as any) : [],
         paymentDuration: paymentDuration || 10,
         paymentDate: paymentDate ? new Date(paymentDate) : null,
-        companyName: companyName || "Farmer ERP",
-        companyAddress: companyAddress || "123 Sample Address, Sample City, State 123456",
+        companyName: companyName || "Farmer ERP Solutions Pvt. Ltd.",
+        companyAddress: companyAddress || "12, Krishi Bhawan Complex, Sector 4, Gandhinagar, Gujarat - 382010",
         supplierName: supplierName || "",
         supplierLocation: supplierLocation || "",
         createdById: user.userId,
@@ -246,12 +246,18 @@ export async function saveAdhatiya(data: {
   email?: string;
 }) {
   const user = await getSessionUser();
-  // Any logged-in user (including L1 Agents/L2 Managers) can save or create an Adhatiya in the database
   if (!user.userId) {
     throw new Error("Unauthorized");
   }
 
   const { id, name, address, village, block, pinCode, state, district, mandi, gstNo, mobile, email } = data;
+
+  if (!gstNo || !gstNo.trim()) {
+    throw new Error("GST/PAN No. is required.");
+  }
+  if (!mobile || !mobile.trim()) {
+    throw new Error("Mobile No. is required.");
+  }
 
   if (id) {
     const updated = await prisma.adhatiya.update({
@@ -265,12 +271,12 @@ export async function saveAdhatiya(data: {
         state: state || "",
         district: district || "",
         mandi: mandi || "",
-        gstNo: gstNo || "",
-        mobile: mobile || "",
+        gstNo: gstNo.trim(),
+        mobile: mobile.trim(),
         email: email || "",
       }
     });
-    await logAuditAction(user.userId, "ADAHATIYA_UPDATED", `Updated Adhatiya ${name}`);
+    await logAuditAction(user.userId, "ADAHATIYA_UPDATED", `Updated Adhatiya ${name} by user ${user.userName}`);
     return updated;
   } else {
     const existing = await prisma.adhatiya.findUnique({
@@ -290,12 +296,12 @@ export async function saveAdhatiya(data: {
         state: state || "",
         district: district || "",
         mandi: mandi || "",
-        gstNo: gstNo || "",
-        mobile: mobile || "",
+        gstNo: gstNo.trim(),
+        mobile: mobile.trim(),
         email: email || "",
       }
     });
-    await logAuditAction(user.userId, "ADAHATIYA_CREATED", `Created Adhatiya ${name}`);
+    await logAuditAction(user.userId, "ADAHATIYA_CREATED", `Created Adhatiya ${name} by user ${user.userName}`);
     return created;
   }
 }
@@ -306,10 +312,14 @@ export async function deleteAdhatiya(id: number) {
     throw new Error("Unauthorized");
   }
 
+  const targetAdhatiya = await prisma.adhatiya.findUnique({
+    where: { id }
+  });
+
   const deleted = await prisma.adhatiya.delete({
     where: { id }
   });
-  await logAuditAction(user.userId, "ADAHATIYA_DELETED", `Deleted Adhatiya ID ${id}`);
+  await logAuditAction(user.userId, "ADAHATIYA_DELETED", `Deleted Adhatiya "${targetAdhatiya?.name || 'Unknown'}" (ID: ${id}) by user ${user.userName}`);
   return deleted;
 }
 

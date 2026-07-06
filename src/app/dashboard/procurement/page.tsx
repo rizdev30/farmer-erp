@@ -7,7 +7,7 @@ import {
 } from "@/app/actions/procurement";
 import { CROP_VARIETIES } from "@/lib/crop-varieties";
 import { searchFarmers } from "@/app/actions/farmers";
-import { getAdhatiyas } from "@/app/actions/po";
+import { getAdhatiyas, saveAdhatiya, deleteAdhatiya } from "@/app/actions/po";
 import PurchaseSlip from "@/components/PurchaseSlip";
 import {
   Search,
@@ -20,8 +20,15 @@ import {
   Check,
   ChevronDown,
   X,
+  Plus,
+  Settings,
+  Building,
+  Receipt,
+  Truck,
+  MapPin,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
+import { getMandis } from "@/app/actions/mandis";
 
 import { useDebounce } from "@/lib/use-debounce";
 import { useFormAutoSave } from "@/lib/form-autosave";
@@ -77,6 +84,40 @@ export default function ProcurementPage() {
   const [showAdhatiyaDropdown, setShowAdhatiyaDropdown] = useState(false);
   const [loadingAdhatiyas, setLoadingAdhatiyas] = useState(false);
 
+  // Adhatiya CRUD Modal State
+  const [showCrudModal, setShowCrudModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingAdhatiyaId, setEditingAdhatiyaId] = useState<number | null>(null);
+
+  // CRUD Fields
+  const [crudName, setCrudName] = useState("");
+  const [crudAddress, setCrudAddress] = useState("");
+  const [crudVillage, setCrudVillage] = useState("");
+  const [crudBlock, setCrudBlock] = useState("");
+  const [crudPinCode, setCrudPinCode] = useState("");
+  const [crudState, setCrudState] = useState("");
+  const [crudDistrict, setCrudDistrict] = useState("");
+  const [crudMandi, setCrudMandi] = useState("");
+
+  const [crudGst, setCrudGst] = useState("");
+  const [crudMobile, setCrudMobile] = useState("");
+  const [crudEmail, setCrudEmail] = useState("");
+
+  // Delete confirmation state variables
+  const [adhatiyaToDelete, setAdhatiyaToDelete] = useState<{ id: number; name: string } | null>(null);
+  const [deleteStep, setDeleteStep] = useState<number>(0); // 0 = closed, 1 = warning, 2 = captcha, 3 = final
+  const [captchaCode, setCaptchaCode] = useState<string>("");
+  const [captchaInput, setCaptchaInput] = useState<string>("");
+
+  // Location search helper state
+  const [mandisData, setMandisData] = useState<{state: string; district: string; mandiName: string}[]>([]);
+  const [showStateDropdown, setShowStateDropdown] = useState(false);
+  const [stateSearch, setStateSearch] = useState("");
+  const [showDistrictDropdown, setShowDistrictDropdown] = useState(false);
+  const [districtSearch, setDistrictSearch] = useState("");
+  const [showMandiDropdown, setShowMandiDropdown] = useState(false);
+  const [mandiSearch, setMandiSearch] = useState("");
+
   const loadAdhatiyas = async (query = "") => {
     setLoadingAdhatiyas(true);
     try {
@@ -86,6 +127,159 @@ export default function ProcurementPage() {
       console.error("Failed to load Adhatiyas:", e);
     } finally {
       setLoadingAdhatiyas(false);
+    }
+  };
+
+  // Load mandis data on demand when Add modal is active
+  useEffect(() => {
+    if (showAddModal && mandisData.length === 0) {
+      getMandis().then(setMandisData).catch(console.error);
+    }
+  }, [showAddModal, mandisData.length]);
+
+  useEffect(() => {
+    if (!showStateDropdown) setStateSearch(crudState);
+  }, [showStateDropdown, crudState]);
+
+  useEffect(() => {
+    if (!showDistrictDropdown) setDistrictSearch(crudDistrict);
+  }, [showDistrictDropdown, crudDistrict]);
+
+  useEffect(() => {
+    if (!showMandiDropdown) setMandiSearch(crudMandi);
+  }, [showMandiDropdown, crudMandi]);
+
+  // Location data filtering
+  const filteredStates = useMemo(() => {
+    const uniq = Array.from(new Set((mandisData || []).map(m => m.state).filter(Boolean))).sort();
+    if (!stateSearch) return uniq;
+    return uniq.filter(s => s.toLowerCase().includes(stateSearch.toLowerCase()));
+  }, [mandisData, stateSearch]);
+
+  const filteredDistricts = useMemo(() => {
+    const uniq = Array.from(new Set((mandisData || []).filter(m => m.state === crudState).map(m => m.district).filter(Boolean))).sort();
+    if (!districtSearch) return uniq;
+    return uniq.filter(d => d.toLowerCase().includes(districtSearch.toLowerCase()));
+  }, [mandisData, crudState, districtSearch]);
+
+  const filteredMandis = useMemo(() => {
+    const list = (mandisData || []).filter(m => m.state === crudState && m.district === crudDistrict);
+    if (!mandiSearch) return list;
+    return list.filter(m => m.mandiName.toLowerCase().includes(mandiSearch.toLowerCase()));
+  }, [mandisData, crudState, crudDistrict, mandiSearch]);
+
+  // Save/Create Adhatiya Action
+  const handleSaveAdhatiya = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!crudName.trim()) return;
+
+    if (!crudAddress.trim() || !crudVillage.trim() || !crudBlock.trim() || !crudState.trim() || !crudDistrict.trim() || !crudMandi.trim() || !crudGst.trim() || !crudMobile.trim()) {
+      addToast({
+        type: "error",
+        title: "Validation Error",
+        message: "Please fill all required fields (*)."
+      });
+      return;
+    }
+
+    try {
+      const saved = await saveAdhatiya({
+        id: editingAdhatiyaId || undefined,
+        name: crudName.trim(),
+        address: crudAddress.trim(),
+        village: crudVillage.trim(),
+        block: crudBlock.trim(),
+        pinCode: crudPinCode.trim(),
+        state: crudState.trim(),
+        district: crudDistrict.trim(),
+        mandi: crudMandi.trim(),
+        gstNo: crudGst.trim(),
+        mobile: crudMobile.trim(),
+        email: crudEmail.trim()
+      });
+
+      addToast({
+        type: "success",
+        title: "Success",
+        message: `Adhatiya ${editingAdhatiyaId ? "updated" : "created"} successfully`
+      });
+
+      // Clear fields
+      setCrudName("");
+      setCrudAddress("");
+      setCrudVillage("");
+      setCrudBlock("");
+      setCrudPinCode("");
+      setCrudState("");
+      setCrudDistrict("");
+      setCrudMandi("");
+      setStateSearch("");
+      setDistrictSearch("");
+      setMandiSearch("");
+      setCrudGst("");
+      setCrudMobile("");
+      setCrudEmail("");
+      setEditingAdhatiyaId(null);
+      setShowAddModal(false);
+
+      // Reload list and automatically select the saved one
+      await loadAdhatiyas();
+      setAdtiyaName(saved.name);
+
+    } catch (err: any) {
+      addToast({
+        type: "error",
+        title: "Save Failed",
+        message: err.message || "Failed to save Adhatiya"
+      });
+    }
+  };
+
+  // Helper to generate 6-char verification code
+  const generateRandomCaptcha = () => {
+    const chars = "ABCDEFGHJKLMNOPQRSTUVWXYZ23456789";
+    let result = "";
+    for (let i = 0; i < 6; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  };
+
+  // Trigger Delete flow modal
+  const handleDeleteAdhatiya = (id: number, name: string) => {
+    setAdhatiyaToDelete({ id, name });
+    setDeleteStep(1);
+  };
+
+  // Confirm delete handler (final stage)
+  const handleDeleteAdhatiyaConfirmed = async (id: number) => {
+    try {
+      await deleteAdhatiya(id);
+      addToast({
+        type: "success",
+        title: "Deleted",
+        message: "Adhatiya removed from database"
+      });
+      
+      const deletedName = adhatiyaToDelete?.name;
+      if (deletedName && adtiyaName === deletedName) {
+        setAdtiyaName("");
+      }
+
+      setDeleteStep(0);
+      setAdhatiyaToDelete(null);
+      setCaptchaInput("");
+      loadAdhatiyas();
+    } catch (err: any) {
+      addToast({
+        type: "error",
+        title: "Delete Failed",
+        message: err.message || "Could not delete Adhatiya"
+      });
+      // Reset delete flow on failure
+      setDeleteStep(0);
+      setAdhatiyaToDelete(null);
+      setCaptchaInput("");
     }
   };
 
@@ -192,6 +386,15 @@ export default function ProcurementPage() {
       }
       if (!target.closest('.combobox-adhatiya')) {
         setShowAdhatiyaDropdown(false);
+      }
+      if (!target.closest('.combobox-state')) {
+        setShowStateDropdown(false);
+      }
+      if (!target.closest('.combobox-district')) {
+        setShowDistrictDropdown(false);
+      }
+      if (!target.closest('.combobox-mandi')) {
+        setShowMandiDropdown(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -402,7 +605,7 @@ export default function ProcurementPage() {
         {/* Farmer Select */}
         <div className="glass-card rounded-2xl p-5 relative z-50">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
-            <label className="block text-sm font-semibold text-slate-700">
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
               1. Select Farmer/Trader
             </label>
             <div className="flex bg-slate-100 p-1 rounded-2xl w-full sm:w-auto sm:min-w-[240px]">
@@ -494,8 +697,8 @@ export default function ProcurementPage() {
             </div>
           ) : (
             <div className="relative">
-              <div className={`flex items-center gap-2 px-4 py-3 rounded-xl border border-slate-200 bg-[#f5f5f7] focus-within:outline-none focus-within:ring-2 transition-all ${categoryFilter === "TRADER" ? "focus-within:ring-blue-500/30 focus-within:border-blue-500" : "focus-within:ring-forest-500/30 focus-within:border-forest-500"}`}>
-                <Search size={16} className="text-slate-400" />
+              <div className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus-within:outline-none focus-within:ring-2 transition-all ${categoryFilter === "TRADER" ? "focus-within:ring-blue-500/30 focus-within:border-blue-500" : "focus-within:ring-forest-500/30 focus-within:border-forest-500"}`}>
+                <Search size={14} className="text-slate-400" />
                 <input
                   value={farmerQuery}
                   onChange={(e) => {
@@ -504,7 +707,7 @@ export default function ProcurementPage() {
                   }}
                   onFocus={() => setShowDropdown(true)}
                   placeholder="Type name to search..."
-                  className="flex-1 bg-transparent outline-none text-sm text-slate-800 placeholder:text-slate-400"
+                  className="flex-1 bg-transparent outline-none text-xs font-bold text-slate-800 placeholder:text-slate-400"
                 />
                 {searchingFarmer && (
                   <Loader2 size={16} className="animate-spin text-slate-400" />
@@ -552,70 +755,106 @@ export default function ProcurementPage() {
 
         {/* Adtiya Name & Lot No */}
         <div className="glass-card rounded-2xl p-5 relative z-40">
-          <label className="block text-sm font-semibold text-slate-700 mb-3">
+          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
             2. Additional Details
           </label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="relative combobox-adhatiya">
-              <label className="block text-xs font-medium text-slate-500 mb-1.5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="relative combobox-adhatiya sm:col-span-2">
+              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">
                 Adtiya Name
               </label>
-              <div className="relative">
-                <Users size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  value={adtiyaName}
-                  onChange={(e) => {
-                    setAdtiyaName(e.target.value);
-                    loadAdhatiyas(e.target.value);
-                    setShowAdhatiyaDropdown(true);
-                  }}
-                  onFocus={() => setShowAdhatiyaDropdown(true)}
-                  placeholder="Search or enter Adtiya Name"
-                  className={`w-full pl-9 pr-4 py-3 rounded-xl border border-slate-200 bg-[#f5f5f7]
-                  text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
-                    transition-all text-base ${ringClass} font-semibold`}
-                />
-                
-                {/* Dropdown */}
-                {showAdhatiyaDropdown && (
-                  <div className="absolute z-50 mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-xl max-h-60 overflow-y-auto p-1.5">
-                    {loadingAdhatiyas && (
-                      <div className="p-3 text-xs text-slate-400 flex items-center gap-2">
-                        <Loader2 size={14} className="animate-spin" /> Searching...
-                      </div>
-                    )}
-                    {!loadingAdhatiyas && dbAdhatiyas.length === 0 && (
-                      <div className="p-3 text-xs text-slate-500 text-center">
-                        No Adhatiya named &quot;{adtiyaName}&quot; found
-                      </div>
-                    )}
-                    {dbAdhatiyas.map((ad) => (
-                      <div
-                        key={ad.id}
-                        onClick={() => {
-                          setAdtiyaName(ad.name);
-                          setShowAdhatiyaDropdown(false);
-                        }}
-                        className="p-2.5 hover:bg-slate-50 rounded-lg cursor-pointer flex justify-between items-center text-xs group"
-                      >
-                        <div className="text-left">
-                          <p className="font-bold text-slate-800">{ad.name}</p>
-                          <p className="text-[10px] text-slate-400 truncate max-w-[200px]">
-                            {[ad.mandiName, ad.district, ad.state].filter(Boolean).join(", ") || "No Location"}
-                          </p>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Users size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={adtiyaName}
+                    onChange={(e) => {
+                      setAdtiyaName(e.target.value);
+                      loadAdhatiyas(e.target.value);
+                      setShowAdhatiyaDropdown(true);
+                    }}
+                    onFocus={() => setShowAdhatiyaDropdown(true)}
+                    placeholder="Search or enter Adtiya Name"
+                    className={`w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white
+                    text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
+                      transition-all text-xs ${ringClass} font-bold`}
+                  />
+                  
+                  {/* Dropdown */}
+                  {showAdhatiyaDropdown && (
+                    <div className="absolute z-50 mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-xl max-h-60 overflow-y-auto p-1.5">
+                      {loadingAdhatiyas && (
+                        <div className="p-3 text-xs text-slate-400 flex items-center gap-2">
+                          <Loader2 size={14} className="animate-spin" /> Searching...
                         </div>
-                        <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-mono group-hover:bg-forest-50 group-hover:text-forest-700">
-                          Select
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                      )}
+                      {!loadingAdhatiyas && dbAdhatiyas.length === 0 && (
+                        <div className="p-3 text-xs text-slate-500 text-center">
+                          <p className="mb-2">No Adhatiya named &quot;{adtiyaName}&quot; found</p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCrudName(adtiyaName);
+                              setCrudAddress("");
+                              setCrudVillage("");
+                              setCrudBlock("");
+                              setCrudPinCode("");
+                              setCrudState("");
+                              setCrudDistrict("");
+                              setCrudMandi("");
+                              setStateSearch("");
+                              setDistrictSearch("");
+                              setMandiSearch("");
+                              setEditingAdhatiyaId(null);
+                              setShowAddModal(true);
+                              setShowAdhatiyaDropdown(false);
+                            }}
+                            className="px-3 py-1.5 bg-forest-600 text-white text-[11px] font-bold rounded-lg hover:bg-forest-700"
+                          >
+                            + Add &quot;{adtiyaName}&quot; as New Adhatiya
+                          </button>
+                        </div>
+                      )}
+                      {dbAdhatiyas.map((ad) => (
+                        <div
+                           key={ad.id}
+                           onClick={() => {
+                             setAdtiyaName(ad.name);
+                             setShowAdhatiyaDropdown(false);
+                           }}
+                           className="p-2.5 hover:bg-slate-50 rounded-lg cursor-pointer flex justify-between items-center text-xs group"
+                        >
+                          <div className="text-left">
+                            <p className="font-bold text-slate-800 text-xs">{ad.name}</p>
+                            <p className="text-[10px] text-slate-400 truncate max-w-[200px]">
+                              {[ad.mandi, ad.district, ad.state].filter(Boolean).join(", ") || "No Location"}
+                            </p>
+                          </div>
+                          <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-mono group-hover:bg-forest-50 group-hover:text-forest-700">
+                            Select
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    loadAdhatiyas();
+                    setShowCrudModal(true);
+                  }}
+                  className="px-3 border border-slate-200 hover:bg-slate-50 rounded-xl text-xs font-semibold text-slate-600 flex items-center gap-1.5"
+                  title="Manage Database"
+                >
+                  <Settings size={14} />
+                  Manage
+                </button>
               </div>
             </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1.5">
+            <div className="sm:col-span-1">
+              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">
                 Lot no.
               </label>
               <input
@@ -623,9 +862,9 @@ export default function ProcurementPage() {
                 value={lotNo}
                 onChange={(e) => setLotNo(e.target.value)}
                 placeholder="Enter Lot No."
-                className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-[#f5f5f7]
-                  text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
-                  transition-all text-base ${ringClass}`}
+                className={`w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7]
+                  text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:bg-white
+                  transition-all text-xs font-bold ${ringClass}`}
               />
             </div>
           </div>
@@ -634,7 +873,7 @@ export default function ProcurementPage() {
         {/* Crop + Quantity + Rate */}
         <div className="glass-card rounded-2xl p-5">
           <div className="flex justify-between items-center mb-3">
-            <label className="block text-sm font-semibold text-slate-700">
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
               3. Transaction Details
             </label>
           </div>
@@ -659,7 +898,7 @@ export default function ProcurementPage() {
                 <div className="grid grid-cols-2 gap-3 mb-3">
                   {/* Crop */}
                   <div className="relative combobox-crop">
-                    <label className="block text-xs font-medium text-slate-500 mb-1.5">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">
                       Crop Type
                     </label>
                     <div className="relative">
@@ -675,10 +914,10 @@ export default function ProcurementPage() {
                           setActiveDropdown({ index, type: 'crop' });
                         }}
                         placeholder="Search Crop..."
-                        className={`w-full pl-9 pr-8 py-3 rounded-xl border border-slate-200 bg-[#f5f5f7]
+                        className={`w-full pl-9 pr-8 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white
                   text-slate-800 placeholder:text-slate-400 
                           focus:outline-none focus:ring-2 ${ringClass} 
-                          transition-all text-sm font-medium`}
+                          transition-all text-xs font-bold`}
                       />
                       <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
                     </div>
@@ -708,7 +947,7 @@ export default function ProcurementPage() {
 
                   {/* Variety */}
                   <div className="relative combobox-variety">
-                    <label className="block text-xs font-medium text-slate-500 mb-1.5">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">
                       Variety
                     </label>
                     <div className="relative">
@@ -724,10 +963,10 @@ export default function ProcurementPage() {
                           setActiveDropdown({ index, type: 'variety' });
                         }}
                         placeholder="Search Variety..."
-                        className={`w-full pl-9 pr-8 py-3 rounded-xl border border-slate-200 bg-[#f5f5f7]
+                        className={`w-full pl-9 pr-8 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white
                   text-slate-800 placeholder:text-slate-400 
                           focus:outline-none focus:ring-2 ${ringClass} 
-                          transition-all text-sm font-medium`}
+                          transition-all text-xs font-bold`}
                       />
                       <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
                     </div>
@@ -763,7 +1002,7 @@ export default function ProcurementPage() {
                 <div className="grid grid-cols-2 gap-3">
                   {/* Bags */}
                   <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-1.5">No. of Bags</label>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">No. of Bags</label>
                     <input
                       type="number"
                       value={item.bags}
@@ -779,14 +1018,14 @@ export default function ProcurementPage() {
                       }}
                       placeholder="0"
                       min="0"
-                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-[#f5f5f7]
+                      className={`w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white
                   text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
-                        transition-all text-base ${ringClass}`}
+                        transition-all text-xs font-bold ${ringClass}`}
                     />
                   </div>
                   {/* Packing Size */}
                   <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-1.5">Packing Size (kg)</label>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Packing Size (kg)</label>
                     <input
                       type="number"
                       value={item.packingSize}
@@ -802,14 +1041,14 @@ export default function ProcurementPage() {
                       }}
                       placeholder="0"
                       min="0"
-                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-[#f5f5f7]
+                      className={`w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white
                   text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
-                        transition-all text-base ${ringClass}`}
+                        transition-all text-xs font-bold ${ringClass}`}
                     />
                   </div>
                   {/* Weight Qtl */}
                   <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-1.5">Weight Qtl.</label>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Weight Qtl.</label>
                     <input
                       type="number"
                       value={item.grossQuantity}
@@ -821,14 +1060,14 @@ export default function ProcurementPage() {
                       placeholder="0.00"
                       step="0.01"
                       min="0"
-                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-[#f5f5f7]
+                      className={`w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white
                   text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
-                        transition-all text-base ${ringClass}`}
+                        transition-all text-xs font-bold ${ringClass}`}
                     />
                   </div>
                   {/* Deduction Qtl/Bag */}
                   <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-1.5">Deduction/Qtl (kg)</label>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Deduction/Qtl (kg)</label>
                     <input
                       type="number"
                       value={item.deduction}
@@ -840,16 +1079,16 @@ export default function ProcurementPage() {
                       placeholder="0.00"
                       step="0.01"
                       min="0"
-                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-[#f5f5f7]
+                      className={`w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white
                   text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
-                        transition-all text-base ${ringClass}`}
+                        transition-all text-xs font-bold ${ringClass}`}
                     />
                   </div>
                   {/* Rate */}
                   <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-1.5">RATE PER QUINTAL</label>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Rate per Quintal</label>
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">₹</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">₹</span>
                       <input
                         type="number"
                         value={item.rate}
@@ -861,15 +1100,15 @@ export default function ProcurementPage() {
                         placeholder="0.00"
                         step="0.01"
                         min="0"
-                        className={`w-full pl-8 pr-4 py-3 rounded-xl border border-slate-200 bg-[#f5f5f7]
+                        className={`w-full pl-8 pr-4 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white
                   text-slate-800 placeholder:text-slate-400 
-                          focus:outline-none focus:ring-2 transition-all text-base ${ringClass}`}
+                          focus:outline-none focus:ring-2 transition-all text-xs font-bold ${ringClass}`}
                       />
                     </div>
                   </div>
                   {/* Bones */}
                   <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-1.5">Bones</label>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Bones</label>
                     <input
                       type="number"
                       value={item.bones}
@@ -881,9 +1120,9 @@ export default function ProcurementPage() {
                       placeholder="0"
                       step="0.01"
                       min="0"
-                      className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-[#f5f5f7]
+                      className={`w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white
                   text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 
-                        transition-all text-base ${ringClass}`}
+                        transition-all text-xs font-bold ${ringClass}`}
                     />
                   </div>
                 </div>
@@ -960,6 +1199,537 @@ export default function ProcurementPage() {
           receipts={receipts}
           onClose={() => setReceipts([])}
         />
+      )}
+
+      {/* MODAL 1: DATABASE MANAGER FOR ADHATIYAS */}
+      {showCrudModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 text-left">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowCrudModal(false)} />
+          <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl p-6 overflow-hidden max-h-[85vh] flex flex-col justify-between">
+            <div>
+              <div className="flex justify-between items-center border-b pb-3 mb-4">
+                <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                  <Users size={18} className="text-forest-700" />
+                  Manage Adhatiyas Database
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCrudName("");
+                    setCrudAddress("");
+                    setCrudVillage("");
+                    setCrudBlock("");
+                    setCrudPinCode("");
+                    setCrudState("");
+                    setCrudDistrict("");
+                    setCrudMandi("");
+                    setStateSearch("");
+                    setDistrictSearch("");
+                    setMandiSearch("");
+                    setCrudGst("");
+                    setCrudMobile("");
+                    setCrudEmail("");
+                    setEditingAdhatiyaId(null);
+                    setShowAddModal(true);
+                  }}
+                  className="px-3 py-1.5 bg-forest-700 text-white text-xs font-bold rounded-xl hover:bg-forest-800 flex items-center gap-1"
+                >
+                  <Plus size={14} />
+                  Add New
+                </button>
+              </div>
+
+              {/* List of current Adhatiyas */}
+              <div className="overflow-y-auto max-h-[50vh] pr-1 space-y-2">
+                {dbAdhatiyas.length === 0 ? (
+                  <p className="text-center text-xs text-slate-400 py-8">No Adhatiyas in database. Create one now!</p>
+                ) : (
+                  dbAdhatiyas.map((ad) => (
+                    <div key={ad.id} className="p-3 border border-slate-100 rounded-2xl flex items-start justify-between bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                      <div className="text-xs space-y-0.5">
+                        <p className="font-bold text-slate-800 text-sm">{ad.name}</p>
+                        <p className="text-slate-500">
+                          {[
+                            ad.address,
+                            [ad.village, ad.block].filter(Boolean).join(", "),
+                            [ad.district, ad.state].filter(Boolean).join(", ") + (ad.pinCode ? ` - ${ad.pinCode}` : ""),
+                            ad.mandi ? `Mandi: ${ad.mandi}` : ""
+                          ].filter(Boolean).join(", ")}
+                        </p>
+                        <p className="text-[10px] text-slate-400 font-mono">
+                          GST: {ad.gstNo || "—"} • Mob: {ad.mobile || "—"} • Email: {ad.email || "—"}
+                        </p>
+                      </div>
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingAdhatiyaId(ad.id);
+                            setCrudName(ad.name);
+                            setCrudAddress(ad.address || "");
+                            setCrudVillage(ad.village || "");
+                            setCrudBlock(ad.block || "");
+                            setCrudPinCode(ad.pinCode || "");
+                            setCrudState(ad.state || "");
+                            setCrudDistrict(ad.district || "");
+                            setCrudMandi(ad.mandi || "");
+                            setStateSearch(ad.state || "");
+                            setDistrictSearch(ad.district || "");
+                            setMandiSearch(ad.mandi || "");
+                            setCrudGst(ad.gstNo || "");
+                            setCrudMobile(ad.mobile || "");
+                            setCrudEmail(ad.email || "");
+                            setShowAddModal(true);
+                          }}
+                          className="p-1 text-slate-500 hover:text-blue-600 hover:bg-white rounded"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteAdhatiya(ad.id, ad.name)}
+                          className="p-1 text-slate-400 hover:text-red-600 hover:bg-white rounded"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="border-t pt-4 mt-4 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowCrudModal(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl"
+              >
+                Close Manager
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: ADD / EDIT ADHATIYA FORM */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 text-left">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowAddModal(false)} />
+          <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl p-6 overflow-y-auto max-h-[90vh]">
+            <h3 className="text-sm font-bold text-slate-800 border-b pb-3 mb-4 uppercase tracking-wider">
+              {editingAdhatiyaId ? "Edit Adhatiya Details" : "Create New Adhatiya Record"}
+            </h3>
+            
+            <form onSubmit={handleSaveAdhatiya} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Adhatiya Name*</label>
+                <input 
+                  type="text" 
+                  required
+                  value={crudName} 
+                  onChange={(e) => setCrudName(e.target.value)} 
+                  className="w-full px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                  placeholder="e.g. ABC Pvt Ltd"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Address (Street / House No.)*</label>
+                <input 
+                  type="text" 
+                  required
+                  value={crudAddress} 
+                  onChange={(e) => setCrudAddress(e.target.value)} 
+                  className="w-full px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                  placeholder="e.g. Near Mandi Road"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Village*</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={crudVillage} 
+                    onChange={(e) => setCrudVillage(e.target.value)} 
+                    className="w-full px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                    placeholder="Village Name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Block*</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={crudBlock} 
+                    onChange={(e) => setCrudBlock(e.target.value)} 
+                    className="w-full px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                    placeholder="Block / Taluka"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Pin Code</label>
+                <input 
+                  type="text" 
+                  value={crudPinCode} 
+                  onChange={(e) => setCrudPinCode(e.target.value)} 
+                  className="w-full px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                  placeholder="6-digit pin code"
+                  maxLength={6}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="relative combobox-state">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">State Search*</label>
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
+                    <input
+                      value={stateSearch}
+                      onChange={(e) => {
+                        setStateSearch(e.target.value);
+                        setShowStateDropdown(true);
+                      }}
+                      onFocus={() => {
+                        setStateSearch(crudState);
+                        setShowStateDropdown(true);
+                      }}
+                      placeholder="Search State..."
+                      className="w-full pl-7 pr-7 py-2 border rounded-xl focus:ring-2 focus:ring-forest-500/20 focus:outline-none"
+                    />
+                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={13} />
+                  </div>
+                  {showStateDropdown && (
+                    <div className="absolute z-[70] w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden">
+                      <div className="max-h-36 overflow-y-auto p-1">
+                        {filteredStates.length > 0 ? (
+                          filteredStates.map((s) => (
+                            <div
+                              key={s}
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                setCrudState(s);
+                                setStateSearch(s);
+                                setCrudDistrict("");
+                                setDistrictSearch("");
+                                setCrudMandi("");
+                                setMandiSearch("");
+                                setShowStateDropdown(false);
+                              }}
+                              className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer transition-colors text-[11px] ${crudState === s ? 'bg-forest-50 text-forest-700 font-semibold' : 'text-slate-700 hover:bg-slate-100'}`}
+                            >
+                              <span className="truncate pr-1">{s}</span>
+                              {crudState === s && <Check size={12} />}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="px-3 py-2 text-[10px] text-slate-500 text-center">No states</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="relative combobox-district">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">District Search*</label>
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
+                    <input
+                      value={districtSearch}
+                      onChange={(e) => {
+                        setDistrictSearch(e.target.value);
+                        setShowDistrictDropdown(true);
+                      }}
+                      onFocus={() => {
+                        setDistrictSearch(crudDistrict);
+                        setShowDistrictDropdown(true);
+                      }}
+                      disabled={!crudState}
+                      placeholder={crudState ? "Search District..." : "Select State"}
+                      className="w-full pl-7 pr-7 py-2 border rounded-xl focus:ring-2 focus:ring-forest-500/20 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={13} />
+                  </div>
+                  {showDistrictDropdown && (
+                    <div className="absolute z-[70] w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden">
+                      <div className="max-h-36 overflow-y-auto p-1">
+                        {filteredDistricts.length > 0 ? (
+                          filteredDistricts.map((d) => (
+                            <div
+                              key={d}
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                setCrudDistrict(d);
+                                setDistrictSearch(d);
+                                setCrudMandi("");
+                                setMandiSearch("");
+                                setShowDistrictDropdown(false);
+                              }}
+                              className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer transition-colors text-[11px] ${crudDistrict === d ? 'bg-forest-50 text-forest-700 font-semibold' : 'text-slate-700 hover:bg-slate-100'}`}
+                            >
+                              <span className="truncate pr-1">{d}</span>
+                              {crudDistrict === d && <Check size={12} />}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="px-3 py-2 text-[10px] text-slate-500 text-center">No districts</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="relative combobox-mandi">
+                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Mandi Search*</label>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
+                  <input
+                    value={mandiSearch}
+                    onChange={(e) => {
+                      setMandiSearch(e.target.value);
+                      setShowMandiDropdown(true);
+                    }}
+                    onFocus={() => {
+                      setMandiSearch(crudMandi);
+                      setShowMandiDropdown(true);
+                    }}
+                    disabled={!crudDistrict}
+                    placeholder={crudDistrict ? "Search Mandi..." : "Select District"}
+                    className="w-full pl-7 pr-7 py-2 border rounded-xl focus:ring-2 focus:ring-forest-500/20 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                  />
+                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={13} />
+                </div>
+                {showMandiDropdown && (
+                  <div className="absolute z-[70] w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden">
+                    <div className="max-h-36 overflow-y-auto p-1">
+                      {filteredMandis.length > 0 ? (
+                        filteredMandis.map((m) => (
+                          <div
+                            key={m.mandiName}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              setCrudMandi(m.mandiName);
+                              setMandiSearch(m.mandiName);
+                              setShowMandiDropdown(false);
+                            }}
+                            className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer transition-colors text-[11px] ${crudMandi === m.mandiName ? 'bg-forest-50 text-forest-700 font-semibold' : 'text-slate-700 hover:bg-slate-100'}`}
+                          >
+                            <div className="flex flex-col">
+                              <span>{m.mandiName}</span>
+                              <span className="text-[9px] text-slate-400 font-medium">{m.district}, {m.state}</span>
+                            </div>
+                            {crudMandi === m.mandiName && <Check size={12} />}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="px-3 py-2 text-[10px] text-slate-500 text-center">No mandis</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">GST/PAN No.*</label>
+                <input 
+                  type="text" 
+                  required
+                  value={crudGst} 
+                  onChange={(e) => setCrudGst(e.target.value)} 
+                  className="w-full px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                  placeholder="e.g. 06AAGCA3319R1ZD"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Mobile No.*</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={crudMobile} 
+                    onChange={(e) => setCrudMobile(e.target.value)} 
+                    className="w-full px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                    placeholder="e.g. 9876543210"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Email Id</label>
+                  <input 
+                    type="email" 
+                    value={crudEmail} 
+                    onChange={(e) => setCrudEmail(e.target.value)} 
+                    className="w-full px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                    placeholder="e.g. contact@agent.com"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-3 justify-end text-xs border-t mt-3">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-forest-700 text-white font-bold rounded-xl hover:bg-forest-800"
+                >
+                  Save Record
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: DELETE ADHATIYA CONFIRMATION MODAL */}
+      {deleteStep > 0 && adhatiyaToDelete && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 text-left">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => {
+            setDeleteStep(0);
+            setAdhatiyaToDelete(null);
+            setCaptchaInput("");
+          }} />
+          <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl p-6 overflow-hidden">
+            {deleteStep === 1 && (
+              <div>
+                <h3 className="text-sm font-bold text-red-600 border-b border-red-100 pb-3 mb-4 uppercase tracking-wider flex items-center gap-2">
+                  <span>⚠️</span> Warning: Deleting Adhatiya
+                </h3>
+                <p className="text-xs text-slate-600 leading-relaxed mb-6">
+                  You are about to permanently delete the Adhatiya record for <strong className="text-slate-800 font-bold">{adhatiyaToDelete.name}</strong>.
+                  <br /><br />
+                  This action is highly destructive. Existing records, transactions, or purchase orders associated with this Adhatiya might be affected or lose their relationship context.
+                </p>
+                <div className="flex gap-3 justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeleteStep(0);
+                      setAdhatiyaToDelete(null);
+                    }}
+                    className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-bold rounded-xl transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const code = generateRandomCaptcha();
+                      setCaptchaCode(code);
+                      setCaptchaInput("");
+                      setDeleteStep(2);
+                    }}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-all"
+                  >
+                    Proceed Anyway
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {deleteStep === 2 && (
+              <div>
+                <h3 className="text-sm font-bold text-slate-800 border-b pb-3 mb-4 uppercase tracking-wider">
+                  Security Verification
+                </h3>
+                <p className="text-xs text-slate-600 leading-relaxed mb-4">
+                  To confirm you want to delete <strong className="text-slate-800 font-bold">{adhatiyaToDelete.name}</strong>, please type the following 6-character verification code:
+                </p>
+                
+                <div className="bg-slate-100 py-3 px-4 rounded-xl text-center mb-4 tracking-[0.3em] font-mono text-lg font-black text-slate-700 select-none border border-slate-200">
+                  {captchaCode}
+                </div>
+
+                <div className="mb-6">
+                  <input
+                    type="text"
+                    value={captchaInput}
+                    onChange={(e) => setCaptchaInput(e.target.value)}
+                    placeholder="Enter verification code"
+                    className="w-full px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:ring-2 focus:ring-red-500/20 focus:outline-none text-center font-mono font-bold text-sm tracking-widest text-slate-800"
+                  />
+                </div>
+
+                <div className="flex gap-3 justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeleteStep(0);
+                      setAdhatiyaToDelete(null);
+                      setCaptchaInput("");
+                    }}
+                    className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-bold rounded-xl transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (captchaInput.trim().toUpperCase() === captchaCode) {
+                        setDeleteStep(3);
+                      } else {
+                        addToast({
+                          type: "error",
+                          title: "Invalid Code",
+                          message: "The entered verification code did not match. Please try again."
+                        });
+                        setCaptchaCode(generateRandomCaptcha());
+                        setCaptchaInput("");
+                      }
+                    }}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl transition-all"
+                  >
+                    Verify Code
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {deleteStep === 3 && (
+              <div>
+                <h3 className="text-sm font-bold text-red-600 border-b border-red-100 pb-3 mb-4 uppercase tracking-wider">
+                  Final Confirmation
+                </h3>
+                <p className="text-xs text-slate-600 leading-relaxed mb-6 font-semibold">
+                  Are you absolutely sure you want to delete <strong className="text-slate-800 font-bold">{adhatiyaToDelete.name}</strong>?
+                  <br /><br />
+                  This is the final confirmation. There is no undo.
+                </p>
+                <div className="flex gap-3 justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeleteStep(0);
+                      setAdhatiyaToDelete(null);
+                      setCaptchaInput("");
+                    }}
+                    className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-bold rounded-xl transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleDeleteAdhatiyaConfirmed(adhatiyaToDelete.id);
+                    }}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-all"
+                  >
+                    Yes, Delete
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
     </div>
