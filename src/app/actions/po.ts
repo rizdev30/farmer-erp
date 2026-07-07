@@ -338,3 +338,193 @@ export async function markPOAsBilled(slipId: string) {
   return updated;
 }
 
+export async function getCompanyAddresses() {
+  const user = await getSessionUser();
+  if (!user.roles.includes("L3_PO_MAKER") && !user.roles.includes("L4_ADMIN") && !user.isSuperAdmin) {
+    throw new Error("Unauthorized");
+  }
+  return await prisma.companyAddress.findMany({
+    orderBy: { createdAt: "desc" }
+  });
+}
+
+export async function saveCompanyAddress(data: {
+  id?: number;
+  name: string;
+  address?: string;
+  village?: string;
+  block?: string;
+  pinCode?: string;
+  state?: string;
+  district?: string;
+  place?: string;
+  gstNo?: string;
+  mobile?: string;
+  email?: string;
+}) {
+  const user = await getSessionUser();
+  if (!user.userId) {
+    throw new Error("Unauthorized");
+  }
+
+  const { id, name, address, village, block, pinCode, state, district, place, gstNo, mobile, email } = data;
+
+  if (id) {
+    const updated = await prisma.companyAddress.update({
+      where: { id },
+      data: {
+        name,
+        address: address || "",
+        village: village || "",
+        block: block || "",
+        pinCode: pinCode || "",
+        state: state || "",
+        district: district || "",
+        place: place || "",
+        gstNo: gstNo || "",
+        mobile: mobile || "",
+        email: email || "",
+      }
+    });
+    await logAuditAction(user.userId, "COMPANY_ADDRESS_UPDATED", `Updated Company Address ${name} by user ${user.userName}`);
+    return updated;
+  } else {
+    const existing = await prisma.companyAddress.findUnique({
+      where: { name }
+    });
+    if (existing) {
+      throw new Error(`Company Address with name "${name}" already exists.`);
+    }
+
+    const created = await prisma.companyAddress.create({
+      data: {
+        name,
+        address: address || "",
+        village: village || "",
+        block: block || "",
+        pinCode: pinCode || "",
+        state: state || "",
+        district: district || "",
+        place: place || "",
+        gstNo: gstNo || "",
+        mobile: mobile || "",
+        email: email || "",
+      }
+    });
+    await logAuditAction(user.userId, "COMPANY_ADDRESS_CREATED", `Created Company Address ${name} by user ${user.userName}`);
+    return created;
+  }
+}
+
+export async function deleteCompanyAddress(id: number) {
+  const user = await getSessionUser();
+  if (!user.roles.includes("L4_ADMIN") && !user.isSuperAdmin) {
+    throw new Error("Unauthorized");
+  }
+
+  const target = await prisma.companyAddress.findUnique({
+    where: { id }
+  });
+
+  const deleted = await prisma.companyAddress.delete({
+    where: { id }
+  });
+  await logAuditAction(user.userId, "COMPANY_ADDRESS_DELETED", `Deleted Company Address "${target?.name || 'Unknown'}" (ID: ${id}) by user ${user.userName}`);
+  return deleted;
+}
+
+export async function getWarehouseAddresses() {
+  const user = await getSessionUser();
+  if (!user.roles.includes("L3_PO_MAKER") && !user.roles.includes("L4_ADMIN") && !user.isSuperAdmin) {
+    throw new Error("Unauthorized");
+  }
+  return await prisma.warehouseAddress.findMany({
+    orderBy: { createdAt: "desc" }
+  });
+}
+
+export async function saveWarehouseAddress(data: {
+  id?: number;
+  name: string;
+  address?: string;
+  village?: string;
+  block?: string;
+  pinCode?: string;
+  state?: string;
+  district?: string;
+  place?: string;
+  gstNo?: string;
+  mobile?: string;
+  email?: string;
+}) {
+  const user = await getSessionUser();
+  if (!user.userId) {
+    throw new Error("Unauthorized");
+  }
+
+  const { id, name, address, village, block, pinCode, state, district, place, gstNo, mobile, email } = data;
+
+  if (id) {
+    const updated = await prisma.warehouseAddress.update({
+      where: { id },
+      data: {
+        name,
+        address: address || "",
+        village: village || "",
+        block: block || "",
+        pinCode: pinCode || "",
+        state: state || "",
+        district: district || "",
+        place: place || "",
+        gstNo: gstNo || "",
+        mobile: mobile || "",
+        email: email || "",
+      }
+    });
+    await logAuditAction(user.userId, "WAREHOUSE_ADDRESS_UPDATED", `Updated Warehouse Address ${name} by user ${user.userName}`);
+    return updated;
+  } else {
+    const existing = await prisma.warehouseAddress.findUnique({
+      where: { name }
+    });
+    if (existing) {
+      throw new Error(`Warehouse Address with name "${name}" already exists.`);
+    }
+
+    const created = await prisma.warehouseAddress.create({
+      data: {
+        name,
+        address: address || "",
+        village: village || "",
+        block: block || "",
+        pinCode: pinCode || "",
+        state: state || "",
+        district: district || "",
+        place: place || "",
+        gstNo: gstNo || "",
+        mobile: mobile || "",
+        email: email || "",
+      }
+    });
+    await logAuditAction(user.userId, "WAREHOUSE_ADDRESS_CREATED", `Created Warehouse Address ${name} by user ${user.userName}`);
+    return created;
+  }
+}
+
+export async function deleteWarehouseAddress(id: number) {
+  const user = await getSessionUser();
+  if (!user.roles.includes("L4_ADMIN") && !user.isSuperAdmin) {
+    throw new Error("Unauthorized");
+  }
+
+  const target = await prisma.warehouseAddress.findUnique({
+    where: { id }
+  });
+
+  const deleted = await prisma.warehouseAddress.delete({
+    where: { id }
+  });
+  await logAuditAction(user.userId, "WAREHOUSE_ADDRESS_DELETED", `Deleted Warehouse Address "${target?.name || 'Unknown'}" (ID: ${id}) by user ${user.userName}`);
+  return deleted;
+}
+

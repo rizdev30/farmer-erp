@@ -8,10 +8,16 @@ import {
   getApprovedProcurementsByAdhatiya, 
   getAdhatiyas, 
   saveAdhatiya, 
-  deleteAdhatiya 
+  deleteAdhatiya,
+  getCompanyAddresses,
+  saveCompanyAddress,
+  deleteCompanyAddress,
+  getWarehouseAddresses,
+  saveWarehouseAddress,
+  deleteWarehouseAddress
 } from "@/app/actions/po";
 import { 
-  FileText, Search, Plus, Trash2, Save, Printer, Loader2, Users, PlusCircle, Building, Settings, Check, HelpCircle, ChevronDown, ChevronRight, MapPin, Truck, Receipt
+  FileText, Search, Plus, Trash2, Save, Printer, Loader2, Users, PlusCircle, Building, Settings, Check, HelpCircle, ChevronDown, ChevronRight, MapPin, Truck, Receipt, Sprout, Home, AlertTriangle, Edit
 } from "lucide-react";
 import { useToast } from "@/components/Toast";
 import LoadingSkeleton from "./loading";
@@ -88,6 +94,8 @@ function POMakerForm() {
   const [selectedAdhatiyaId, setSelectedAdhatiyaId] = useState<number | null>(null);
   const [showAdhatiyaDropdown, setShowAdhatiyaDropdown] = useState(false);
   const [loadingAdhatiyas, setLoadingAdhatiyas] = useState(false);
+  const [showSlipsDropdown, setShowSlipsDropdown] = useState(false);
+  const [slipFilter, setSlipFilter] = useState("");
 
   // Adhatiya CRUD Modal State
   const [showCrudModal, setShowCrudModal] = useState(false);
@@ -191,6 +199,8 @@ function POMakerForm() {
   const [originalProcurement, setOriginalProcurement] = useState<any>(null);
   const [poBags, setPoBags] = useState(0);
   const [slipOverrides, setSlipOverrides] = useState<Record<string, number>>({});
+  const [slipDetailsOverrides, setSlipDetailsOverrides] = useState<Record<string, Record<string, any>>>({});
+  const [editingSlipId, setEditingSlipId] = useState<string | null>(null);
   const [poStatus, setPoStatus] = useState("SAVED");
 
   // PO Document States
@@ -228,6 +238,55 @@ function POMakerForm() {
     email: "Email: contact@farmererp.com"
   });
 
+  // Company & Warehouse Address management states
+  const [billingOption, setBillingOption] = useState<"company" | "custom">("company");
+  const [deliveryOption, setDeliveryOption] = useState<"warehouse" | "custom">("warehouse");
+  
+  const [companyAddresses, setCompanyAddresses] = useState<any[]>([]);
+  const [selectedCompanyAddressId, setSelectedCompanyAddressId] = useState<number | null>(null);
+  const [companySearch, setCompanySearch] = useState("");
+  const [showCompanyDropdown, setShowCompanyDropdown] = useState(false);
+  const [loadingCompanies, setLoadingCompanies] = useState(false);
+
+  const [warehouseAddresses, setWarehouseAddresses] = useState<any[]>([]);
+  const [selectedWarehouseAddressId, setSelectedWarehouseAddressId] = useState<number | null>(null);
+  const [warehouseSearch, setWarehouseSearch] = useState("");
+  const [showWarehouseDropdown, setShowWarehouseDropdown] = useState(false);
+  const [loadingWarehouses, setLoadingWarehouses] = useState(false);
+
+  // CRUD modals for Company & Warehouse addresses
+  const [showCompanyCrudModal, setShowCompanyCrudModal] = useState(false);
+  const [showWarehouseCrudModal, setShowWarehouseCrudModal] = useState(false);
+  const [showCompanyAddModal, setShowCompanyAddModal] = useState(false);
+  const [showWarehouseAddModal, setShowWarehouseAddModal] = useState(false);
+  
+  const [editingCompanyAddressId, setEditingCompanyAddressId] = useState<number | null>(null);
+  const [editingWarehouseAddressId, setEditingWarehouseAddressId] = useState<number | null>(null);
+
+  // Form states for adding/editing Company & Warehouse address
+  const [addrName, setAddrName] = useState("");
+  const [addrStreet, setAddrStreet] = useState("");
+  const [addrVillage, setAddrVillage] = useState("");
+  const [addrBlock, setAddrBlock] = useState("");
+  const [addrPinCode, setAddrPinCode] = useState("");
+  const [addrState, setAddrState] = useState("");
+  const [addrDistrict, setAddrDistrict] = useState("");
+  const [addrPlace, setAddrPlace] = useState("");
+  const [addrGstNo, setAddrGstNo] = useState("");
+  const [addrMobile, setAddrMobile] = useState("");
+  const [addrEmail, setAddrEmail] = useState("");
+
+  // Deletion warnings states for Company & Warehouse Address
+  const [companyToDelete, setCompanyToDelete] = useState<any>(null);
+  const [companyDeleteStep, setCompanyDeleteStep] = useState(0);
+  const [companyCaptchaCode, setCompanyCaptchaCode] = useState("");
+  const [companyCaptchaInput, setCompanyCaptchaInput] = useState("");
+
+  const [warehouseToDelete, setWarehouseToDelete] = useState<any>(null);
+  const [warehouseDeleteStep, setWarehouseDeleteStep] = useState(0);
+  const [warehouseCaptchaCode, setWarehouseCaptchaCode] = useState("");
+  const [warehouseCaptchaInput, setWarehouseCaptchaInput] = useState("");
+
   // Table parameters override
   const [hsnCode, setHsnCode] = useState("1063020");
   const [packingSize, setPackingSize] = useState(50);
@@ -261,13 +320,277 @@ function POMakerForm() {
     finalAmount: ""
   });
 
+  const getSlipValue = (slip: any, field: string) => {
+    const o = slipDetailsOverrides[slip.slipId] || {};
+    if (o[field] !== undefined) return o[field];
+    if (field === "bags") return slip.remainingBags !== undefined ? slip.remainingBags : slip.bags;
+    if (field === "netQuantity") return slip.remainingQty !== undefined ? slip.remainingQty : slip.netQuantity;
+    return slip[field] || "";
+  };
+
+  const updateSlipOverride = (slipId: string, field: string, value: any) => {
+    setSlipDetailsOverrides(prev => {
+      const existing = prev[slipId] || {};
+      const next = { ...prev, [slipId]: { ...existing, [field]: value } };
+      
+      // Automatically recalculate total if netQuantity or rate changes
+      if (field === "netQuantity" || field === "rate") {
+        const q = field === "netQuantity" ? Number(value) : (existing.netQuantity !== undefined ? Number(existing.netQuantity) : 0);
+        const r = field === "rate" ? Number(value) : (existing.rate !== undefined ? Number(existing.rate) : 0);
+        next[slipId].total = Math.round((q * r) * 100) / 100;
+      }
+      return next;
+    });
+  };
+
   // Load initial slip if passed in URL
   useEffect(() => {
     if (initialSlipId) {
       fetchPO(initialSlipId);
     }
     loadAdhatiyas();
+    loadCompanyAddresses();
+    loadWarehouseAddresses();
   }, [initialSlipId]);
+
+  // Load all Company Addresses
+  const loadCompanyAddresses = async () => {
+    setLoadingCompanies(true);
+    try {
+      const res = await getCompanyAddresses();
+      setCompanyAddresses(res);
+      // Auto-select the first one if none selected and option is company
+      if (res.length > 0 && !selectedCompanyAddressId) {
+        const matched = res.find(c => c.name === "Farmer ERP Pvt Ltd") || res[0];
+        handleSelectCompanyAddress(matched);
+      }
+    } catch (e) {
+      console.error("Failed to load Company Addresses:", e);
+    } finally {
+      setLoadingCompanies(false);
+    }
+  };
+
+  // Load all Warehouse Addresses
+  const loadWarehouseAddresses = async () => {
+    setLoadingWarehouses(true);
+    try {
+      const res = await getWarehouseAddresses();
+      setWarehouseAddresses(res);
+    } catch (e) {
+      console.error("Failed to load Warehouse Addresses:", e);
+    } finally {
+      setLoadingWarehouses(false);
+    }
+  };
+
+  const handleSelectCompanyAddress = (addr: any) => {
+    setSelectedCompanyAddressId(addr.id);
+    setCompanySearch(addr.name);
+    setShowCompanyDropdown(false);
+
+    const fullAddress = [
+      addr.address,
+      [addr.village, addr.block].filter(Boolean).join(", "),
+      [addr.district, addr.place].filter(Boolean).join(", ") + (addr.pinCode ? ` - ${addr.pinCode}` : ""),
+      addr.state ? `State: ${addr.state}` : ""
+    ].filter(Boolean).join("\n");
+
+    setBilling({
+      name: addr.name,
+      address: fullAddress,
+      gstNo: addr.gstNo ? `GSTIN: ${addr.gstNo}` : "",
+      mobile: addr.mobile ? `Mobile: ${addr.mobile}` : "",
+      email: addr.email ? `Email: ${addr.email}` : ""
+    });
+  };
+
+  const handleSelectWarehouseAddress = (addr: any) => {
+    setSelectedWarehouseAddressId(addr.id);
+    setWarehouseSearch(addr.name);
+    setShowWarehouseDropdown(false);
+
+    const fullAddress = [
+      addr.address,
+      [addr.village, addr.block].filter(Boolean).join(", "),
+      [addr.district, addr.place].filter(Boolean).join(", ") + (addr.pinCode ? ` - ${addr.pinCode}` : ""),
+      addr.state ? `State: ${addr.state}` : ""
+    ].filter(Boolean).join("\n");
+
+    setDelivery({
+      name: addr.name,
+      address: fullAddress,
+      gstNo: addr.gstNo ? `GSTIN: ${addr.gstNo}` : "",
+      mobile: addr.mobile ? `Mobile: ${addr.mobile}` : "",
+      email: addr.email ? `Email: ${addr.email}` : ""
+    });
+  };
+
+  const handleSaveCompanyAddress = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!addrName.trim()) return;
+
+    try {
+      await saveCompanyAddress({
+        id: editingCompanyAddressId || undefined,
+        name: addrName,
+        address: addrStreet,
+        village: addrVillage,
+        block: addrBlock,
+        pinCode: addrPinCode,
+        state: addrState,
+        district: addrDistrict,
+        place: addrPlace,
+        gstNo: addrGstNo,
+        mobile: addrMobile,
+        email: addrEmail
+      });
+
+      addToast({
+        type: "success",
+        title: editingCompanyAddressId ? "Address Updated" : "Address Created",
+        message: `Successfully saved "${addrName}"`
+      });
+
+      // Reset states
+      setAddrName("");
+      setAddrStreet("");
+      setAddrVillage("");
+      setAddrBlock("");
+      setAddrPinCode("");
+      setAddrState("");
+      setAddrDistrict("");
+      setAddrPlace("");
+      setAddrGstNo("");
+      setAddrMobile("");
+      setAddrEmail("");
+      setEditingCompanyAddressId(null);
+      setShowCompanyAddModal(false);
+      loadCompanyAddresses();
+    } catch (err: any) {
+      addToast({
+        type: "error",
+        title: "Save Error",
+        message: err.message || "Failed to save company address"
+      });
+    }
+  };
+
+  const handleDeleteCompanyAddress = (id: number, name: string) => {
+    setCompanyToDelete({ id, name });
+    setCompanyCaptchaCode(generateRandomCaptcha());
+    setCompanyCaptchaInput("");
+    setCompanyDeleteStep(1);
+  };
+
+  const handleDeleteCompanyConfirmed = async (id: number) => {
+    try {
+      await deleteCompanyAddress(id);
+      addToast({
+        type: "success",
+        title: "Deleted",
+        message: "Company Address removed from database"
+      });
+      loadCompanyAddresses();
+      if (selectedCompanyAddressId === id) {
+        setSelectedCompanyAddressId(null);
+        setCompanySearch("");
+        setBilling({ name: "", address: "", gstNo: "", mobile: "", email: "" });
+      }
+      setCompanyDeleteStep(0);
+      setCompanyToDelete(null);
+      setCompanyCaptchaInput("");
+    } catch (err: any) {
+      addToast({
+        type: "error",
+        title: "Delete Failed",
+        message: err.message || "Could not delete Company Address"
+      });
+    }
+  };
+
+  const handleSaveWarehouseAddress = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!addrName.trim()) return;
+
+    try {
+      await saveWarehouseAddress({
+        id: editingWarehouseAddressId || undefined,
+        name: addrName,
+        address: addrStreet,
+        village: addrVillage,
+        block: addrBlock,
+        pinCode: addrPinCode,
+        state: addrState,
+        district: addrDistrict,
+        place: addrPlace,
+        gstNo: addrGstNo,
+        mobile: addrMobile,
+        email: addrEmail
+      });
+
+      addToast({
+        type: "success",
+        title: editingWarehouseAddressId ? "Address Updated" : "Address Created",
+        message: `Successfully saved "${addrName}"`
+      });
+
+      // Reset states
+      setAddrName("");
+      setAddrStreet("");
+      setAddrVillage("");
+      setAddrBlock("");
+      setAddrPinCode("");
+      setAddrState("");
+      setAddrDistrict("");
+      setAddrPlace("");
+      setAddrGstNo("");
+      setAddrMobile("");
+      setAddrEmail("");
+      setEditingWarehouseAddressId(null);
+      setShowWarehouseAddModal(false);
+      loadWarehouseAddresses();
+    } catch (err: any) {
+      addToast({
+        type: "error",
+        title: "Save Error",
+        message: err.message || "Failed to save warehouse address"
+      });
+    }
+  };
+
+  const handleDeleteWarehouseAddress = (id: number, name: string) => {
+    setWarehouseToDelete({ id, name });
+    setWarehouseCaptchaCode(generateRandomCaptcha());
+    setWarehouseCaptchaInput("");
+    setWarehouseDeleteStep(1);
+  };
+
+  const handleDeleteWarehouseConfirmed = async (id: number) => {
+    try {
+      await deleteWarehouseAddress(id);
+      addToast({
+        type: "success",
+        title: "Deleted",
+        message: "Warehouse Address removed from database"
+      });
+      loadWarehouseAddresses();
+      if (selectedWarehouseAddressId === id) {
+        setSelectedWarehouseAddressId(null);
+        setWarehouseSearch("");
+        setDelivery({ name: "", address: "", gstNo: "", mobile: "", email: "" });
+      }
+      setWarehouseDeleteStep(0);
+      setWarehouseToDelete(null);
+      setWarehouseCaptchaInput("");
+    } catch (err: any) {
+      addToast({
+        type: "error",
+        title: "Delete Failed",
+        message: err.message || "Could not delete Warehouse Address"
+      });
+    }
+  };
 
   // Load all Adhatiyas for search
   const loadAdhatiyas = async (query = "") => {
@@ -420,6 +743,7 @@ function POMakerForm() {
 
     // Fetch slips for this Adhatiya
     fetchSlipsForAdhatiya(adhatiya.name);
+    setShowSlipsDropdown(true);
   };
 
   // Save/Create Adhatiya Action
@@ -552,18 +876,27 @@ function POMakerForm() {
     // If no slips selected but we have a single primary loaded procurement, use it
     const activeSlips = selectedSlips.length > 0 
       ? selectedSlips.map(s => {
-          const overriddenBags = slipOverrides[s.slipId];
-          if (overriddenBags !== undefined) {
-            const bags = Math.max(0, Math.min(s.remainingBags || s.bags, overriddenBags));
-            const baseRemainingBags = s.remainingBags || s.bags || 1;
-            const baseRemainingQty = s.remainingQty !== undefined ? s.remainingQty : s.netQuantity;
-            const qty = Math.max(0, Math.round((baseRemainingQty / baseRemainingBags) * bags * 100) / 100);
-            const total = Math.round((qty * s.rate) * 100) / 100;
-            return { ...s, bags, netQuantity: qty, total };
-          }
-          return s;
+          const o = slipDetailsOverrides[s.slipId] || {};
+          const crop = o.crop !== undefined ? o.crop : (s.crop || "");
+          const variety = o.variety !== undefined ? o.variety : (s.variety || "");
+          const bags = o.bags !== undefined ? o.bags : (s.remainingBags !== undefined ? s.remainingBags : s.bags || 0);
+          const netQuantity = o.netQuantity !== undefined ? o.netQuantity : (s.remainingQty !== undefined ? s.remainingQty : s.netQuantity || 0);
+          const rate = o.rate !== undefined ? o.rate : (s.rate || 0);
+          const total = o.total !== undefined ? o.total : Math.round((netQuantity * rate) * 100) / 100;
+          return { ...s, crop, variety, bags, netQuantity, rate, total };
         }) 
-      : (originalProcurement ? [originalProcurement] : []);
+      : (originalProcurement ? [
+          (() => {
+            const o = slipDetailsOverrides[originalProcurement.slipId] || {};
+            const crop = o.crop !== undefined ? o.crop : (manualCrop || originalProcurement.crop || "");
+            const variety = o.variety !== undefined ? o.variety : (manualVariety || originalProcurement.variety || "");
+            const bags = o.bags !== undefined ? o.bags : (poBags || originalProcurement.remainingBags || originalProcurement.bags || 0);
+            const netQuantity = o.netQuantity !== undefined ? o.netQuantity : (manualNetQty !== "" ? Number(manualNetQty) : (originalProcurement.remainingQty !== undefined ? originalProcurement.remainingQty : originalProcurement.netQuantity || 0));
+            const rate = o.rate !== undefined ? o.rate : (manualRate !== "" ? Number(manualRate) : (originalProcurement.rate || 0));
+            const total = o.total !== undefined ? o.total : Math.round((netQuantity * rate) * 100) / 100;
+            return { ...originalProcurement, crop, variety, bags, netQuantity, rate, total };
+          })()
+        ] : []);
 
     let totalBags = 0;
     let totalQty = 0;
@@ -572,15 +905,11 @@ function POMakerForm() {
     activeSlips.forEach(slip => {
       totalBags += slip.bags || 0;
       totalQty += slip.netQuantity || 0;
-      totalSubtotal += (slip.netQuantity || 0) * (slip.rate || 0);
+      totalSubtotal += slip.total || 0;
     });
 
     // Handle overrides for single-item PO or bags override
     if (activeSlips.length === 1 && originalProcurement) {
-      const netQty = manualNetQty !== "" ? Number(manualNetQty) : totalQty;
-      const rate = manualRate !== "" ? Number(manualRate) : (originalProcurement.rate || 0);
-      totalQty = netQty;
-      totalSubtotal = netQty * rate;
       if (poBags > 0) totalBags = poBags;
     } else {
       if (poBags > 0) totalBags = poBags;
@@ -626,7 +955,7 @@ function POMakerForm() {
       roundOff,
       finalAmount
     };
-  }, [procurementSlips, selectedSlipIds, originalProcurement, poBags, manualNetQty, manualRate, rates, overrides, slipOverrides]);
+  }, [procurementSlips, selectedSlipIds, originalProcurement, poBags, manualNetQty, manualRate, manualCrop, manualVariety, rates, overrides, slipOverrides, slipDetailsOverrides]);
 
   // Handle Save PO to Database
   const handleSave = async () => {
@@ -859,68 +1188,217 @@ function POMakerForm() {
           </div>
         </div>
 
-        {/* Adhatiya procurement slips list (Multi-Select) */}
+        {/* Adhatiya procurement slips list (Multi-Select Dropdown) */}
         {procurementSlips.length > 0 && (
-          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                2. Select Slips under &quot;{adhatiyaSearch}&quot;
-              </h3>
-              <button
-                type="button"
-                onClick={() => {
-                  if (selectedSlipIds.size === procurementSlips.length) {
-                    setSelectedSlipIds(new Set());
-                  } else {
-                    setSelectedSlipIds(new Set(procurementSlips.map(s => s.slipId)));
-                  }
-                }}
-                className="text-[10px] font-bold text-forest-700 hover:text-forest-800 bg-forest-50 px-2 py-0.5 rounded"
-              >
-                {selectedSlipIds.size === procurementSlips.length ? "Clear All" : "Select All"}
-              </button>
-            </div>
-            
-            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-              {procurementSlips.map((slip) => {
-                const isChecked = selectedSlipIds.has(slip.slipId);
-                return (
-                  <label
-                    key={slip.slipId}
-                    className={`flex items-start gap-3 p-2.5 border rounded-xl cursor-pointer hover:bg-slate-50 transition-all ${isChecked ? "border-forest-500 bg-forest-50/20" : "border-slate-100"}`}
+          <div className="relative">
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+              2. Select Slips under &quot;{adhatiyaSearch}&quot;
+            </label>
+            <button
+              type="button"
+              onClick={() => setShowSlipsDropdown(!showSlipsDropdown)}
+              className="w-full flex items-center justify-between px-4 py-2.5 bg-white border border-slate-200 rounded-xl shadow-sm text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-all"
+            >
+              <span>
+                {selectedSlipIds.size === 0 
+                  ? "Select Farmers/Traders (None Selected)" 
+                  : `Selected ${selectedSlipIds.size} of ${procurementSlips.length} Slips`}
+              </span>
+              <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 ${showSlipsDropdown ? "rotate-180" : ""}`} />
+            </button>
+
+            {showSlipsDropdown && (
+              <div className="absolute z-40 mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-xl max-h-80 overflow-hidden flex flex-col p-3 space-y-2">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase">Available Slips</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedSlipIds.size === procurementSlips.length) {
+                        setSelectedSlipIds(new Set());
+                      } else {
+                        setSelectedSlipIds(new Set(procurementSlips.map(s => s.slipId)));
+                      }
+                    }}
+                    className="text-[10px] font-bold text-forest-700 hover:text-forest-800 bg-forest-50 px-2 py-0.5 rounded"
                   >
-                    <input
-                      type="checkbox"
-                      checked={isChecked}
-                      onChange={() => {
-                        setSelectedSlipIds(prev => {
-                          const next = new Set(prev);
-                          if (next.has(slip.slipId)) next.delete(slip.slipId);
-                          else next.add(slip.slipId);
-                          return next;
-                        });
-                      }}
-                      className="mt-1 w-4 h-4 accent-forest-700 shrink-0 rounded"
-                    />
-                    <div className="flex-1 min-w-0 text-xs">
-                      <p className="font-bold text-slate-800">
-                        {slip.farmerName} <span className="text-[9px] font-normal text-slate-400">({slip.farmerCode})</span>
-                      </p>
-                      <p className="text-[10px] text-slate-500">
-                        {slip.crop} {slip.variety} • {slip.bags} Bags • {slip.netQuantity} Qtl
-                      </p>
-                      <p className="text-[9px] font-mono text-slate-400 mt-0.5">{slip.slipId}</p>
+                    {selectedSlipIds.size === procurementSlips.length ? "Clear All" : "Select All"}
+                  </button>
+                </div>
+                
+                {/* Search box to filter slips inside the dropdown */}
+                <input
+                  type="text"
+                  placeholder="Filter slips by farmer name or code..."
+                  value={slipFilter}
+                  onChange={(e) => setSlipFilter(e.target.value)}
+                  className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:outline-none focus:ring-1 focus:ring-forest-500 transition-all font-semibold text-slate-700"
+                />
+
+                <div className="space-y-1.5 overflow-y-auto flex-1 max-h-52 pr-1">
+                  {procurementSlips
+                    .filter(s => 
+                      s.farmerName?.toLowerCase().includes(slipFilter.toLowerCase()) || 
+                      s.farmerCode?.toLowerCase().includes(slipFilter.toLowerCase()) ||
+                      s.crop?.toLowerCase().includes(slipFilter.toLowerCase()) ||
+                      s.slipId?.toLowerCase().includes(slipFilter.toLowerCase())
+                    )
+                    .map((slip) => {
+                      const isChecked = selectedSlipIds.has(slip.slipId);
+                      return (
+                        <label
+                          key={slip.slipId}
+                          className={`flex items-start gap-3 p-2 border rounded-lg cursor-pointer hover:bg-slate-50 transition-all ${isChecked ? "border-forest-500 bg-forest-50/10" : "border-slate-100"}`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {
+                              setSelectedSlipIds(prev => {
+                                const next = new Set(prev);
+                                if (next.has(slip.slipId)) next.delete(slip.slipId);
+                                else next.add(slip.slipId);
+                                return next;
+                              });
+                            }}
+                            className="mt-0.5 w-3.5 h-3.5 accent-forest-700 shrink-0 rounded"
+                          />
+                          <div className="flex-1 min-w-0 text-[11px] leading-tight">
+                            <p className="font-bold text-slate-800">
+                              {slip.farmerName} <span className="text-[9px] font-normal text-slate-400">({slip.farmerCode})</span>
+                            </p>
+                            <p className="text-[10px] text-slate-500 mt-0.5">
+                              {slip.crop} • {slip.bags} Bags • {slip.netQuantity} Qtl
+                            </p>
+                          </div>
+                          <span className="text-[11px] font-bold text-slate-700 self-center tabular-nums">
+                            ₹{slip.total?.toLocaleString("en-IN")}
+                          </span>
+                        </label>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Selected Slips Individual Editors */}
+        {selectedSlipIds.size > 0 && (
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
+            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+              3. Edit Farmer / Trader Details (Individual Override)
+            </h3>
+            
+            <div className="space-y-3">
+              {procurementSlips
+                .filter(slip => selectedSlipIds.has(slip.slipId))
+                .map((slip) => {
+                  const isExpanded = editingSlipId === slip.slipId;
+                  
+                  // Get active values
+                  const currentCrop = getSlipValue(slip, "crop");
+                  const currentVariety = getSlipValue(slip, "variety");
+                  const currentBags = getSlipValue(slip, "bags");
+                  const currentQty = getSlipValue(slip, "netQuantity");
+                  const currentRate = getSlipValue(slip, "rate");
+                  const currentTotal = getSlipValue(slip, "total");
+
+                  return (
+                    <div key={slip.slipId} className="border border-slate-100 rounded-xl overflow-hidden shadow-sm transition-all bg-white">
+                      {/* Header row */}
+                      <button
+                        type="button"
+                        onClick={() => setEditingSlipId(isExpanded ? null : slip.slipId)}
+                        className={`w-full flex items-center justify-between p-3 text-left transition-colors ${isExpanded ? "bg-slate-100" : "hover:bg-slate-50"}`}
+                      >
+                        <div className="flex-1 min-w-0 text-xs">
+                          <p className="font-bold text-slate-800">
+                            {slip.farmerName} <span className="text-[10px] font-normal text-slate-400">({slip.farmerCode})</span>
+                          </p>
+                          <p className="text-[10px] text-slate-500 mt-0.5 font-semibold">
+                            Crop: <span className="text-slate-800">{currentCrop}</span> • Variety: <span className="text-slate-800">{currentVariety}</span> • Bags: <span className="text-slate-800">{currentBags}</span> • Qty: <span className="text-slate-800">{currentQty} Qtl</span> • Rate: <span className="text-slate-800">₹{currentRate}/Qtl</span>
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs font-black text-slate-800 tabular-nums">
+                            ₹{Number(currentTotal).toLocaleString("en-IN")}
+                          </span>
+                          <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} />
+                        </div>
+                      </button>
+
+                      {/* Expandable Editor Card */}
+                      {isExpanded && (
+                        <div className="p-4 bg-slate-50/50 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">Crop Name</label>
+                            <input
+                              type="text"
+                              value={currentCrop}
+                              onChange={(e) => updateSlipOverride(slip.slipId, "crop", e.target.value)}
+                              className="w-full text-xs font-bold px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-1 focus:ring-forest-500 text-slate-800"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">Variety</label>
+                            <input
+                              type="text"
+                              value={currentVariety}
+                              onChange={(e) => updateSlipOverride(slip.slipId, "variety", e.target.value)}
+                              className="w-full text-xs font-bold px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-1 focus:ring-forest-500 text-slate-800"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">No. of Bags</label>
+                            <input
+                              type="number"
+                              value={currentBags}
+                              onChange={(e) => updateSlipOverride(slip.slipId, "bags", Number(e.target.value) || 0)}
+                              className="w-full text-xs font-bold px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-1 focus:ring-forest-500 text-slate-800"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">Net Qty (Qtl)</label>
+                            <input
+                              type="number"
+                              step="any"
+                              value={currentQty}
+                              onChange={(e) => updateSlipOverride(slip.slipId, "netQuantity", e.target.value === "" ? "" : Number(e.target.value))}
+                              className="w-full text-xs font-bold px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-1 focus:ring-forest-500 text-slate-800"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">Rate (₹/Qtl)</label>
+                            <input
+                              type="number"
+                              step="any"
+                              value={currentRate}
+                              onChange={(e) => updateSlipOverride(slip.slipId, "rate", e.target.value === "" ? "" : Number(e.target.value))}
+                              className="w-full text-xs font-bold px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-1 focus:ring-forest-500 text-slate-800"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-500 block mb-1 uppercase">Total Amount (₹)</label>
+                            <input
+                              type="number"
+                              step="any"
+                              value={currentTotal}
+                              onChange={(e) => updateSlipOverride(slip.slipId, "total", e.target.value === "" ? "" : Number(e.target.value))}
+                              className="w-full text-xs font-bold px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-1 focus:ring-forest-500 text-slate-800"
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <span className="text-xs font-bold text-slate-700 self-center tabular-nums">
-                      ₹{slip.total?.toLocaleString("en-IN")}
-                    </span>
-                  </label>
-                );
-              })}
+                  );
+                })}
             </div>
-            <p className="text-[10px] text-slate-400 italic">
-              * Checking these slips dynamically includes/excludes them as rows in the PO below.
-            </p>
           </div>
         )}
 
@@ -965,17 +1443,17 @@ function POMakerForm() {
                   type="button"
                   onClick={() => setOpenAddressSection(openAddressSection === "vendor" ? null : "vendor")}
                   className={`w-full flex items-center justify-between px-5 py-3.5 text-left transition-colors ${
-                    openAddressSection === "vendor" ? "bg-forest-50/60" : "hover:bg-slate-50"
+                    openAddressSection === "vendor" ? "bg-slate-200" : "hover:bg-slate-50"
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
                     <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
-                      openAddressSection === "vendor" ? "bg-forest-100 text-forest-600" : "bg-slate-100 text-slate-400"
+                      openAddressSection === "vendor" ? "bg-slate-300 text-slate-800 font-bold" : "bg-slate-100 text-slate-400"
                     }`}>
                       <Building size={14} />
                     </div>
                     <div>
-                      <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Vendor / Seller</span>
+                      <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">Vendor / Seller</span>
                       {openAddressSection !== "vendor" && vendor.name && (
                         <p className="text-[10px] text-slate-400 truncate max-w-[180px]">{vendor.name}</p>
                       )}
@@ -1016,17 +1494,17 @@ function POMakerForm() {
                   type="button"
                   onClick={() => setOpenAddressSection(openAddressSection === "billing" ? null : "billing")}
                   className={`w-full flex items-center justify-between px-5 py-3.5 text-left border-t border-slate-100 transition-colors ${
-                    openAddressSection === "billing" ? "bg-blue-50/60" : "hover:bg-slate-50"
+                    openAddressSection === "billing" ? "bg-slate-200" : "hover:bg-slate-50"
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
                     <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
-                      openAddressSection === "billing" ? "bg-blue-100 text-blue-600" : "bg-slate-100 text-slate-400"
+                      openAddressSection === "billing" ? "bg-slate-300 text-slate-800 font-bold" : "bg-slate-100 text-slate-400"
                     }`}>
                       <Receipt size={14} />
                     </div>
                     <div>
-                      <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Billing Address</span>
+                      <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">Billing Address</span>
                       {openAddressSection !== "billing" && billing.name && (
                         <p className="text-[10px] text-slate-400 truncate max-w-[180px]">{billing.name}</p>
                       )}
@@ -1035,28 +1513,145 @@ function POMakerForm() {
                   <ChevronDown size={16} className={`text-slate-400 transition-transform duration-200 ${openAddressSection === "billing" ? "rotate-180" : ""}`} />
                 </button>
 
-                <div className={`transition-all duration-200 ease-in-out overflow-hidden ${openAddressSection === "billing" ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0"}`}>
-                  <div className="px-5 pb-4 pt-3 space-y-3 border-t border-slate-100">
+                <div className={`transition-all duration-200 ease-in-out overflow-hidden ${openAddressSection === "billing" ? "max-h-[800px] opacity-100" : "max-h-0 opacity-0"}`}>
+                  <div className="px-5 pb-4 pt-3 space-y-4 border-t border-slate-100">
+                    {/* Billing Toggle Options */}
+                    <div className="flex border border-slate-200 p-0.5 rounded-xl bg-slate-50 text-[11px] font-bold">
+                      <button
+                        type="button"
+                        onClick={() => setBillingOption("company")}
+                        className={`flex-1 py-1.5 text-center rounded-lg transition-all ${
+                          billingOption === "company" ? "bg-white text-slate-800 shadow-sm border border-slate-200/50" : "text-slate-500 hover:text-slate-800"
+                        }`}
+                      >
+                        Company Address
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBillingOption("custom")}
+                        className={`flex-1 py-1.5 text-center rounded-lg transition-all ${
+                          billingOption === "custom" ? "bg-white text-slate-800 shadow-sm border border-slate-200/50" : "text-slate-500 hover:text-slate-800"
+                        }`}
+                      >
+                        Custom Address
+                      </button>
+                    </div>
+
+                    {/* Company Address Selector (if Option is Company) */}
+                    {billingOption === "company" && (
+                      <div className="space-y-1 relative">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Select Company Address</label>
+                        <div className="flex gap-2">
+                          <div className="relative flex-1">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
+                            <input
+                              type="text"
+                              value={companySearch}
+                              onChange={(e) => {
+                                setCompanySearch(e.target.value);
+                                setShowCompanyDropdown(true);
+                              }}
+                              onFocus={() => setShowCompanyDropdown(true)}
+                              placeholder="Search company address..."
+                              className="w-full text-xs font-bold pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all"
+                            />
+                            {showCompanyDropdown && (
+                              <>
+                                <div className="fixed inset-0 z-30" onClick={() => setShowCompanyDropdown(false)} />
+                                <div className="absolute left-0 right-0 mt-1.5 z-40 bg-white border border-slate-200 rounded-2xl shadow-xl max-h-48 overflow-y-auto p-1.5 space-y-1">
+                                  {companyAddresses
+                                    .filter(c => c.name.toLowerCase().includes(companySearch.toLowerCase()))
+                                    .map(c => (
+                                      <button
+                                        key={c.id}
+                                        type="button"
+                                        onClick={() => handleSelectCompanyAddress(c)}
+                                        className="w-full text-left px-3 py-2 rounded-xl text-xs font-semibold hover:bg-slate-50 flex items-center justify-between"
+                                      >
+                                        <span>{c.name}</span>
+                                        <span className="text-[10px] text-slate-400">{c.district}, {c.state}</span>
+                                      </button>
+                                    ))}
+                                  {companyAddresses.filter(c => c.name.toLowerCase().includes(companySearch.toLowerCase())).length === 0 && (
+                                    <p className="text-center text-[10px] text-slate-400 py-3">No matching company addresses</p>
+                                  )}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setShowCompanyCrudModal(true)}
+                            className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl flex items-center gap-1 shrink-0 transition-colors border"
+                          >
+                            <Settings size={13} />
+                            Manage
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Address Detail Form Fields */}
                     <div>
                       <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Billing Name</label>
-                      <input type="text" value={billing.name} onChange={(e) => setBilling({ ...billing, name: e.target.value })} className="w-full text-xs font-bold px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all" />
+                      <input
+                        type="text"
+                        disabled={billingOption === "company"}
+                        value={billing.name}
+                        onChange={(e) => setBilling({ ...billing, name: e.target.value })}
+                        className={`w-full text-xs font-bold px-3 py-2 rounded-xl border border-slate-200 transition-all ${
+                          billingOption === "company" ? "bg-slate-100/60 text-slate-500 cursor-not-allowed" : "bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none"
+                        }`}
+                      />
                     </div>
                     <div>
                       <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Address Lines</label>
-                      <textarea value={billing.address} rows={4} onChange={(e) => setBilling({ ...billing, address: e.target.value })} className="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all resize-none" />
+                      <textarea
+                        rows={4}
+                        disabled={billingOption === "company"}
+                        value={billing.address}
+                        onChange={(e) => setBilling({ ...billing, address: e.target.value })}
+                        className={`w-full text-xs px-3 py-2 rounded-xl border border-slate-200 transition-all resize-none ${
+                          billingOption === "company" ? "bg-slate-100/60 text-slate-500 cursor-not-allowed" : "bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none"
+                        }`}
+                      />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">GST/PAN No.</label>
-                        <input type="text" value={billing.gstNo} onChange={(e) => setBilling({ ...billing, gstNo: e.target.value })} className="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all" />
+                        <input
+                          type="text"
+                          disabled={billingOption === "company"}
+                          value={billing.gstNo}
+                          onChange={(e) => setBilling({ ...billing, gstNo: e.target.value })}
+                          className={`w-full text-xs px-3 py-2 rounded-xl border border-slate-200 transition-all ${
+                            billingOption === "company" ? "bg-slate-100/60 text-slate-500 cursor-not-allowed" : "bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none"
+                          }`}
+                        />
                       </div>
                       <div>
                         <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Mobile No.</label>
-                        <input type="text" value={billing.mobile} onChange={(e) => setBilling({ ...billing, mobile: e.target.value })} className="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all" />
+                        <input
+                          type="text"
+                          disabled={billingOption === "company"}
+                          value={billing.mobile}
+                          onChange={(e) => setBilling({ ...billing, mobile: e.target.value })}
+                          className={`w-full text-xs px-3 py-2 rounded-xl border border-slate-200 transition-all ${
+                            billingOption === "company" ? "bg-slate-100/60 text-slate-500 cursor-not-allowed" : "bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none"
+                          }`}
+                        />
                       </div>
                       <div className="col-span-2">
                         <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Email Id</label>
-                        <input type="text" value={billing.email} onChange={(e) => setBilling({ ...billing, email: e.target.value })} className="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all" />
+                        <input
+                          type="text"
+                          disabled={billingOption === "company"}
+                          value={billing.email}
+                          onChange={(e) => setBilling({ ...billing, email: e.target.value })}
+                          className={`w-full text-xs px-3 py-2 rounded-xl border border-slate-200 transition-all ${
+                            billingOption === "company" ? "bg-slate-100/60 text-slate-500 cursor-not-allowed" : "bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none"
+                          }`}
+                        />
                       </div>
                     </div>
                   </div>
@@ -1067,17 +1662,17 @@ function POMakerForm() {
                   type="button"
                   onClick={() => setOpenAddressSection(openAddressSection === "delivery" ? null : "delivery")}
                   className={`w-full flex items-center justify-between px-5 py-3.5 text-left border-t border-slate-100 transition-colors ${
-                    openAddressSection === "delivery" ? "bg-amber-50/60" : "hover:bg-slate-50"
+                    openAddressSection === "delivery" ? "bg-slate-200" : "hover:bg-slate-50"
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
                     <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
-                      openAddressSection === "delivery" ? "bg-amber-100 text-amber-600" : "bg-slate-100 text-slate-400"
+                      openAddressSection === "delivery" ? "bg-slate-300 text-slate-800 font-bold" : "bg-slate-100 text-slate-400"
                     }`}>
                       <Truck size={14} />
                     </div>
                     <div>
-                      <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Delivery Address</span>
+                      <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">Delivery Address</span>
                       {openAddressSection !== "delivery" && delivery.name && (
                         <p className="text-[10px] text-slate-400 truncate max-w-[180px]">{delivery.name}</p>
                       )}
@@ -1086,28 +1681,145 @@ function POMakerForm() {
                   <ChevronDown size={16} className={`text-slate-400 transition-transform duration-200 ${openAddressSection === "delivery" ? "rotate-180" : ""}`} />
                 </button>
 
-                <div className={`transition-all duration-200 ease-in-out overflow-hidden ${openAddressSection === "delivery" ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0"}`}>
-                  <div className="px-5 pb-4 pt-3 space-y-3 border-t border-slate-100">
+                <div className={`transition-all duration-200 ease-in-out overflow-hidden ${openAddressSection === "delivery" ? "max-h-[800px] opacity-100" : "max-h-0 opacity-0"}`}>
+                  <div className="px-5 pb-4 pt-3 space-y-4 border-t border-slate-100">
+                    {/* Delivery Toggle Options */}
+                    <div className="flex border border-slate-200 p-0.5 rounded-xl bg-slate-50 text-[11px] font-bold">
+                      <button
+                        type="button"
+                        onClick={() => setDeliveryOption("warehouse")}
+                        className={`flex-1 py-1.5 text-center rounded-lg transition-all ${
+                          deliveryOption === "warehouse" ? "bg-white text-slate-800 shadow-sm border border-slate-200/50" : "text-slate-500 hover:text-slate-800"
+                        }`}
+                      >
+                        Warehouse Address
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeliveryOption("custom")}
+                        className={`flex-1 py-1.5 text-center rounded-lg transition-all ${
+                          deliveryOption === "custom" ? "bg-white text-slate-800 shadow-sm border border-slate-200/50" : "text-slate-500 hover:text-slate-800"
+                        }`}
+                      >
+                        Custom Address
+                      </button>
+                    </div>
+
+                    {/* Warehouse Address Selector (if Option is Warehouse) */}
+                    {deliveryOption === "warehouse" && (
+                      <div className="space-y-1 relative">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Select Warehouse Address</label>
+                        <div className="flex gap-2">
+                          <div className="relative flex-1">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
+                            <input
+                              type="text"
+                              value={warehouseSearch}
+                              onChange={(e) => {
+                                setWarehouseSearch(e.target.value);
+                                setShowWarehouseDropdown(true);
+                              }}
+                              onFocus={() => setShowWarehouseDropdown(true)}
+                              placeholder="Search warehouse address..."
+                              className="w-full text-xs font-bold pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all"
+                            />
+                            {showWarehouseDropdown && (
+                              <>
+                                <div className="fixed inset-0 z-30" onClick={() => setShowWarehouseDropdown(false)} />
+                                <div className="absolute left-0 right-0 mt-1.5 z-40 bg-white border border-slate-200 rounded-2xl shadow-xl max-h-48 overflow-y-auto p-1.5 space-y-1">
+                                  {warehouseAddresses
+                                    .filter(w => w.name.toLowerCase().includes(warehouseSearch.toLowerCase()))
+                                    .map(w => (
+                                      <button
+                                        key={w.id}
+                                        type="button"
+                                        onClick={() => handleSelectWarehouseAddress(w)}
+                                        className="w-full text-left px-3 py-2 rounded-xl text-xs font-semibold hover:bg-slate-50 flex items-center justify-between"
+                                      >
+                                        <span>{w.name}</span>
+                                        <span className="text-[10px] text-slate-400">{w.district}, {w.state}</span>
+                                      </button>
+                                    ))}
+                                  {warehouseAddresses.filter(w => w.name.toLowerCase().includes(warehouseSearch.toLowerCase())).length === 0 && (
+                                    <p className="text-center text-[10px] text-slate-400 py-3">No matching warehouse addresses</p>
+                                  )}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setShowWarehouseCrudModal(true)}
+                            className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl flex items-center gap-1 shrink-0 transition-colors border"
+                          >
+                            <Settings size={13} />
+                            Manage
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Address Detail Form Fields */}
                     <div>
                       <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Delivery Name</label>
-                      <input type="text" value={delivery.name} onChange={(e) => setDelivery({ ...delivery, name: e.target.value })} className="w-full text-xs font-bold px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all" />
+                      <input
+                        type="text"
+                        disabled={deliveryOption === "warehouse"}
+                        value={delivery.name}
+                        onChange={(e) => setDelivery({ ...delivery, name: e.target.value })}
+                        className={`w-full text-xs font-bold px-3 py-2 rounded-xl border border-slate-200 transition-all ${
+                          deliveryOption === "warehouse" ? "bg-slate-100/60 text-slate-500 cursor-not-allowed" : "bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none"
+                        }`}
+                      />
                     </div>
                     <div>
                       <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Address Lines</label>
-                      <textarea value={delivery.address} rows={4} onChange={(e) => setDelivery({ ...delivery, address: e.target.value })} className="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all resize-none" />
+                      <textarea
+                        rows={4}
+                        disabled={deliveryOption === "warehouse"}
+                        value={delivery.address}
+                        onChange={(e) => setDelivery({ ...delivery, address: e.target.value })}
+                        className={`w-full text-xs px-3 py-2 rounded-xl border border-slate-200 transition-all resize-none ${
+                          deliveryOption === "warehouse" ? "bg-slate-100/60 text-slate-500 cursor-not-allowed" : "bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none"
+                        }`}
+                      />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">GST/PAN No.</label>
-                        <input type="text" value={delivery.gstNo} onChange={(e) => setDelivery({ ...delivery, gstNo: e.target.value })} className="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all" />
-                    </div>
+                        <input
+                          type="text"
+                          disabled={deliveryOption === "warehouse"}
+                          value={delivery.gstNo}
+                          onChange={(e) => setDelivery({ ...delivery, gstNo: e.target.value })}
+                          className={`w-full text-xs px-3 py-2 rounded-xl border border-slate-200 transition-all ${
+                            deliveryOption === "warehouse" ? "bg-slate-100/60 text-slate-500 cursor-not-allowed" : "bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none"
+                          }`}
+                        />
+                      </div>
                       <div>
                         <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Mobile No.</label>
-                        <input type="text" value={delivery.mobile} onChange={(e) => setDelivery({ ...delivery, mobile: e.target.value })} className="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all" />
+                        <input
+                          type="text"
+                          disabled={deliveryOption === "warehouse"}
+                          value={delivery.mobile}
+                          onChange={(e) => setDelivery({ ...delivery, mobile: e.target.value })}
+                          className={`w-full text-xs px-3 py-2 rounded-xl border border-slate-200 transition-all ${
+                            deliveryOption === "warehouse" ? "bg-slate-100/60 text-slate-500 cursor-not-allowed" : "bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none"
+                          }`}
+                        />
                       </div>
                       <div className="col-span-2">
                         <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Email Id</label>
-                        <input type="text" value={delivery.email} onChange={(e) => setDelivery({ ...delivery, email: e.target.value })} className="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-200 bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none transition-all" />
+                        <input
+                          type="text"
+                          disabled={deliveryOption === "warehouse"}
+                          value={delivery.email}
+                          onChange={(e) => setDelivery({ ...delivery, email: e.target.value })}
+                          className={`w-full text-xs px-3 py-2 rounded-xl border border-slate-200 transition-all ${
+                            deliveryOption === "warehouse" ? "bg-slate-100/60 text-slate-500 cursor-not-allowed" : "bg-[#f5f5f7] focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-500/20 focus:outline-none"
+                          }`}
+                        />
                       </div>
                     </div>
                   </div>
@@ -1529,17 +2241,17 @@ function POMakerForm() {
       </div>
 
       {/* RIGHT COLUMN: A4 PORTRAIT PREVIEW */}
-      <div className={`w-full xl:w-[55%] h-full xl:max-h-screen xl:overflow-y-auto overflow-x-auto print:overflow-visible print:h-auto print:max-h-none bg-slate-300/60 flex flex-col xl:items-center py-8 print:p-0 print:bg-white print:w-full print:block pb-40 xl:pb-8 ${mobileTab === 'edit' && (calcs.activeSlips.length > 0 || originalProcurement) ? 'hidden xl:flex' : 'flex'}`}>
+      <div className={`w-full xl:w-[55%] h-full xl:max-h-screen xl:overflow-y-auto overflow-x-auto print:overflow-visible print:h-auto print:max-h-none bg-slate-300/60 flex flex-col items-start xl:items-center py-8 print:p-0 print:bg-white print:w-full print:block pb-40 xl:pb-8 ${mobileTab === 'edit' && (calcs.activeSlips.length > 0 || originalProcurement) ? 'hidden xl:flex' : 'flex'}`}>
         
         {loading ? (
-          <div className="w-[210mm] min-h-[297mm] mx-auto bg-white rounded-xl shadow-2xl flex items-center justify-center">
+          <div className="w-[210mm] min-h-[297mm] ml-4 xl:mx-auto bg-white rounded-xl shadow-2xl flex items-center justify-center">
             <div className="flex flex-col items-center gap-3 text-slate-400">
               <Loader2 size={36} className="animate-spin text-forest-600" />
               <p className="text-sm font-semibold">Generating live preview...</p>
             </div>
           </div>
         ) : calcs.activeSlips.length > 0 || originalProcurement ? (
-          <div id="printable-po" className="w-[210mm] min-w-[210mm] mx-auto bg-white text-black shadow-2xl print:shadow-none p-6 print:p-0 text-[11px] leading-tight transform origin-top xl:scale-[0.8] 2xl:scale-95 print:scale-100 print:transform-none transition-transform font-sans">
+          <div id="printable-po" className="w-[210mm] min-w-[210mm] ml-4 xl:mx-auto bg-white text-black shadow-2xl print:shadow-none p-6 print:p-0 text-[11px] leading-tight transform origin-top xl:scale-[0.8] 2xl:scale-95 print:scale-100 print:transform-none transition-transform font-sans">
             
             <style>{`
               @media print {
@@ -1586,16 +2298,16 @@ function POMakerForm() {
               <div>
                 
                 {/* 1. LOGO & HEADER ROW */}
-                <div className="flex po-cell-border-b h-16 items-center bg-slate-50/10">
+                <div className="flex po-cell-border-b min-h-16 items-center bg-slate-50/10 py-1">
                   <div className="w-[20%] po-cell-border-r h-full flex items-center justify-center p-2">
                     {/* FARMER ERP LOGO */}
                     <div className="flex items-center gap-1.5 select-none">
-                      <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-emerald-600 to-emerald-700 flex items-center justify-center text-white font-extrabold text-[11px] shadow-sm leading-tight p-1">
-                        FARMER<br/>ERP
+                      <div className="w-9 h-9 bg-gradient-to-br from-forest-500 to-forest-600 rounded-lg flex items-center justify-center shadow-sm">
+                        <Sprout className="w-5 h-5 text-white" strokeWidth={2.5} />
                       </div>
                       <div className="text-left leading-tight">
                         <span className="text-[9px] font-black text-slate-800 tracking-tight block">FARMER ERP</span>
-                        <span className="text-[6.5px] font-bold text-emerald-600 tracking-wider block">Pvt Ltd</span>
+                        <span className="text-[6.5px] font-bold text-forest-600 tracking-wider block">Pvt Ltd</span>
                       </div>
                     </div>
                   </div>
@@ -1621,13 +2333,13 @@ function POMakerForm() {
                   
                   {/* Left Column: Vendor Address block */}
                   <div className="w-1/2 po-cell-border-r p-2 space-y-1">
-                    <p className="font-bold underline uppercase text-xs text-slate-700">Vender:</p>
-                    <p className="font-black text-sm uppercase">{vendor.name || "ABC PVT LTD"}</p>
-                    <p className="uppercase leading-tight text-xs whitespace-pre-wrap font-medium">{vendor.address || "123, Kisan Market, Near Railway Station\nSector-12, Gandhinagar, Gujarat - 382010"}</p>
-                    <div className="pt-0.5 space-y-0.5 text-xs">
-                      <p><span className="font-bold">GST/PAN No.:</span> {vendor.gstNo || "24ABCDE1234F1Z5"}</p>
-                      <p><span className="font-bold">Mobile no.:</span> {vendor.mobile || "+91 98765 43210"}</p>
-                      <p><span className="font-bold">Email Id:</span> {vendor.email || "vendor@example.com"}</p>
+                    <p className="font-extrabold underline uppercase text-xs text-black">Vender:</p>
+                    <p className="font-black text-sm uppercase text-black">{vendor.name || "ABC PVT LTD"}</p>
+                    <p className="uppercase leading-tight text-xs whitespace-pre-wrap font-bold text-slate-600">{vendor.address || "123, Kisan Market, Near Railway Station\nSector-12, Gandhinagar, Gujarat - 382010"}</p>
+                    <div className="pt-0.5 space-y-0.5 text-xs font-bold text-slate-600">
+                      <p><span className="font-extrabold text-black">GST/PAN No.:</span> {vendor.gstNo || "24ABCDE1234F1Z5"}</p>
+                      <p><span className="font-extrabold text-black">Mobile no.:</span> {vendor.mobile || "+91 98765 43210"}</p>
+                      <p><span className="font-extrabold text-black">Email Id:</span> {vendor.email || "vendor@example.com"}</p>
                     </div>
                   </div>
 
@@ -1642,36 +2354,36 @@ function POMakerForm() {
                       </div>
                     </div>
                     
-                    <div className="p-2 space-y-1 flex-1 flex flex-col justify-center text-xs">
-                      <p><span className="font-bold">Payment Terms:</span> {paymentTerms}</p>
-                      <p><span className="font-bold">DELIVERY:</span> {deliveryTerms || "-"}</p>
+                    <div className="p-2 space-y-1 flex-1 flex flex-col justify-center text-xs font-bold text-slate-600">
+                      <p><span className="font-extrabold text-black uppercase">Payment Terms:</span> {paymentTerms}</p>
+                      <p><span className="font-extrabold text-black uppercase">DELIVERY:</span> {deliveryTerms || "-"}</p>
                     </div>
                   </div>
                 </div>
 
                 {/* 3. BILLING & DELIVERY ADDRESS ROW */}
-                <div className="flex po-cell-border-b h-24">
+                <div className="flex po-cell-border-b min-h-24 py-1">
                   {/* Billing Address */}
                   <div className="w-1/2 po-cell-border-r p-2 space-y-0.5">
-                    <p className="font-bold underline text-xs text-slate-700">Billing Address:</p>
-                    <p className="font-bold uppercase text-xs">{billing.name || "Farmer ERP Pvt Ltd"}</p>
-                    <p className="uppercase leading-none text-xs whitespace-pre-wrap font-medium">{billing.address || "12, Krishi Bhawan Complex, Sector 4\nGandhinagar, Gujarat - 382010"}</p>
-                    <div className="text-xs pt-1 font-medium text-slate-700">
-                      <p><span className="font-semibold">GST/PAN:</span> {billing.gstNo || "24AAACF1234A1Z5"}</p>
-                      <p><span className="font-semibold">Mobile:</span> {billing.mobile || "+91 98765 43210"}</p>
-                      <p><span className="font-semibold">Email:</span> {billing.email || "contact@farmererp.com"}</p>
+                    <p className="font-extrabold underline uppercase text-xs text-black">Billing Address:</p>
+                    <p className="font-black uppercase text-xs text-black">{billing.name || "Farmer ERP Pvt Ltd"}</p>
+                    <p className="uppercase leading-none text-xs whitespace-pre-wrap font-bold text-slate-600">{billing.address || "12, Krishi Bhawan Complex, Sector 4\nGandhinagar, Gujarat - 382010"}</p>
+                    <div className="text-xs pt-1 font-bold text-slate-600 font-bold">
+                      <p><span className="font-extrabold text-black">GST/PAN:</span> {billing.gstNo || "24AAACF1234A1Z5"}</p>
+                      <p><span className="font-extrabold text-black">Mobile:</span> {billing.mobile || "+91 98765 43210"}</p>
+                      <p><span className="font-extrabold text-black">Email:</span> {billing.email || "contact@farmererp.com"}</p>
                     </div>
                   </div>
                   
                   {/* Delivery Address */}
                   <div className="w-1/2 p-2 space-y-0.5">
-                    <p className="font-bold underline text-xs text-slate-700">Delivery Address:</p>
-                    <p className="font-bold uppercase text-xs">{delivery.name || "Farmer ERP Pvt Ltd"}</p>
-                    <p className="uppercase leading-none text-xs whitespace-pre-wrap font-medium">{delivery.address || "12, Krishi Bhawan Complex, Sector 4\nGandhinagar, Gujarat - 382010"}</p>
-                    <div className="text-xs pt-1 font-medium text-slate-700">
-                      <p><span className="font-semibold">GST/PAN:</span> {delivery.gstNo || "24AAACF1234A1Z5"}</p>
-                      <p><span className="font-semibold">Mobile:</span> {delivery.mobile || "+91 98765 43210"}</p>
-                      <p><span className="font-semibold">Email:</span> {delivery.email || "contact@farmererp.com"}</p>
+                    <p className="font-extrabold underline uppercase text-xs text-black">Delivery Address:</p>
+                    <p className="font-black uppercase text-xs text-black">{delivery.name || "Farmer ERP Pvt Ltd"}</p>
+                    <p className="uppercase leading-none text-xs whitespace-pre-wrap font-bold text-slate-600">{delivery.address || "12, Krishi Bhawan Complex, Sector 4\nGandhinagar, Gujarat - 382010"}</p>
+                    <div className="text-xs pt-1 font-bold text-slate-600 font-bold">
+                      <p><span className="font-extrabold text-black">GST/PAN:</span> {delivery.gstNo || "24AAACF1234A1Z5"}</p>
+                      <p><span className="font-extrabold text-black">Mobile:</span> {delivery.mobile || "+91 98765 43210"}</p>
+                      <p><span className="font-extrabold text-black">Email:</span> {delivery.email || "contact@farmererp.com"}</p>
                     </div>
                   </div>
                 </div>
@@ -1847,14 +2559,14 @@ function POMakerForm() {
                 
                 {/* Total amount in words block */}
                 <div className="p-2 po-cell-border-b text-xs">
-                  <span className="font-bold">Total amount in words:</span> <span className="font-semibold uppercase text-slate-800 ml-1 text-xs">{numberToWords(calcs.finalAmount)}</span>
+                  <span className="font-extrabold text-black uppercase">Total amount in words:</span> <span className="font-black uppercase text-slate-900 ml-1 text-xs">{numberToWords(calcs.finalAmount)}</span>
                 </div>
 
                 <div className="flex min-h-28">
                   {/* Left Side: Terms and Conditions */}
                   <div className="w-[65%] po-cell-border-r p-2 space-y-1 text-xs">
-                    <p className="font-bold text-slate-700">Terms & Conditions :</p>
-                    <p className="uppercase leading-normal font-medium text-slate-600 whitespace-pre-wrap">{termsAndConditions}</p>
+                    <p className="font-extrabold underline uppercase text-xs text-black">Terms & Conditions :</p>
+                    <p className="uppercase leading-normal font-bold text-slate-600 whitespace-pre-wrap">{termsAndConditions}</p>
                   </div>
                   
                   {/* Right Side: Signatory Box */}
@@ -2434,6 +3146,758 @@ function POMakerForm() {
                     type="button"
                     onClick={() => {
                       handleDeleteAdhatiyaConfirmed(adhatiyaToDelete.id);
+                    }}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-all"
+                  >
+                    Yes, Delete
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: DATABASE MANAGER FOR COMPANY ADDRESSES */}
+      {showCompanyCrudModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowCompanyCrudModal(false)} />
+          <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl p-6 overflow-hidden max-h-[85vh] flex flex-col justify-between">
+            <div>
+              <div className="flex justify-between items-center border-b pb-3 mb-4">
+                <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                  <Building size={18} className="text-forest-700" />
+                  Manage Company Addresses
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAddrName("");
+                    setAddrStreet("");
+                    setAddrVillage("");
+                    setAddrBlock("");
+                    setAddrPinCode("");
+                    setAddrState("");
+                    setAddrDistrict("");
+                    setAddrPlace("");
+                    setAddrGstNo("");
+                    setAddrMobile("");
+                    setAddrEmail("");
+                    setEditingCompanyAddressId(null);
+                    setShowCompanyAddModal(true);
+                  }}
+                  className="px-3 py-1.5 bg-forest-700 text-white text-xs font-bold rounded-xl hover:bg-forest-800 flex items-center gap-1"
+                >
+                  <Plus size={14} />
+                  Add New
+                </button>
+              </div>
+
+              {/* List of current Company Addresses */}
+              <div className="overflow-y-auto max-h-[50vh] pr-1 space-y-2">
+                {companyAddresses.length === 0 ? (
+                  <p className="text-center text-xs text-slate-400 py-8">No Company Addresses in database. Create one now!</p>
+                ) : (
+                  companyAddresses.map((c) => (
+                    <div key={c.id} className="p-3 border border-slate-100 rounded-2xl flex items-start justify-between bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                      <div className="text-xs space-y-0.5">
+                        <p className="font-bold text-slate-800 text-sm">{c.name}</p>
+                        <p className="text-slate-500 font-medium">GSTIN/PAN: {c.gstNo || "N/A"}</p>
+                        <p className="text-slate-400 font-medium">{c.address}, {c.place}, {c.district}, {c.state} - {c.pinCode || ""}</p>
+                        <p className="text-slate-400">Mobile: {c.mobile} | Email: {c.email || "N/A"}</p>
+                      </div>
+                      <div className="flex gap-1.5 shrink-0 ml-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingCompanyAddressId(c.id);
+                            setAddrName(c.name);
+                            setAddrStreet(c.address);
+                            setAddrVillage(c.village || "");
+                            setAddrBlock(c.block || "");
+                            setAddrPinCode(c.pinCode || "");
+                            setAddrState(c.state);
+                            setAddrDistrict(c.district);
+                            setAddrPlace(c.place || "");
+                            setAddrGstNo(c.gstNo || "");
+                            setAddrMobile(c.mobile);
+                            setAddrEmail(c.email || "");
+                            setShowCompanyAddModal(true);
+                          }}
+                          className="p-1.5 hover:bg-slate-100 text-slate-500 hover:text-slate-800 rounded-lg transition-colors border"
+                          title="Edit Details"
+                        >
+                          <Edit size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteCompanyAddress(c.id, c.name)}
+                          className="p-1.5 hover:bg-red-50 text-red-500 hover:text-red-700 rounded-lg transition-colors border border-red-100"
+                          title="Delete Address"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+            <div className="border-t pt-3 mt-4 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowCompanyCrudModal(false)}
+                className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl transition-all"
+              >
+                Close Manager
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: ADD / EDIT COMPANY ADDRESS FORM */}
+      {showCompanyAddModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowCompanyAddModal(false)} />
+          <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl p-6 overflow-y-auto max-h-[90vh]">
+            <h3 className="text-sm font-bold text-slate-800 border-b pb-3 mb-4 uppercase tracking-wider">
+              {editingCompanyAddressId ? "Edit Company Address Details" : "Create New Company Address"}
+            </h3>
+            
+            <form onSubmit={handleSaveCompanyAddress} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Company Name*</label>
+                <input 
+                  type="text" 
+                  required
+                  value={addrName} 
+                  onChange={(e) => setAddrName(e.target.value)} 
+                  className="w-full px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                  placeholder="e.g. Farmer ERP Pvt Ltd"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Address Lines (Street / House No.)*</label>
+                <input 
+                  type="text" 
+                  required
+                  value={addrStreet} 
+                  onChange={(e) => setAddrStreet(e.target.value)} 
+                  className="w-full px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                  placeholder="e.g. 12, Cyber City"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Place / City*</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={addrPlace} 
+                    onChange={(e) => setAddrPlace(e.target.value)} 
+                    className="w-full px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                    placeholder="Place/City Name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Pin Code</label>
+                  <input 
+                    type="text" 
+                    value={addrPinCode} 
+                    onChange={(e) => setAddrPinCode(e.target.value)} 
+                    className="w-full px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                    placeholder="6-digit pin code"
+                    maxLength={6}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">District*</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={addrDistrict} 
+                    onChange={(e) => setAddrDistrict(e.target.value)} 
+                    className="w-full px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                    placeholder="District"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">State*</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={addrState} 
+                    onChange={(e) => setAddrState(e.target.value)} 
+                    className="w-full px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                    placeholder="State"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">GSTIN/PAN No.</label>
+                <input 
+                  type="text" 
+                  value={addrGstNo} 
+                  onChange={(e) => setAddrGstNo(e.target.value)} 
+                  className="w-full px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                  placeholder="e.g. 07AAAAA1111A1Z1"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Mobile No.*</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={addrMobile} 
+                    onChange={(e) => setAddrMobile(e.target.value)} 
+                    className="w-full px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                    placeholder="10-digit number"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Email Id*</label>
+                  <input 
+                    type="email" 
+                    required
+                    value={addrEmail} 
+                    onChange={(e) => setAddrEmail(e.target.value)} 
+                    className="w-full px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                    placeholder="e.g. office@domain.com"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 justify-end pt-3 border-t">
+                <button
+                  type="button"
+                  onClick={() => setShowCompanyAddModal(false)}
+                  className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-bold rounded-xl transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-forest-700 hover:bg-forest-800 text-white text-xs font-bold rounded-xl transition-all"
+                >
+                  Save Address
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: COMPANY ADDRESS SECURE DELETE WARNING */}
+      {companyToDelete && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
+          <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl p-6 overflow-hidden">
+            {companyDeleteStep === 1 && (
+              <div>
+                <h3 className="text-sm font-bold text-red-600 border-b border-red-100 pb-3 mb-4 uppercase tracking-wider flex items-center gap-1.5">
+                  <AlertTriangle size={16} />
+                  Security Warning
+                </h3>
+                <p className="text-xs text-slate-600 leading-relaxed mb-6 font-semibold">
+                  You are attempting to delete Company Address <strong className="text-slate-800 font-bold">{companyToDelete.name}</strong>.
+                  <br /><br />
+                  This address record will be permanently deleted from the database and will not be available for future POs.
+                </p>
+                <div className="flex gap-3 justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCompanyDeleteStep(0);
+                      setCompanyToDelete(null);
+                      setCompanyCaptchaInput("");
+                    }}
+                    className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-bold rounded-xl transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCompanyDeleteStep(2)}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-all"
+                  >
+                    Yes, Continue
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {companyDeleteStep === 2 && (
+              <div>
+                <h3 className="text-sm font-bold text-slate-800 border-b pb-3 mb-4 uppercase tracking-wider">
+                  Verification Required
+                </h3>
+                <p className="text-xs text-slate-600 mb-4 font-semibold">
+                  To proceed, enter the verification code shown below:
+                </p>
+                
+                <div className="bg-slate-100 p-4 rounded-2xl flex items-center justify-center mb-4">
+                  <span className="font-mono font-extrabold text-2xl tracking-widest text-slate-700 select-none">
+                    {companyCaptchaCode}
+                  </span>
+                </div>
+
+                <div className="mb-6">
+                  <input
+                    type="text"
+                    required
+                    placeholder="Enter verification code"
+                    value={companyCaptchaInput}
+                    onChange={(e) => setCompanyCaptchaInput(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:ring-2 focus:ring-red-500/20 focus:outline-none text-center font-mono font-bold text-sm tracking-widest text-slate-800"
+                  />
+                </div>
+
+                <div className="flex gap-3 justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCompanyDeleteStep(0);
+                      setCompanyToDelete(null);
+                      setCompanyCaptchaInput("");
+                    }}
+                    className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-bold rounded-xl transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (companyCaptchaInput.trim().toUpperCase() === companyCaptchaCode) {
+                        setCompanyDeleteStep(3);
+                      } else {
+                        addToast({
+                          type: "error",
+                          title: "Invalid Code",
+                          message: "The entered verification code did not match. Please try again."
+                        });
+                        setCompanyCaptchaCode(generateRandomCaptcha());
+                        setCompanyCaptchaInput("");
+                      }
+                    }}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl transition-all"
+                  >
+                    Verify Code
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {companyDeleteStep === 3 && (
+              <div>
+                <h3 className="text-sm font-bold text-red-600 border-b border-red-100 pb-3 mb-4 uppercase tracking-wider">
+                  Final Confirmation
+                </h3>
+                <p className="text-xs text-slate-600 leading-relaxed mb-6 font-semibold">
+                  Are you absolutely sure you want to delete <strong className="text-slate-800 font-bold">{companyToDelete.name}</strong>?
+                  <br /><br />
+                  This is the final confirmation. There is no undo.
+                </p>
+                <div className="flex gap-3 justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCompanyDeleteStep(0);
+                      setCompanyToDelete(null);
+                      setCompanyCaptchaInput("");
+                    }}
+                    className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-bold rounded-xl transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleDeleteCompanyConfirmed(companyToDelete.id);
+                    }}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-all"
+                  >
+                    Yes, Delete
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: DATABASE MANAGER FOR WAREHOUSE ADDRESSES */}
+      {showWarehouseCrudModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowWarehouseCrudModal(false)} />
+          <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl p-6 overflow-hidden max-h-[85vh] flex flex-col justify-between">
+            <div>
+              <div className="flex justify-between items-center border-b pb-3 mb-4">
+                <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                  <Home size={18} className="text-forest-700" />
+                  Manage Warehouse Addresses
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAddrName("");
+                    setAddrStreet("");
+                    setAddrVillage("");
+                    setAddrBlock("");
+                    setAddrPinCode("");
+                    setAddrState("");
+                    setAddrDistrict("");
+                    setAddrPlace("");
+                    setAddrGstNo("");
+                    setAddrMobile("");
+                    setAddrEmail("");
+                    setEditingWarehouseAddressId(null);
+                    setShowWarehouseAddModal(true);
+                  }}
+                  className="px-3 py-1.5 bg-forest-700 text-white text-xs font-bold rounded-xl hover:bg-forest-800 flex items-center gap-1"
+                >
+                  <Plus size={14} />
+                  Add New
+                </button>
+              </div>
+
+              {/* List of current Warehouse Addresses */}
+              <div className="overflow-y-auto max-h-[50vh] pr-1 space-y-2">
+                {warehouseAddresses.length === 0 ? (
+                  <p className="text-center text-xs text-slate-400 py-8">No Warehouse Addresses in database. Create one now!</p>
+                ) : (
+                  warehouseAddresses.map((w) => (
+                    <div key={w.id} className="p-3 border border-slate-100 rounded-2xl flex items-start justify-between bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                      <div className="text-xs space-y-0.5">
+                        <p className="font-bold text-slate-800 text-sm">{w.name}</p>
+                        <p className="text-slate-500 font-medium">GSTIN/PAN: {w.gstNo || "N/A"}</p>
+                        <p className="text-slate-400 font-medium">{w.address}, {w.place}, {w.district}, {w.state} - {w.pinCode || ""}</p>
+                        <p className="text-slate-400">Mobile: {w.mobile} | Email: {w.email || "N/A"}</p>
+                      </div>
+                      <div className="flex gap-1.5 shrink-0 ml-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingWarehouseAddressId(w.id);
+                            setAddrName(w.name);
+                            setAddrStreet(w.address);
+                            setAddrVillage(w.village || "");
+                            setAddrBlock(w.block || "");
+                            setAddrPinCode(w.pinCode || "");
+                            setAddrState(w.state);
+                            setAddrDistrict(w.district);
+                            setAddrPlace(w.place || "");
+                            setAddrGstNo(w.gstNo || "");
+                            setAddrMobile(w.mobile);
+                            setAddrEmail(w.email || "");
+                            setShowWarehouseAddModal(true);
+                          }}
+                          className="p-1.5 hover:bg-slate-100 text-slate-500 hover:text-slate-800 rounded-lg transition-colors border"
+                          title="Edit Details"
+                        >
+                          <Edit size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteWarehouseAddress(w.id, w.name)}
+                          className="p-1.5 hover:bg-red-50 text-red-500 hover:text-red-700 rounded-lg transition-colors border border-red-100"
+                          title="Delete Address"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+            <div className="border-t pt-3 mt-4 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowWarehouseCrudModal(false)}
+                className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl transition-all"
+              >
+                Close Manager
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: ADD / EDIT WAREHOUSE ADDRESS FORM */}
+      {showWarehouseAddModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowWarehouseAddModal(false)} />
+          <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl p-6 overflow-y-auto max-h-[90vh]">
+            <h3 className="text-sm font-bold text-slate-800 border-b pb-3 mb-4 uppercase tracking-wider">
+              {editingWarehouseAddressId ? "Edit Warehouse Address Details" : "Create New Warehouse Address"}
+            </h3>
+            
+            <form onSubmit={handleSaveWarehouseAddress} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Warehouse Name*</label>
+                <input 
+                  type="text" 
+                  required
+                  value={addrName} 
+                  onChange={(e) => setAddrName(e.target.value)} 
+                  className="w-full px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                  placeholder="e.g. Delhi Warehouse"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Address Lines (Street / House No.)*</label>
+                <input 
+                  type="text" 
+                  required
+                  value={addrStreet} 
+                  onChange={(e) => setAddrStreet(e.target.value)} 
+                  className="w-full px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                  placeholder="e.g. Plot 45, Industrial Area"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Place / City*</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={addrPlace} 
+                    onChange={(e) => setAddrPlace(e.target.value)} 
+                    className="w-full px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                    placeholder="Place/City Name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Pin Code</label>
+                  <input 
+                    type="text" 
+                    value={addrPinCode} 
+                    onChange={(e) => setAddrPinCode(e.target.value)} 
+                    className="w-full px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                    placeholder="6-digit pin code"
+                    maxLength={6}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">District*</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={addrDistrict} 
+                    onChange={(e) => setAddrDistrict(e.target.value)} 
+                    className="w-full px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                    placeholder="District"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">State*</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={addrState} 
+                    onChange={(e) => setAddrState(e.target.value)} 
+                    className="w-full px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                    placeholder="State"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">GSTIN/PAN No.</label>
+                <input 
+                  type="text" 
+                  value={addrGstNo} 
+                  onChange={(e) => setAddrGstNo(e.target.value)} 
+                  className="w-full px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                  placeholder="e.g. 07AAAAA1111A1Z1"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Mobile No.*</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={addrMobile} 
+                    onChange={(e) => setAddrMobile(e.target.value)} 
+                    className="w-full px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                    placeholder="10-digit number"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Email Id*</label>
+                  <input 
+                    type="email" 
+                    required
+                    value={addrEmail} 
+                    onChange={(e) => setAddrEmail(e.target.value)} 
+                    className="w-full px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:ring-2 focus:ring-forest-500/20 focus:outline-none" 
+                    placeholder="e.g. warehouse@domain.com"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 justify-end pt-3 border-t">
+                <button
+                  type="button"
+                  onClick={() => setShowWarehouseAddModal(false)}
+                  className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-bold rounded-xl transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-forest-700 hover:bg-forest-800 text-white text-xs font-bold rounded-xl transition-all"
+                >
+                  Save Address
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: WAREHOUSE ADDRESS SECURE DELETE WARNING */}
+      {warehouseToDelete && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
+          <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl p-6 overflow-hidden">
+            {warehouseDeleteStep === 1 && (
+              <div>
+                <h3 className="text-sm font-bold text-red-600 border-b border-red-100 pb-3 mb-4 uppercase tracking-wider flex items-center gap-1.5">
+                  <AlertTriangle size={16} />
+                  Security Warning
+                </h3>
+                <p className="text-xs text-slate-600 leading-relaxed mb-6 font-semibold">
+                  You are attempting to delete Warehouse Address <strong className="text-slate-800 font-bold">{warehouseToDelete.name}</strong>.
+                  <br /><br />
+                  This address record will be permanently deleted from the database and will not be available for future POs.
+                </p>
+                <div className="flex gap-3 justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setWarehouseDeleteStep(0);
+                      setWarehouseToDelete(null);
+                      setWarehouseCaptchaInput("");
+                    }}
+                    className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-bold rounded-xl transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setWarehouseDeleteStep(2)}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-all"
+                  >
+                    Yes, Continue
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {warehouseDeleteStep === 2 && (
+              <div>
+                <h3 className="text-sm font-bold text-slate-800 border-b pb-3 mb-4 uppercase tracking-wider">
+                  Verification Required
+                </h3>
+                <p className="text-xs text-slate-600 mb-4 font-semibold">
+                  To proceed, enter the verification code shown below:
+                </p>
+                
+                <div className="bg-slate-100 p-4 rounded-2xl flex items-center justify-center mb-4">
+                  <span className="font-mono font-extrabold text-2xl tracking-widest text-slate-700 select-none">
+                    {warehouseCaptchaCode}
+                  </span>
+                </div>
+
+                <div className="mb-6">
+                  <input
+                    type="text"
+                    required
+                    placeholder="Enter verification code"
+                    value={warehouseCaptchaInput}
+                    onChange={(e) => setWarehouseCaptchaInput(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-xl bg-[#f5f5f7] focus:ring-2 focus:ring-red-500/20 focus:outline-none text-center font-mono font-bold text-sm tracking-widest text-slate-800"
+                  />
+                </div>
+
+                <div className="flex gap-3 justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setWarehouseDeleteStep(0);
+                      setWarehouseToDelete(null);
+                      setWarehouseCaptchaInput("");
+                    }}
+                    className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-bold rounded-xl transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (warehouseCaptchaInput.trim().toUpperCase() === warehouseCaptchaCode) {
+                        setWarehouseDeleteStep(3);
+                      } else {
+                        addToast({
+                          type: "error",
+                          title: "Invalid Code",
+                          message: "The entered verification code did not match. Please try again."
+                        });
+                        setWarehouseCaptchaCode(generateRandomCaptcha());
+                        setWarehouseCaptchaInput("");
+                      }
+                    }}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl transition-all"
+                  >
+                    Verify Code
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {warehouseDeleteStep === 3 && (
+              <div>
+                <h3 className="text-sm font-bold text-red-600 border-b border-red-100 pb-3 mb-4 uppercase tracking-wider">
+                  Final Confirmation
+                </h3>
+                <p className="text-xs text-slate-600 leading-relaxed mb-6 font-semibold">
+                  Are you absolutely sure you want to delete <strong className="text-slate-800 font-bold">{warehouseToDelete.name}</strong>?
+                  <br /><br />
+                  This is the final confirmation. There is no undo.
+                </p>
+                <div className="flex gap-3 justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setWarehouseDeleteStep(0);
+                      setWarehouseToDelete(null);
+                      setWarehouseCaptchaInput("");
+                    }}
+                    className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-bold rounded-xl transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleDeleteWarehouseConfirmed(warehouseToDelete.id);
                     }}
                     className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-all"
                   >

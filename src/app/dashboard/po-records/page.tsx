@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { getPOHistory, markPOAsBilled } from "@/app/actions/po";
 import { 
-  FileText, Loader2, Calendar, Edit3, CheckCircle, Printer, Eye, X, AlertTriangle, AlertCircle, Download
+  FileText, Loader2, Calendar, Edit3, CheckCircle, Printer, Eye, X, AlertTriangle, AlertCircle, Download, Sprout
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -126,11 +126,11 @@ export default function PORecordsPage() {
     }
     
     const billing = parsed.billing || {
-      name: targetPO.companyName || "XYZ Pvt Ltd",
-      address: targetPO.companyAddress || "123 Sample Address, Sample City, State 123456",
-      gstNo: "GST/PAN No.: xxxxxxxxxxxxx",
-      mobile: "Mobile no.: xxxxxxxxxxx",
-      email: "Email Id: xxxxxxxxxxx"
+      name: targetPO.companyName || "Farmer ERP Pvt Ltd",
+      address: targetPO.companyAddress || "12, Krishi Bhawan Complex, Sector 4, Gandhinagar, Gujarat - 382010",
+      gstNo: "GST/PAN No.: 24AAACF1234A1Z5",
+      mobile: "Mobile no.: +91 98765 43210",
+      email: "Email Id: contact@farmererp.com"
     };
     
     const vendor = parsed.vendor || {
@@ -142,11 +142,11 @@ export default function PORecordsPage() {
     };
     
     const delivery = parsed.delivery || {
-      name: targetPO.companyName || "XYZ Pvt Ltd",
-      address: targetPO.companyAddress || "123 Sample Address, Sample City, State 123456",
-      gstNo: "GST/PAN No.: xxxxxxxxxxxxx",
-      mobile: "Mobile no.: xxxxxxxxxxx",
-      email: "Email Id: xxxxxxxxxxx"
+      name: targetPO.companyName || "Farmer ERP Pvt Ltd",
+      address: targetPO.companyAddress || "12, Krishi Bhawan Complex, Sector 4, Gandhinagar, Gujarat - 382010",
+      gstNo: "GST/PAN No.: 24AAACF1234A1Z5",
+      mobile: "Mobile no.: +91 98765 43210",
+      email: "Email Id: contact@farmererp.com"
     };
 
     const poNumber = targetPO.poNumber || `PO-${targetPO.slipId}`;
@@ -154,7 +154,7 @@ export default function PORecordsPage() {
     const paymentTerms = parsed.paymentTerms || "-";
     const deliveryTerms = parsed.deliveryTerms || "-";
     const termsAndConditions = parsed.termsAndConditions || "THE INSTRUMENT CONTAINS ALL THE TERMS AND CONDITIONS WITH RESPECT TO PURCHASE OF THE MATERIAL OR SERVICES NAMED HEREIN.\nNO MODIFICATION OR AMENDMENT SHALL HAVE ANY FORCE OR EFFECT UNLESS CONFIRMED BY BUYERS IN WRITING.";
-    const authorizedSignatory = parsed.authorizedSignatory || targetPO.companyName || "XYZ Pvt Ltd";
+    const authorizedSignatory = parsed.authorizedSignatory || targetPO.companyName || "Farmer ERP Pvt Ltd";
     
     const pRates = parsed.rates || {
       mandiTaxPercent: 1.20,
@@ -559,15 +559,22 @@ export default function PORecordsPage() {
                   <div>
                     
                     {/* 1. LOGO & HEADER ROW */}
-                    <div className="flex po-cell-border-b h-14 items-center">
-                      <div className="w-[20%] po-cell-border-r h-full flex items-center justify-center p-1">
-                        <div className="font-serif font-black italic text-base tracking-wide border-2 border-black p-1 text-center leading-none uppercase">
-                          LOGO
+                    <div className="flex po-cell-border-b min-h-16 items-center bg-slate-50/10 py-1">
+                      <div className="w-[20%] po-cell-border-r h-full flex items-center justify-center p-2">
+                        {/* FARMER ERP LOGO */}
+                        <div className="flex items-center gap-1.5 select-none">
+                          <div className="w-9 h-9 bg-gradient-to-br from-forest-500 to-forest-600 rounded-lg flex items-center justify-center shadow-sm">
+                            <Sprout className="w-5 h-5 text-white" strokeWidth={2.5} />
+                          </div>
+                          <div className="text-left leading-tight">
+                            <span className="text-[9px] font-black text-slate-800 tracking-tight block">FARMER ERP</span>
+                            <span className="text-[6.5px] font-bold text-forest-600 tracking-wider block">Pvt Ltd</span>
+                          </div>
                         </div>
                       </div>
                       <div className="w-[60%] text-center">
-                        <h1 className="text-lg font-black tracking-widest uppercase">PURCHASE ORDER</h1>
-                        <h2 className="text-sm font-bold uppercase">{parsedPOData.billing.name || "XYZ Pvt Ltd"}</h2>
+                        <h1 className="text-lg font-black tracking-widest uppercase text-slate-800">PURCHASE ORDER</h1>
+                        <h2 className="text-xs font-bold uppercase text-slate-600">{parsedPOData.billing.name || "Farmer ERP Pvt Ltd"}</h2>
                       </div>
                       
                       {/* Watermark/Status Stamp */}
@@ -589,13 +596,13 @@ export default function PORecordsPage() {
                       
                       {/* Left Column: Vendor Address block */}
                       <div className="w-1/2 po-cell-border-r p-2 space-y-1">
-                        <p className="font-bold underline uppercase text-[10px] text-slate-700">Vender:</p>
-                        <p className="font-black text-xs uppercase">{parsedPOData.vendor.name || "ABC PVT LTD"}</p>
-                        <p className="uppercase leading-tight text-[10px] whitespace-pre-wrap font-medium">{parsedPOData.vendor.address || "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}</p>
-                        <div className="pt-0.5 space-y-0.5 text-[10px]">
-                          <p><span className="font-bold">GST/PAN No.:</span> {parsedPOData.vendor.gstNo || "xxxxxxxxxxxxx"}</p>
-                          <p><span className="font-bold">Mobile no.:</span> {parsedPOData.vendor.mobile || "xxxxxxxxxxx"}</p>
-                          <p><span className="font-bold">Email Id:</span> {parsedPOData.vendor.email || "xxxxxxxxxxx"}</p>
+                        <p className="font-extrabold underline uppercase text-xs text-black">Vender:</p>
+                        <p className="font-black text-sm uppercase text-black">{parsedPOData.vendor.name || "ABC PVT LTD"}</p>
+                        <p className="uppercase leading-tight text-xs whitespace-pre-wrap font-bold text-slate-600">{parsedPOData.vendor.address || "123, Kisan Market, Near Railway Station\nSector-12, Gandhinagar, Gujarat - 382010"}</p>
+                        <div className="pt-0.5 space-y-0.5 text-xs font-bold text-slate-600">
+                          <p><span className="font-extrabold text-black">GST/PAN No.:</span> {parsedPOData.vendor.gstNo || "24ABCDE1234F1Z5"}</p>
+                          <p><span className="font-extrabold text-black">Mobile no.:</span> {parsedPOData.vendor.mobile || "+91 98765 43210"}</p>
+                          <p><span className="font-extrabold text-black">Email Id:</span> {parsedPOData.vendor.email || "vendor@example.com"}</p>
                         </div>
                       </div>
 
@@ -610,36 +617,36 @@ export default function PORecordsPage() {
                           </div>
                         </div>
                         
-                        <div className="p-2 space-y-1 flex-1 flex flex-col justify-center text-[10px]">
-                          <p><span className="font-bold">Payment Terms:</span> {parsedPOData.paymentTerms}</p>
-                          <p><span className="font-bold">DELIVERY:</span> {parsedPOData.deliveryTerms || "-"}</p>
+                        <div className="p-2 space-y-1 flex-1 flex flex-col justify-center text-xs font-bold text-slate-600">
+                          <p><span className="font-extrabold text-black uppercase">Payment Terms:</span> {parsedPOData.paymentTerms}</p>
+                          <p><span className="font-extrabold text-black uppercase">DELIVERY:</span> {parsedPOData.deliveryTerms || "-"}</p>
                         </div>
                       </div>
                     </div>
 
                     {/* 3. BILLING & DELIVERY ADDRESS ROW */}
-                    <div className="flex po-cell-border-b h-24">
+                    <div className="flex po-cell-border-b min-h-24 py-1">
                       {/* Billing Address */}
                       <div className="w-1/2 po-cell-border-r p-2 space-y-0.5">
-                        <p className="font-bold underline text-[10px] text-slate-700">Billing Address:</p>
-                        <p className="font-bold uppercase text-[10px]">{parsedPOData.billing.name || "XYZ PVT LTD"}</p>
-                        <p className="uppercase leading-none text-[9.5px] whitespace-pre-wrap font-medium">{parsedPOData.billing.address || "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}</p>
-                        <div className="text-[9.5px] pt-1 font-medium text-slate-700">
-                          <p><span className="font-semibold">GST/PAN:</span> {parsedPOData.billing.gstNo || "xxxxxxxxxxxxx"}</p>
-                          <p><span className="font-semibold">Mobile:</span> {parsedPOData.billing.mobile || "xxxxxxxxxxx"}</p>
-                          <p><span className="font-semibold">Email:</span> {parsedPOData.billing.email || "xxxxxxxxxxx"}</p>
+                        <p className="font-extrabold underline uppercase text-xs text-black">Billing Address:</p>
+                        <p className="font-black uppercase text-xs text-black">{parsedPOData.billing.name || "Farmer ERP Pvt Ltd"}</p>
+                        <p className="uppercase leading-none text-xs whitespace-pre-wrap font-bold text-slate-600">{parsedPOData.billing.address || "12, Krishi Bhawan Complex, Sector 4\nGandhinagar, Gujarat - 382010"}</p>
+                        <div className="text-xs pt-1 font-bold text-slate-600">
+                          <p><span className="font-extrabold text-black">GST/PAN:</span> {parsedPOData.billing.gstNo || "24AAACF1234A1Z5"}</p>
+                          <p><span className="font-extrabold text-black">Mobile:</span> {parsedPOData.billing.mobile || "+91 98765 43210"}</p>
+                          <p><span className="font-extrabold text-black">Email:</span> {parsedPOData.billing.email || "contact@farmererp.com"}</p>
                         </div>
                       </div>
                       
                       {/* Delivery Address */}
                       <div className="w-1/2 p-2 space-y-0.5">
-                        <p className="font-bold underline text-[10px] text-slate-700">Delivery Address:</p>
-                        <p className="font-bold uppercase text-[10px]">{parsedPOData.delivery.name || "XYZ PVT LTD"}</p>
-                        <p className="uppercase leading-none text-[9.5px] whitespace-pre-wrap font-medium">{parsedPOData.delivery.address || "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}</p>
-                        <div className="text-[9.5px] pt-1 font-medium text-slate-700">
-                          <p><span className="font-semibold">GST/PAN:</span> {parsedPOData.delivery.gstNo || "xxxxxxxxxxxxx"}</p>
-                          <p><span className="font-semibold">Mobile:</span> {parsedPOData.delivery.mobile || "xxxxxxxxxxx"}</p>
-                          <p><span className="font-semibold">Email:</span> {parsedPOData.delivery.email || "xxxxxxxxxxx"}</p>
+                        <p className="font-extrabold underline uppercase text-xs text-black">Delivery Address:</p>
+                        <p className="font-black uppercase text-xs text-black">{parsedPOData.delivery.name || "Farmer ERP Pvt Ltd"}</p>
+                        <p className="uppercase leading-none text-xs whitespace-pre-wrap font-bold text-slate-600">{parsedPOData.delivery.address || "12, Krishi Bhawan Complex, Sector 4\nGandhinagar, Gujarat - 382010"}</p>
+                        <div className="text-xs pt-1 font-bold text-slate-600">
+                          <p><span className="font-semibold">GST/PAN:</span> {parsedPOData.delivery.gstNo || "24AAACF1234A1Z5"}</p>
+                          <p><span className="font-semibold">Mobile:</span> {parsedPOData.delivery.mobile || "+91 98765 43210"}</p>
+                          <p><span className="font-semibold">Email:</span> {parsedPOData.delivery.email || "contact@farmererp.com"}</p>
                         </div>
                       </div>
                     </div>
@@ -812,21 +819,31 @@ export default function PORecordsPage() {
                   {/* 6. BOTTOM ROW: TOTAL IN WORDS, T&C & SIGNATORY */}
                   <div className="po-cell-border-t">
                     
-                    <div className="p-2 po-cell-border-b text-[10px]">
-                      <span className="font-bold">Total amount in words:</span> <span className="font-semibold uppercase text-slate-800 ml-1">{numberToWords(parsedPOData.calcs.finalAmount)}</span>
+                    <div className="p-2 po-cell-border-b text-xs">
+                      <span className="font-extrabold text-black uppercase">Total amount in words:</span> <span className="font-black uppercase text-slate-900 ml-1 text-xs">{numberToWords(parsedPOData.calcs.finalAmount)}</span>
                     </div>
 
-                    <div className="flex min-h-24">
+                    <div className="flex min-h-28">
                       {/* Left Side: Terms and Conditions */}
-                      <div className="w-[65%] po-cell-border-r p-2 space-y-1 text-[9.5px]">
-                        <p className="font-bold text-slate-700">Terms & Conditions :</p>
-                        <p className="uppercase leading-normal font-medium text-slate-600 whitespace-pre-wrap">{parsedPOData.termsAndConditions}</p>
+                      <div className="w-[65%] po-cell-border-r p-2 space-y-1 text-xs">
+                        <p className="font-extrabold underline uppercase text-xs text-black">Terms & Conditions :</p>
+                        <p className="uppercase leading-normal font-bold text-slate-600 whitespace-pre-wrap">{parsedPOData.termsAndConditions}</p>
                       </div>
                       
                       {/* Right Side: Signatory Box */}
-                      <div className="w-[35%] flex flex-col justify-between items-center p-2">
-                        <p className="font-bold text-[10px] text-center">For {parsedPOData.authorizedSignatory}.</p>
-                        <p className="font-bold text-[10.5px] text-slate-800 underline uppercase tracking-wide">Authorized Signatory</p>
+                      <div className="w-[35%] flex flex-col justify-between items-center p-2 relative min-h-[112px]">
+                        <p className="font-bold text-xs text-center leading-tight">For {parsedPOData.authorizedSignatory}</p>
+                        
+                        {/* FARMER ERP STAMP */}
+                        <div className="my-1 border-2 border-double border-blue-600/80 rounded-full w-[70px] h-[70px] flex flex-col items-center justify-center rotate-[-10deg] scale-90 select-none opacity-85 pointer-events-none font-mono bg-white/40 shadow-sm print:opacity-100">
+                          <span className="text-[6.5px] font-black text-blue-700 tracking-wider leading-none">FARMER ERP</span>
+                          <div className="w-10 h-[0.5px] bg-blue-500/50 my-0.5"></div>
+                          <span className="text-[8px] font-extrabold text-blue-600 leading-none">STAMP</span>
+                          <div className="w-10 h-[0.5px] bg-blue-500/50 my-0.5"></div>
+                          <span className="text-[5.5px] text-blue-500 font-bold uppercase tracking-tight leading-none">AUTHORIZED</span>
+                        </div>
+
+                        <p className="font-bold text-xs text-slate-800 underline uppercase tracking-wide">Authorized Signatory</p>
                       </div>
                     </div>
 

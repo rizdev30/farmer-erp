@@ -226,4 +226,42 @@ model Adhatiya {
   @@map("adhatiyas")
 }
 
+model CompanyAddress {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  address   String   @default("")
+  village   String   @default("")
+  block     String   @default("")
+  pinCode   String   @default("")
+  state     String   @default("")
+  district  String   @default("")
+  place     String   @default("")
+  gstNo     String   @default("")
+  mobile    String   @default("")
+  email     String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("company_addresses")
+}
+
+model WarehouseAddress {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  address   String   @default("")
+  village   String   @default("")
+  block     String   @default("")
+  pinCode   String   @default("")
+  state     String   @default("")
+  district  String   @default("")
+  place     String   @default("")
+  gstNo     String   @default("")
+  mobile    String   @default("")
+  email     String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("warehouse_addresses")
+}
+
 
