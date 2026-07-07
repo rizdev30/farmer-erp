@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { getPOHistory, markPOAsBilled } from "@/app/actions/po";
 import { 
-  FileText, Loader2, Calendar, Edit3, CheckCircle, Printer, Eye, X, AlertTriangle, AlertCircle, Download, Sprout
+  FileText, Loader2, Calendar, Edit3, CheckCircle, Printer, Eye, X, AlertTriangle, AlertCircle, Download, Sprout, Plus
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -302,8 +302,9 @@ export default function PORecordsPage() {
           </div>
           <Link
             href="/dashboard/po-maker"
-            className="text-xs font-bold text-white bg-forest-600 px-3 py-1.5 rounded-lg hover:bg-forest-700 transition-colors shadow-sm"
+            className="group flex items-center gap-1.5 text-xs font-bold text-white bg-gradient-to-r from-forest-600 to-forest-500 px-4 py-2 rounded-xl hover:from-forest-700 hover:to-forest-600 transition-all shadow-md shadow-forest-500/20 hover:shadow-lg hover:shadow-forest-500/30 active:scale-95"
           >
+            <Plus size={14} className="group-hover:rotate-90 transition-transform duration-300" />
             Create New PO
           </Link>
         </div>
@@ -317,95 +318,180 @@ export default function PORecordsPage() {
             <p className="text-slate-300 text-xs mt-1">Create a new Purchase Order to see it here</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 border-b border-slate-100">
-                <tr>
-                  <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">PO Number</th>
-                  <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Supplier</th>
-                  <th className="text-right px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Procurement Total</th>
-                  <th className="text-center px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Payment Date</th>
-                  <th className="text-center px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
-                  <th className="px-5 py-3.5 w-48"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 bg-white">
-                {records.map((rec) => (
-                  <tr key={rec.id} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="px-5 py-4">
-                      <div className="font-mono text-sm md:text-[15px] font-bold text-slate-800">{rec.poNumber}</div>
-                      <div className="text-xs text-slate-500 font-medium">Slip: {rec.slipId}</div>
-                    </td>
-                    <td className="px-5 py-4">
-                      <div className="text-sm md:text-[15px] font-bold text-slate-800">{rec.supplierName}</div>
-                      <div className="text-xs text-slate-500 font-medium">{rec.supplierLocation}</div>
-                    </td>
-                    <td className="px-5 py-4 text-right">
+          <>
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">PO Number</th>
+                    <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Supplier</th>
+                    <th className="text-right px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Procurement Total</th>
+                    <th className="text-center px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Payment Date</th>
+                    <th className="text-center px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
+                    <th className="px-5 py-3.5 w-48"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 bg-white">
+                  {records.map((rec) => (
+                    <tr key={rec.id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="px-5 py-4">
+                        <div className="font-mono text-sm md:text-[15px] font-bold text-slate-800">{rec.poNumber}</div>
+                        <div className="text-xs text-slate-500 font-medium">Slip: {rec.slipId}</div>
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="text-sm md:text-[15px] font-bold text-slate-800">{rec.supplierName}</div>
+                        <div className="text-xs text-slate-500 font-medium">{rec.supplierLocation}</div>
+                      </td>
+                      <td className="px-5 py-4 text-right">
+                        {rec.procurement ? (
+                          <>
+                            <div className="text-sm md:text-[15px] font-extrabold text-slate-800 tabular-nums">₹{fmtCurrency(rec.procurement.total)}</div>
+                            <div className="text-xs text-slate-500 font-semibold">{rec.procurement.crop} - {rec.procurement.variety}</div>
+                          </>
+                        ) : (
+                          <span className="text-slate-400 italic">N/A</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-4 text-center">
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-blue-50 text-blue-700 text-xs font-bold whitespace-nowrap">
+                          <Calendar size={13} />
+                          {rec.paymentDate ? fmtDate(rec.paymentDate) : "N/A"}
+                        </div>
+                      </td>
+                      <td className="px-5 py-4 text-center">
+                        {rec.status === "BILLED" ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <CheckCircle size={12} /> Billed
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                            Draft
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-5 py-4 text-right">
+                        <div className="flex justify-end items-center gap-1.5">
+                          <button
+                            onClick={() => setPreviewPO(rec)}
+                            className="px-2.5 py-1.5 text-indigo-700 hover:text-white hover:bg-indigo-600 border border-indigo-200 rounded-lg transition-colors inline-flex items-center gap-1 text-xs font-bold shadow-sm"
+                            title="Preview PO"
+                          >
+                            <Eye size={13} /> Preview
+                          </button>
+                          {rec.status === "BILLED" ? (
+                            <button
+                              onClick={() => setDownloadPO(rec)}
+                              className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors inline-flex items-center gap-1 text-xs font-bold shadow-sm"
+                            >
+                              <Download size={13} /> Download
+                            </button>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => setBilledConfirmPO(rec)}
+                                className="px-2.5 py-1.5 text-emerald-700 hover:text-white hover:bg-emerald-600 border border-emerald-200 rounded-lg transition-colors inline-flex items-center gap-1 text-xs font-bold shadow-sm"
+                              >
+                                <CheckCircle size={13} /> Approve/Bill
+                              </button>
+                              <Link
+                                href={`/dashboard/po-maker?slipId=${rec.slipId}`}
+                                className="px-2.5 py-1.5 text-slate-500 hover:text-forest-700 hover:bg-forest-50 border border-slate-200 hover:border-forest-200 rounded-lg transition-all active:scale-[0.96] inline-flex items-center gap-1 text-xs font-bold shadow-sm"
+                              >
+                                <Edit3 size={13} /> Edit
+                              </Link>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden flex flex-col p-3 gap-3 bg-slate-50/80">
+              {records.map((rec) => (
+                <div key={rec.id} className="p-3 space-y-2 bg-white border border-slate-200 shadow-sm rounded-xl hover:border-slate-300 transition-colors">
+                  <div className="flex justify-between items-start gap-2">
+                    <div>
+                      <div className="font-mono text-sm font-bold text-slate-800 leading-tight">{rec.poNumber}</div>
+                      <div className="text-[10px] text-slate-500 font-medium mt-0.5">Slip: {rec.slipId}</div>
+                    </div>
+                    {rec.status === "BILLED" ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <CheckCircle size={10} /> Billed
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                        Draft
+                      </span>
+                    )}
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Supplier</p>
+                      <div className="font-bold text-slate-800 line-clamp-1">{rec.supplierName}</div>
+                      <div className="text-[10px] text-slate-500 line-clamp-1">{rec.supplierLocation}</div>
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Total</p>
                       {rec.procurement ? (
                         <>
-                          <div className="text-sm md:text-[15px] font-extrabold text-slate-800 tabular-nums">₹{fmtCurrency(rec.procurement.total)}</div>
-                          <div className="text-xs text-slate-500 font-semibold">{rec.procurement.crop} - {rec.procurement.variety}</div>
+                          <div className="font-extrabold text-slate-800 tabular-nums">₹{fmtCurrency(rec.procurement.total)}</div>
+                          <div className="text-[10px] text-slate-500 font-semibold line-clamp-1">{rec.procurement.crop} - {rec.procurement.variety}</div>
                         </>
                       ) : (
                         <span className="text-slate-400 italic">N/A</span>
                       )}
-                    </td>
-                    <td className="px-5 py-4 text-center">
-                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold">
-                        <Calendar size={13} />
-                        {rec.paymentDate ? fmtDate(rec.paymentDate) : "N/A"}
-                      </div>
-                    </td>
-                    <td className="px-5 py-4 text-center">
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-center pt-2.5 border-t border-slate-100 mt-1">
+                    <div className="inline-flex items-center gap-1 px-2 py-1 rounded bg-blue-50 text-blue-700 text-[10px] font-bold">
+                      <Calendar size={10} />
+                      {rec.paymentDate ? fmtDate(rec.paymentDate) : "N/A"}
+                    </div>
+                    
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => setPreviewPO(rec)}
+                        className="px-2 py-1 text-indigo-700 bg-indigo-50 hover:text-white hover:bg-indigo-600 rounded-lg transition-colors inline-flex items-center gap-1 text-[11px] font-bold"
+                      >
+                        <Eye size={12} /> View
+                      </button>
+                      
                       {rec.status === "BILLED" ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          <CheckCircle size={12} /> Billed
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                          Draft
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-5 py-4 text-right">
-                      <div className="flex justify-end items-center gap-1.5">
                         <button
-                          onClick={() => setPreviewPO(rec)}
-                          className="px-2.5 py-1.5 text-indigo-700 hover:text-white hover:bg-indigo-600 border border-indigo-200 rounded-lg transition-colors inline-flex items-center gap-1 text-xs font-bold shadow-sm"
-                          title="Preview PO"
+                          onClick={() => setDownloadPO(rec)}
+                          className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors inline-flex items-center gap-1 text-[11px] font-bold shadow-sm"
                         >
-                          <Eye size={13} /> Preview
+                          <Download size={12} /> Down
                         </button>
-                        {rec.status === "BILLED" ? (
+                      ) : (
+                        <>
                           <button
-                            onClick={() => setDownloadPO(rec)}
-                            className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors inline-flex items-center gap-1 text-xs font-bold shadow-sm"
+                            onClick={() => setBilledConfirmPO(rec)}
+                            className="px-2 py-1 text-emerald-700 bg-emerald-50 border border-emerald-200 hover:text-white hover:bg-emerald-600 rounded-lg transition-colors inline-flex items-center gap-1 text-[11px] font-bold"
                           >
-                            <Download size={13} /> Download
+                            <CheckCircle size={12} /> Bill
                           </button>
-                        ) : (
-                          <>
-                            <button
-                              onClick={() => setBilledConfirmPO(rec)}
-                              className="px-2.5 py-1.5 text-emerald-700 hover:text-white hover:bg-emerald-600 border border-emerald-200 rounded-lg transition-colors inline-flex items-center gap-1 text-xs font-bold shadow-sm"
-                            >
-                              <CheckCircle size={13} /> Approve/Bill
-                            </button>
-                            <Link
-                              href={`/dashboard/po-maker?slipId=${rec.slipId}`}
-                              className="px-2.5 py-1.5 text-slate-500 hover:text-forest-700 hover:bg-forest-50 border border-slate-200 hover:border-forest-200 rounded-lg transition-all active:scale-[0.96] inline-flex items-center gap-1 text-xs font-bold shadow-sm"
-                            >
-                              <Edit3 size={13} /> Edit
-                            </Link>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                          <Link
+                            href={`/dashboard/po-maker?slipId=${rec.slipId}`}
+                            className="px-2 py-1 text-slate-600 bg-slate-100 border border-slate-200 hover:bg-forest-600 hover:text-white rounded-lg transition-colors inline-flex items-center gap-1 text-[11px] font-bold"
+                          >
+                            <Edit3 size={12} /> Edit
+                          </Link>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
 
@@ -465,7 +551,7 @@ export default function PORecordsPage() {
       {(previewPO || downloadPO) && parsedPOData && (
         <div className={previewPO ? "fixed inset-0 z-50 flex items-center justify-center p-4 no-print overflow-y-auto" : "hidden print:block absolute top-0 left-0 w-full"}>
           {previewPO && <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm backdrop-fade" onClick={() => setPreviewPO(null)} />}
-          <div className={previewPO ? "relative w-full max-w-[230mm] bg-white rounded-3xl shadow-2xl p-6 modal-spring my-8 max-h-[90vh] overflow-y-auto flex flex-col" : "bg-white p-0 m-0 w-full"}>
+          <div className={previewPO ? "relative w-full max-w-[230mm] bg-white rounded-3xl shadow-2xl p-4 md:p-6 modal-spring my-8 max-h-[90vh] flex flex-col" : "bg-white p-0 m-0 w-full"}>
             
             {/* Modal Header */}
             {previewPO && (
@@ -511,20 +597,22 @@ export default function PORecordsPage() {
             )}
             
             {/* Preview Sheet Container */}
-            <div className="flex-1 overflow-x-auto bg-slate-100/50 p-4 rounded-2xl border border-slate-200/60 flex justify-center">
-              <div id="printable-po" className="w-[210mm] min-w-[210mm] bg-white text-black p-6 text-[11px] leading-tight font-sans shadow-sm border border-slate-200">
+            <div className="flex-1 overflow-auto bg-slate-100/50 p-2 md:p-4 rounded-2xl border border-slate-200/60">
+              <div id="printable-po" className="w-[210mm] min-w-[210mm] mx-auto bg-white text-black p-6 text-[11px] leading-tight font-sans shadow-sm border border-slate-200">
                 
                 <style>{`
                   @media print {
                     @page { size: A4 portrait; margin: 8mm; }
-                    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; margin: 0; padding: 0; background: white !important; }
+                    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; margin: 0; padding: 0; background: white !important; min-width: 210mm !important; }
                     body * { visibility: hidden; }
                     #printable-po, #printable-po * { visibility: visible; }
                     #printable-po {
                       position: absolute !important;
                       left: 0 !important;
                       top: 0 !important;
-                      width: 100% !important;
+                      width: 210mm !important;
+                      min-width: 210mm !important;
+                      max-width: 210mm !important;
                       padding: 0 !important;
                       margin: 0 !important;
                       transform: none !important;

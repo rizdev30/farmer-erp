@@ -2256,14 +2256,16 @@ function POMakerForm() {
             <style>{`
               @media print {
                 @page { size: A4 portrait; margin: 8mm; }
-                body { -webkit-print-color-adjust: exact; print-color-adjust: exact; margin: 0; padding: 0; background: white !important; }
+                body { -webkit-print-color-adjust: exact; print-color-adjust: exact; margin: 0; padding: 0; background: white !important; min-width: 210mm !important; }
                 body * { visibility: hidden; }
                 #printable-po, #printable-po * { visibility: visible; }
                 #printable-po {
                   position: absolute !important;
                   left: 0 !important;
                   top: 0 !important;
-                  width: 100% !important;
+                  width: 210mm !important;
+                  min-width: 210mm !important;
+                  max-width: 210mm !important;
                   padding: 0 !important;
                   margin: 0 !important;
                   transform: none !important;
