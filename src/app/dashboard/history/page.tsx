@@ -460,40 +460,40 @@ export default function HistoryPage() {
         <div className="grid grid-cols-4 gap-2 mb-3 mt-2">
           <button
             onClick={() => setSelectedStatus("")}
-            className={`py-2 rounded-full text-[11px] sm:text-xs font-semibold transition-all border ${
+            className={`py-2 rounded-xl text-[11px] sm:text-xs font-bold transition-all border ${
               !selectedStatus
-                ? "bg-slate-900 text-white border-slate-900"
-                : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                ? "bg-slate-900 text-white border-slate-900 shadow-md shadow-slate-900/20 scale-100"
+                : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 scale-95 opacity-80"
             }`}
           >
             All
           </button>
           <button
             onClick={() => setSelectedStatus("PENDING")}
-            className={`py-2 rounded-full text-[11px] sm:text-xs font-semibold transition-all border ${
+            className={`py-2 rounded-xl text-[11px] sm:text-xs font-bold transition-all border ${
               selectedStatus === "PENDING"
-                ? "bg-amber-500 text-white border-amber-500"
-                : "bg-white text-amber-700 border-amber-300 hover:bg-amber-50"
+                ? "bg-amber-500 text-white border-amber-500 shadow-md shadow-amber-500/20 scale-100"
+                : "bg-amber-50/50 text-amber-700 border-amber-200 hover:bg-amber-50 scale-95 opacity-80"
             }`}
           >
             Pending
           </button>
           <button
             onClick={() => setSelectedStatus("APPROVED")}
-            className={`py-2 rounded-full text-[11px] sm:text-xs font-semibold transition-all border ${
+            className={`py-2 rounded-xl text-[11px] sm:text-xs font-bold transition-all border ${
               selectedStatus === "APPROVED"
-                ? "bg-emerald-500 text-white border-emerald-500"
-                : "bg-white text-emerald-700 border-emerald-300 hover:bg-emerald-50"
+                ? "bg-emerald-500 text-white border-emerald-500 shadow-md shadow-emerald-500/20 scale-100"
+                : "bg-emerald-50/50 text-emerald-700 border-emerald-200 hover:bg-emerald-50 scale-95 opacity-80"
             }`}
           >
             Approved
           </button>
           <button
             onClick={() => setSelectedStatus("REJECTED")}
-            className={`py-2 rounded-full text-[11px] sm:text-xs font-semibold transition-all border ${
+            className={`py-2 rounded-xl text-[11px] sm:text-xs font-bold transition-all border ${
               selectedStatus === "REJECTED"
-                ? "bg-red-500 text-white border-red-500"
-                : "bg-white text-red-600 border-red-300 hover:bg-red-50"
+                ? "bg-red-500 text-white border-red-500 shadow-md shadow-red-500/20 scale-100"
+                : "bg-red-50/50 text-red-600 border-red-200 hover:bg-red-50 scale-95 opacity-80"
             }`}
           >
             Rejected
