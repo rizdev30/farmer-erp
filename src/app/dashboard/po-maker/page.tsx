@@ -2338,16 +2338,18 @@ function POMakerForm() {
                     <h1 className="text-lg font-black tracking-widest uppercase text-slate-800">PURCHASE ORDER</h1>
                     <h2 className="text-xs font-bold uppercase text-slate-600">{billing.name || "Farmer ERP Pvt Ltd"}</h2>
                   </div>
-                  <div className="w-[20%] border-l-[1.5px] border-black h-full flex items-center justify-center p-1 print-hide">
-                    {poStatus === "BILLED" ? (
-                      <div className="border-2 border-emerald-600 text-emerald-600 font-extrabold text-[11px] px-2 py-0.5 rounded uppercase tracking-wider font-sans rotate-[-3deg] shadow-sm">
-                        APPROVED
-                      </div>
-                    ) : (
-                      <div className="border-2 border-red-600 text-red-600 font-extrabold text-[11px] px-2 py-0.5 rounded uppercase tracking-wider font-sans rotate-[-3deg] shadow-sm">
-                        DRAFT
-                      </div>
-                    )}
+                  <div className="w-[20%] border-l-[1.5px] border-black h-full flex items-center justify-center p-1">
+                    <div className="print:hidden">
+                      {poStatus === "BILLED" ? (
+                        <div className="border-2 border-emerald-600 text-emerald-600 font-extrabold text-[11px] px-2 py-0.5 rounded uppercase tracking-wider font-sans rotate-[-3deg] shadow-sm">
+                          APPROVED
+                        </div>
+                      ) : (
+                        <div className="border-2 border-red-600 text-red-600 font-extrabold text-[11px] px-2 py-0.5 rounded uppercase tracking-wider font-sans rotate-[-3deg] shadow-sm">
+                          DRAFT
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 

@@ -659,16 +659,18 @@ export default function PORecordsClient({ initialRecords }: { initialRecords?: a
                       </div>
                       
                       {/* Watermark/Status Stamp */}
-                      <div className="w-[20%] border-l-[1.5px] border-black h-full flex items-center justify-center p-1 print-hide">
-                        {(previewPO || downloadPO).status === "BILLED" ? (
-                          <div className="border-2 border-emerald-600 text-emerald-600 font-extrabold text-[11px] px-2 py-0.5 rounded uppercase tracking-wider font-sans rotate-[-3deg] shadow-sm">
-                            APPROVED
-                          </div>
-                        ) : (
-                          <div className="border-2 border-red-600 text-red-600 font-extrabold text-[11px] px-2 py-0.5 rounded uppercase tracking-wider font-sans rotate-[-3deg] shadow-sm">
-                            DRAFT
-                          </div>
-                        )}
+                      <div className="w-[20%] border-l-[1.5px] border-black h-full flex items-center justify-center p-1">
+                        <div className="print:hidden">
+                          {(previewPO || downloadPO).status === "BILLED" ? (
+                            <div className="border-2 border-emerald-600 text-emerald-600 font-extrabold text-[11px] px-2 py-0.5 rounded uppercase tracking-wider font-sans rotate-[-3deg] shadow-sm">
+                              APPROVED
+                            </div>
+                          ) : (
+                            <div className="border-2 border-red-600 text-red-600 font-extrabold text-[11px] px-2 py-0.5 rounded uppercase tracking-wider font-sans rotate-[-3deg] shadow-sm">
+                              DRAFT
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
 
