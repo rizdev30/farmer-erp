@@ -281,6 +281,22 @@ export async function createProcurement(
 
     await logAuditAction(user.userId, "PROCUREMENT_CREATED", `Created procurement slip ${slipId} for farmer ${data.farmerName}`);
 
+    // Create Notification for Level 2 Approvers
+    try {
+      await prisma.notification.create({
+        data: {
+          title: "New Approval Required",
+          message: `A procurement list has arrived from L1 agent **${user.userName}** for approval.`,
+          type: "PROCUREMENT_CREATED",
+          link: `/dashboard/history/${slipId}`,
+          targetRole: "L2_APPROVAL",
+          senderName: user.userName,
+        },
+      });
+    } catch (notifErr) {
+      console.error("Failed to create notification inside createProcurement:", notifErr);
+    }
+
     return {
       success: true,
       slipId,
@@ -808,6 +824,49 @@ export async function updateProcurementStatus(
   });
 
   await logAuditAction(user.userId, `PROCUREMENT_${action}`, `Status changed to ${dataToUpdate.status} for slip ${slipId}`);
+
+  // Create Notifications on Approval Status Change
+  try {
+    if (action === "L2_APPROVE") {
+      // 1. Notify L1 Agent
+      await prisma.notification.create({
+        data: {
+          title: "Procurement Approved",
+          message: `Your procurement list **${slipId}** has been approved by L2 approver **${user.userName}**.`,
+          type: "PROCUREMENT_APPROVED",
+          link: `/dashboard/history/${slipId}`,
+          userId: procurement.agentId,
+          senderName: user.userName,
+        },
+      });
+
+      // 2. Notify L3 PO Makers
+      await prisma.notification.create({
+        data: {
+          title: "New Approved Procurement",
+          message: `A new approved procurement list has arrived from L2 approver **${user.userName}** for PO creation.`,
+          type: "PROCUREMENT_APPROVED_TO_PO",
+          link: `/dashboard/history/${slipId}`,
+          targetRole: "L3_PO_MAKER",
+          senderName: user.userName,
+        },
+      });
+    } else if (action === "L2_REJECT") {
+      // Notify L1 Agent
+      await prisma.notification.create({
+        data: {
+          title: "Procurement Cancelled",
+          message: `Your procurement list **${slipId}** has been canceled by L2 approver **${user.userName}**.`,
+          type: "PROCUREMENT_CANCELLED",
+          link: `/dashboard/history/${slipId}`,
+          userId: procurement.agentId,
+          senderName: user.userName,
+        },
+      });
+    }
+  } catch (notifErr) {
+    console.error("Failed to create notifications in updateProcurementStatus:", notifErr);
+  }
 
   return updatedProcurement;
 }

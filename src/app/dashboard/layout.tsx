@@ -18,7 +18,7 @@ import {
   PlusCircle,
   ArrowLeft,
 } from "lucide-react";
-
+import NotificationBell from "@/components/NotificationBell";
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/farmers", label: "Farmers", icon: Users },
@@ -307,14 +307,25 @@ function DashboardLayoutContent({
       </aside>
 
       <main className="flex-1 flex flex-col overflow-hidden">
-        <header className="md:hidden flex items-center justify-center px-4 pb-2 glass border-b border-slate-200/50 print:hidden relative" style={{ paddingTop: "max(0.375rem, env(safe-area-inset-top))" }}>
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-forest-500 to-forest-600 rounded-lg flex items-center justify-center">
-              <Sprout className="w-4 h-4 text-white" />
+        <header className="flex items-center justify-between px-6 py-3.5 bg-white/80 backdrop-blur-md border-b border-slate-200/50 print:hidden z-30 shrink-0" style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}>
+          <div className="flex items-center gap-3">
+            {/* Desktop logo context */}
+            <div className="hidden md:block">
+              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Workspace</span>
+              <h2 className="text-base font-bold text-slate-800 -mt-0.5">Farmer ERP</h2>
             </div>
-            <span className="font-semibold text-forest-900 text-sm">
-              Farmer ERP
-            </span>
+            {/* Mobile Header Logo */}
+            <div className="flex md:hidden items-center gap-2">
+              <div className="w-8 h-8 bg-gradient-to-br from-forest-500 to-forest-600 rounded-lg flex items-center justify-center">
+                <Sprout className="w-4.5 h-4.5 text-white" />
+              </div>
+              <span className="font-bold text-slate-800 text-sm">
+                Farmer ERP
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <NotificationBell />
           </div>
         </header>
 

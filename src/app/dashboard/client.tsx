@@ -33,6 +33,8 @@ import { useRouter } from "next/navigation";
 import { useSWRCache, prefetchCache } from "@/lib/swr-cache";
 import { getFarmers } from "@/app/actions/farmers";
 import { getProcurementHistory, getMonthlySummary } from "@/app/actions/procurement";
+import RecentUpdates from "@/components/RecentUpdates";
+
 
 // ─────────────────────────────────────────────────────────────
 // Helpers
@@ -699,121 +701,131 @@ export default function DashboardClient({ initialStats, initialVarietyStats, ini
         </div>
       </div>
 
-      {/* Today's Purchase Overview (Upper Card) */}
-      <div className="glass-card rounded-2xl p-6 flex flex-col gap-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center border border-blue-100/50">
-              <ShoppingCart size={18} className="text-blue-600" />
+      {/* Grid containing both stats and recent updates */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        <div className="lg:col-span-2 space-y-6">
+          {/* Today's Purchase Overview (Upper Card) */}
+          <div className="glass-card rounded-2xl p-6 flex flex-col gap-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center border border-blue-100/50">
+                  <ShoppingCart size={18} className="text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-800 text-[15px] tracking-tight">Today's Purchase Overview</h3>
+                  <p className="text-[10px] text-slate-400 font-medium">Daily live metrics</p>
+                </div>
+              </div>
+              <button 
+                onClick={handleTodayClick}
+                className="text-xs text-blue-600 hover:text-blue-700 font-bold transition-colors flex items-center gap-1"
+              >
+                Details <ChevronRight size={14} />
+              </button>
             </div>
-            <div>
-              <h3 className="font-bold text-slate-800 text-[15px] tracking-tight">Today's Purchase Overview</h3>
-              <p className="text-[10px] text-slate-400 font-medium">Daily live metrics</p>
+
+            {/* Metrics Grid */}
+            <div className="flex items-start justify-around gap-1 w-full border-b border-slate-100 pb-4">
+              <StatCardItem label="Bags" value={isLoading && !stats ? "..." : fmt(s.todaysBags ?? 0)} />
+              <VDiv />
+              <StatCardItem label="Weight Qtl." value={isLoading && !stats ? "..." : fmtCurrency(s.todaysPurchaseQtl ?? "0.00")} />
+              <VDiv />
+              <StatCardItem label="Value" value={isLoading && !stats ? "..." : fmt(s.todaysValue ? Math.round(parseFloat(String(s.todaysValue))) : 0)} />
+              <VDiv />
+              <StatCardItem label="Average Price" value={isLoading && !stats ? "..." : `₹${fmtCurrency(s.todaysAveragePrice ?? "0.00")}`} colorClass="text-green-600 font-bold" />
+            </div>
+
+            {/* Slips breakdown */}
+            <div className="flex flex-col gap-3">
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider text-center">Today Slips</h4>
+              {isLoading && !stats ? (
+                <div className="flex justify-around gap-1 w-full animate-pulse py-1">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="flex-1 space-y-1 text-center">
+                      <div className="h-3 bg-slate-100 rounded w-10 mx-auto" />
+                      <div className="h-4 bg-slate-100 rounded w-12 mx-auto" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex items-start justify-around gap-1 w-full">
+                  <StatCardItem label="Total Slip" value={fmt(s.todaysTotalSlips ?? s.todayProcurements)} />
+                  <VDiv />
+                  <StatCardItem label="Approved" value={fmt(s.todaysApprovedSlips ?? 0)} colorClass="text-green-600 font-bold" />
+                  <VDiv />
+                  <StatCardItem label="Pending" value={fmt(s.todaysPendingSlips ?? 0)} colorClass="text-amber-600 font-bold" />
+                  <VDiv />
+                  <StatCardItem label="Cancel" value={fmt(s.todaysCancelSlips ?? 0)} colorClass="text-red-600 font-bold" />
+                </div>
+              )}
             </div>
           </div>
-          <button 
-            onClick={handleTodayClick}
-            className="text-xs text-blue-600 hover:text-blue-700 font-bold transition-colors flex items-center gap-1"
-          >
-            Details <ChevronRight size={14} />
-          </button>
-        </div>
 
-        {/* Metrics Grid */}
-        <div className="flex items-start justify-around gap-1 w-full border-b border-slate-100 pb-4">
-          <StatCardItem label="Bags" value={isLoading && !stats ? "..." : fmt(s.todaysBags ?? 0)} />
-          <VDiv />
-          <StatCardItem label="Weight Qtl." value={isLoading && !stats ? "..." : fmtCurrency(s.todaysPurchaseQtl ?? "0.00")} />
-          <VDiv />
-          <StatCardItem label="Value" value={isLoading && !stats ? "..." : fmt(s.todaysValue ? Math.round(parseFloat(String(s.todaysValue))) : 0)} />
-          <VDiv />
-          <StatCardItem label="Average Price" value={isLoading && !stats ? "..." : `₹${fmtCurrency(s.todaysAveragePrice ?? "0.00")}`} colorClass="text-green-600 font-bold" />
-        </div>
-
-        {/* Slips breakdown */}
-        <div className="flex flex-col gap-3">
-          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider text-center">Today Slips</h4>
-          {isLoading && !stats ? (
-            <div className="flex justify-around gap-1 w-full animate-pulse py-1">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="flex-1 space-y-1 text-center">
-                  <div className="h-3 bg-slate-100 rounded w-10 mx-auto" />
-                  <div className="h-4 bg-slate-100 rounded w-12 mx-auto" />
+          {/* Total / Monthly Purchase Overview (Bottom Card) */}
+          <div className="glass-card rounded-2xl p-6 flex flex-col gap-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-forest-50 flex items-center justify-center border border-forest-100/50">
+                  <TrendingUp size={18} className="text-forest-600" />
                 </div>
-              ))}
+                <div>
+                  <h3 className="font-bold text-slate-800 text-[15px] tracking-tight">Total Purchase Overview</h3>
+                  <p className="text-[10px] text-slate-400 font-medium">
+                    {filters.month
+                      ? `For ${new Date(filters.month + "-02").toLocaleDateString("en-IN", { month: "long", year: "numeric" })}`
+                      : "For current month"}
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={handleTotalClick}
+                className="text-xs text-forest-700 hover:text-forest-800 font-bold transition-colors flex items-center gap-1"
+              >
+                Details <ChevronRight size={14} />
+              </button>
             </div>
-          ) : (
-            <div className="flex items-start justify-around gap-1 w-full">
-              <StatCardItem label="Total Slip" value={fmt(s.todaysTotalSlips ?? s.todayProcurements)} />
-              <VDiv />
-              <StatCardItem label="Approved" value={fmt(s.todaysApprovedSlips ?? 0)} colorClass="text-green-600 font-bold" />
-              <VDiv />
-              <StatCardItem label="Pending" value={fmt(s.todaysPendingSlips ?? 0)} colorClass="text-amber-600 font-bold" />
-              <VDiv />
-              <StatCardItem label="Cancel" value={fmt(s.todaysCancelSlips ?? 0)} colorClass="text-red-600 font-bold" />
-            </div>
-          )}
-        </div>
-      </div>
 
-      {/* Total / Monthly Purchase Overview (Bottom Card) */}
-      <div className="glass-card rounded-2xl p-6 flex flex-col gap-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-forest-50 flex items-center justify-center border border-forest-100/50">
-              <TrendingUp size={18} className="text-forest-600" />
+            {/* Metrics Grid */}
+            <div className="flex items-start justify-around gap-1 w-full border-b border-slate-100 pb-4">
+              <StatCardItem label="Bags" value={isLoading && !stats ? "..." : fmt(s.totalBags ?? 0)} />
+              <VDiv />
+              <StatCardItem label="Weight Qtl." value={isLoading && !stats ? "..." : fmtCurrency(s.totalPurchaseQtl ?? "0.00")} />
+              <VDiv />
+              <StatCardItem label="Value" value={isLoading && !stats ? "..." : `₹${fmt(s.totalValue ? Math.round(parseFloat(String(s.totalValue))) : 0)}`} />
+              <VDiv />
+              <StatCardItem label="Average Price" value={isLoading && !stats ? "..." : `₹${fmtCurrency(s.totalAveragePrice ?? "0.00")}`} colorClass="text-green-600 font-bold" />
             </div>
-            <div>
-              <h3 className="font-bold text-slate-800 text-[15px] tracking-tight">Total Purchase Overview</h3>
-              <p className="text-[10px] text-slate-400 font-medium">
-                {filters.month
-                  ? `For ${new Date(filters.month + "-02").toLocaleDateString("en-IN", { month: "long", year: "numeric" })}`
-                  : "For current month"}
-              </p>
+
+            {/* Total Slips breakdown */}
+            <div className="flex flex-col gap-3">
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider text-center">Total Slips</h4>
+              {isLoading && !stats ? (
+                <div className="flex justify-around gap-1 w-full animate-pulse py-1">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="flex-1 space-y-1 text-center">
+                      <div className="h-3 bg-slate-100 rounded w-10 mx-auto" />
+                      <div className="h-4 bg-slate-100 rounded w-12 mx-auto" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex items-start justify-around gap-1 w-full">
+                  <StatCardItem label="Total Slip" value={fmt(s.totalPurchase)} />
+                  <VDiv />
+                  <StatCardItem label="Approved" value={fmt(s.totalApprovedSlips ?? s.approved)} colorClass="text-green-600 font-bold" />
+                  <VDiv />
+                  <StatCardItem label="Pending" value={fmt(s.totalPendingSlips ?? s.pendingApproval)} colorClass="text-amber-600 font-bold" />
+                  <VDiv />
+                  <StatCardItem label="Cancel" value={fmt(s.totalCancelSlips ?? s.rejected)} colorClass="text-red-600 font-bold" />
+                </div>
+              )}
             </div>
           </div>
-          <button 
-            onClick={handleTotalClick}
-            className="text-xs text-forest-700 hover:text-forest-800 font-bold transition-colors flex items-center gap-1"
-          >
-            Details <ChevronRight size={14} />
-          </button>
         </div>
 
-        {/* Metrics Grid */}
-        <div className="flex items-start justify-around gap-1 w-full border-b border-slate-100 pb-4">
-          <StatCardItem label="Bags" value={isLoading && !stats ? "..." : fmt(s.totalBags ?? 0)} />
-          <VDiv />
-          <StatCardItem label="Weight Qtl." value={isLoading && !stats ? "..." : fmtCurrency(s.totalPurchaseQtl ?? "0.00")} />
-          <VDiv />
-          <StatCardItem label="Value" value={isLoading && !stats ? "..." : `₹${fmt(s.totalValue ? Math.round(parseFloat(String(s.totalValue))) : 0)}`} />
-          <VDiv />
-          <StatCardItem label="Average Price" value={isLoading && !stats ? "..." : `₹${fmtCurrency(s.totalAveragePrice ?? "0.00")}`} colorClass="text-green-600 font-bold" />
-        </div>
-
-        {/* Total Slips breakdown */}
-        <div className="flex flex-col gap-3">
-          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider text-center">Total Slips</h4>
-          {isLoading && !stats ? (
-            <div className="flex justify-around gap-1 w-full animate-pulse py-1">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="flex-1 space-y-1 text-center">
-                  <div className="h-3 bg-slate-100 rounded w-10 mx-auto" />
-                  <div className="h-4 bg-slate-100 rounded w-12 mx-auto" />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex items-start justify-around gap-1 w-full">
-              <StatCardItem label="Total Slip" value={fmt(s.totalPurchase)} />
-              <VDiv />
-              <StatCardItem label="Approved" value={fmt(s.totalApprovedSlips ?? s.approved)} colorClass="text-green-600 font-bold" />
-              <VDiv />
-              <StatCardItem label="Pending" value={fmt(s.totalPendingSlips ?? s.pendingApproval)} colorClass="text-amber-600 font-bold" />
-              <VDiv />
-              <StatCardItem label="Cancel" value={fmt(s.totalCancelSlips ?? s.rejected)} colorClass="text-red-600 font-bold" />
-            </div>
-          )}
+        {/* Right Sidebar: Recent Updates */}
+        <div className="lg:col-span-1 h-full flex">
+          <RecentUpdates />
         </div>
       </div>
 

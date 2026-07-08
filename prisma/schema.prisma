@@ -264,4 +264,19 @@ model WarehouseAddress {
   @@map("warehouse_addresses")
 }
 
+model Notification {
+  id          String   @id @default(cuid())
+  title       String
+  message     String
+  type        String   // "PROCUREMENT_CREATED", "PROCUREMENT_APPROVED", "PROCUREMENT_CANCELLED", "PO_CREATED"
+  link        String?
+  userId      String?  // Recipient user ID (if targeted)
+  targetRole  String?  // E.g., "L2_APPROVAL", "L3_PO_MAKER", "L1_AGENT" (if role-based)
+  readBy      String[] @default([]) // Array of user IDs who read it
+  senderName  String
+  createdAt   DateTime @default(now())
+
+  @@map("notifications")
+}
+
 
