@@ -142,6 +142,7 @@ export default function PORecordsClient({ initialRecords }: { initialRecords?: a
       mobile: "",
       email: ""
     };
+    const isAdhatiya = !!vendor.isAdhatiya || !!targetPO.procurement?.adtiyaName;
     
     const delivery = parsed.delivery || {
       name: targetPO.companyName || "Farmer ERP Pvt Ltd",
@@ -238,6 +239,7 @@ export default function PORecordsClient({ initialRecords }: { initialRecords?: a
       billing,
       vendor,
       delivery,
+      isAdhatiya,
       poNumber,
       poDate,
       paymentTerms,
@@ -679,7 +681,9 @@ export default function PORecordsClient({ initialRecords }: { initialRecords?: a
                       
                       {/* Left Column: Vendor Address block */}
                       <div className="w-1/2 po-cell-border-r p-2 space-y-1">
-                        <p className="font-extrabold underline uppercase text-xs text-black">Vender:</p>
+                        <p className="font-extrabold underline uppercase text-xs text-black">
+                          {parsedPOData.isAdhatiya ? "Adhatiya:" : "Vender:"}
+                        </p>
                         <p className="font-black text-sm uppercase text-black">{parsedPOData.vendor.name || "ABC PVT LTD"}</p>
                         <p className="uppercase leading-tight text-xs whitespace-pre-wrap font-bold text-slate-600">{parsedPOData.vendor.address || "123, Kisan Market, Near Railway Station\nSector-12, Gandhinagar, Gujarat - 382010"}</p>
                         <div className="pt-0.5 space-y-0.5 text-xs font-bold text-slate-600">

@@ -218,7 +218,8 @@ function POMakerForm() {
     address: "",
     gstNo: "",
     mobile: "",
-    email: ""
+    email: "",
+    isAdhatiya: false
   });
   
   const [billing, setBilling] = useState({
@@ -639,7 +640,8 @@ function POMakerForm() {
             address: data.supplierLocation || "",
             gstNo: "",
             mobile: "",
-            email: ""
+            email: "",
+            isAdhatiya: !!data.procurement?.adtiyaName
           });
         }
 
@@ -737,7 +739,8 @@ function POMakerForm() {
       address: fullAddress,
       gstNo: adhatiya.gstNo,
       mobile: adhatiya.mobile,
-      email: adhatiya.email
+      email: adhatiya.email,
+      isAdhatiya: true
     });
 
     // Fetch slips for this Adhatiya
@@ -840,7 +843,7 @@ function POMakerForm() {
       loadAdhatiyas();
       if (selectedAdhatiyaId === id) {
         setSelectedAdhatiyaId(null);
-        setVendor({ name: "", address: "", gstNo: "", mobile: "", email: "" });
+        setVendor({ name: "", address: "", gstNo: "", mobile: "", email: "", isAdhatiya: false });
       }
       setDeleteStep(0);
       setAdhatiyaToDelete(null);
@@ -2358,7 +2361,9 @@ function POMakerForm() {
                   
                   {/* Left Column: Vendor Address block */}
                   <div className="w-1/2 po-cell-border-r p-2 space-y-1">
-                    <p className="font-extrabold underline uppercase text-xs text-black">Vender:</p>
+                    <p className="font-extrabold underline uppercase text-xs text-black">
+                      {vendor.isAdhatiya ? "Adhatiya:" : "Vender:"}
+                    </p>
                     <p className="font-black text-sm uppercase text-black">{vendor.name || "ABC PVT LTD"}</p>
                     <p className="uppercase leading-tight text-xs whitespace-pre-wrap font-bold text-slate-600">{vendor.address || "123, Kisan Market, Near Railway Station\nSector-12, Gandhinagar, Gujarat - 382010"}</p>
                     <div className="pt-0.5 space-y-0.5 text-xs font-bold text-slate-600">

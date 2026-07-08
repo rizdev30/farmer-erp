@@ -131,6 +131,7 @@ export async function getPOHistory(limit?: number) {
           total: true,
           crop: true,
           variety: true,
+          adtiyaName: true,
         }
       }
     }
