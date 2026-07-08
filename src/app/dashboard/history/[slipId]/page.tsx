@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useSWRCache, invalidateCache } from "@/lib/swr-cache";
-import LoadingSkeleton from "./loading";
 
 export default function ReceiptPage() {
   const params = useParams();
@@ -57,7 +56,7 @@ export default function ReceiptPage() {
   }, []);
 
   if (loading) {
-    return <LoadingSkeleton />;
+    return <div className="flex justify-center items-center py-20"><Loader2 className="animate-spin text-forest-500 w-8 h-8" /></div>;
   }
 
   // Security measure: if unauthorized, throw them out to the login page immediately

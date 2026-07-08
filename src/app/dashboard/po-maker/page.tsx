@@ -20,7 +20,6 @@ import {
   FileText, Search, Plus, Trash2, Save, Printer, Loader2, Users, PlusCircle, Building, Settings, Check, HelpCircle, ChevronDown, ChevronRight, MapPin, Truck, Receipt, Sprout, Home, AlertTriangle, Edit
 } from "lucide-react";
 import { useToast } from "@/components/Toast";
-import LoadingSkeleton from "./loading";
 import { getMandis } from "@/app/actions/mandis";
 
 // Utility to convert number to Indian Rupees words
@@ -3918,7 +3917,7 @@ function POMakerForm() {
 
 export default function POMakerPage() {
   return (
-    <Suspense fallback={<LoadingSkeleton />}>
+    <Suspense fallback={<div className="flex justify-center items-center py-20"><Loader2 className="animate-spin text-forest-500 w-8 h-8" /></div>}>
       <POMakerForm />
     </Suspense>
   );

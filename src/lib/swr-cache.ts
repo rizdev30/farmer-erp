@@ -213,6 +213,7 @@ export function useSWRCache<T>(
     ttl?: number;
     revalidateOnFocus?: boolean;
     enabled?: boolean;
+    initialData?: T;
   }
 ): {
   data: T | undefined;
@@ -227,8 +228,9 @@ export function useSWRCache<T>(
   const enabled = options?.enabled ?? true;
 
   // Initialize state — always start with undefined during SSR, read cache in useEffect
-  const [data, setData] = useState<T | undefined>(undefined);
-  const [isLoading, setIsLoading] = useState(true);
+  // Now supports initialData for SSR hydration
+  const [data, setData] = useState<T | undefined>(options?.initialData ?? undefined);
+  const [isLoading, setIsLoading] = useState(!options?.initialData);
   const [isValidating, setIsValidating] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const mountedRef = useRef(true);
@@ -289,8 +291,11 @@ export function useSWRCache<T>(
       setData(entry.data);
       setIsLoading(false);
 
-      // ALWAYS revalidate in background on navigation to ensure fresh data
-      revalidate(); // Background refresh — UI already shows cached data
+      // Only revalidate if cache is stale
+      const isStale = Date.now() - entry.timestamp > ttl;
+      if (isStale) {
+        revalidate();
+      }
     } else {
       // Cache MISS — need to fetch
       setIsLoading(true);

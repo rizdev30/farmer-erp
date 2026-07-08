@@ -20,7 +20,6 @@ import {
   Briefcase
 } from "lucide-react";
 import Link from "next/link";
-import LoadingSkeleton from "./loading";
 import { useSWRCache } from "@/lib/swr-cache";
 
 interface FarmerProfile {
@@ -71,7 +70,7 @@ export default function FarmerProfilePage() {
   const error = !id ? "Invalid farmer ID" : swrError?.message || "";
 
   if (loading) {
-    return <LoadingSkeleton />;
+    return <div className="flex justify-center items-center py-20"><Loader2 className="animate-spin text-forest-500 w-8 h-8" /></div>;
   }
 
   if (error || !farmer) {

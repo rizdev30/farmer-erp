@@ -34,15 +34,19 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+import { auth } from "@/auth";
+
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const session = await auth();
+
   return (
     <html lang="en" className={`h-full`} data-scroll-behavior="smooth">
       <body className="min-h-full flex flex-col bg-slate-50 antialiased font-sans">
-        <SessionProvider>{children}</SessionProvider>
+        <SessionProvider session={session}>{children}</SessionProvider>
         <SpeedInsights />
       </body>
     </html>

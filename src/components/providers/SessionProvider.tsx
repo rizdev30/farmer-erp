@@ -63,11 +63,14 @@ function SessionGuard({ children }: { children: ReactNode }) {
 // an up-to-date view of whether the session is still valid.
 export default function SessionProvider({
   children,
+  session,
 }: {
   children: ReactNode;
+  session?: any;
 }) {
   return (
     <NextAuthSessionProvider
+      session={session}
       refetchInterval={60}
       refetchOnWindowFocus={true}
       refetchWhenOffline={false}

@@ -1,0 +1,1317 @@
+"use client";
+
+import { useEffect, useState, useCallback, useTransition } from "react";
+import { getDashboardStats, getVarietyStats, getVarietyDetail, getTodayDetail, getAllSlipsDetail } from "@/app/actions/dashboard";
+import { getMandis } from "@/app/actions/mandis";
+import type { VarietyStat, DashboardStats, VarietyRecord, SlipRecord, SlipStats } from "@/lib/crop-varieties";
+import { useSession } from "next-auth/react";
+import {
+  Users,
+  ShoppingCart,
+  ClipboardList,
+  Settings as SettingsIcon,
+  RefreshCw,
+  Wheat,
+  TrendingUp,
+  ArrowLeft,
+  Loader2,
+  CheckCircle2,
+  Clock,
+  XCircle,
+  ChevronRight,
+  Calendar,
+  FileText,
+  Filter,
+  X,
+  Check,
+  ChevronDown,
+  MapPin
+} from "lucide-react";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useSWRCache, prefetchCache } from "@/lib/swr-cache";
+import { getFarmers } from "@/app/actions/farmers";
+import { getProcurementHistory, getMonthlySummary } from "@/app/actions/procurement";
+
+// ─────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────
+function fmt(n: number | null | undefined) {
+  return (n ?? 0).toLocaleString("en-IN");
+}
+function fmtCurrency(v: string | number | null | undefined) {
+  const n = typeof v === "string" ? (parseFloat(v) || 0) : (v ?? 0);
+  return n.toLocaleString("en-IN", { minimumFractionDigits: 2 });
+}
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-IN", {
+    day: "2-digit", month: "short", year: "numeric",
+  });
+}
+
+// ─────────────────────────────────────────────────────────────
+// Status badge
+// ─────────────────────────────────────────────────────────────
+function StatusBadge({ status }: { status: string }) {
+  const map: Record<string, { label: string; cls: string; icon: React.ReactNode }> = {
+    APPROVED:     { label: "Approved",  cls: "bg-green-100 text-green-700",  icon: <CheckCircle2 size={11} /> },
+    PENDING_L2:   { label: "Pending",   cls: "bg-amber-100 text-amber-700",  icon: <Clock size={11} /> },
+    PENDING_L3:   { label: "Pending",   cls: "bg-amber-100 text-amber-700",  icon: <Clock size={11} /> },
+    REJECTED_L2:  { label: "Rejected",  cls: "bg-red-100 text-red-700",      icon: <XCircle size={11} /> },
+    REJECTED_L3:  { label: "Rejected",  cls: "bg-red-100 text-red-700",      icon: <XCircle size={11} /> },
+  };
+  const cfg = map[status] ?? { label: status, cls: "bg-slate-100 text-slate-600", icon: null };
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${cfg.cls}`}>
+      {cfg.icon}{cfg.label}
+    </span>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Stat row & Stat Card Item
+// ─────────────────────────────────────────────────────────────
+function StatRow({ label, value, highlight }: { label: string; value: string | number; highlight?: boolean }) {
+  return (
+    <div className="flex flex-col items-center gap-0.5 min-w-0">
+      <span className={`text-xs font-medium truncate ${highlight ? "text-forest-500" : "text-slate-400"}`}>{label}</span>
+      <span className={`font-bold tabular-nums leading-tight ${highlight ? "text-forest-800 text-base" : "text-slate-700 text-sm md:text-base"}`}>{value}</span>
+    </div>
+  );
+}
+function StatCardItem({ label, value, colorClass, highlight }: { label: string; value: string | number; colorClass?: string; highlight?: boolean }) {
+  return (
+    <div className="flex flex-col items-center gap-0.5 min-w-0 flex-1 text-center">
+      <span className={`text-[10px] sm:text-xs font-semibold uppercase tracking-wider ${highlight ? "text-forest-500" : "text-slate-400"}`}>{label}</span>
+      <span className={`font-bold tabular-nums leading-tight ${colorClass || (highlight ? "text-forest-800 text-sm sm:text-base" : "text-slate-700 text-xs sm:text-sm")}`}>{value}</span>
+    </div>
+  );
+}
+function VDiv() {
+  return <div className="w-px self-stretch bg-slate-200/70 mx-1" />;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Info card wrapper (clickable)
+// ─────────────────────────────────────────────────────────────
+function InfoCard({ icon, title, iconBg, children, loading, onClick, href, className = "" }: {
+  icon: React.ReactNode; title: string; iconBg: string;
+  children: React.ReactNode; loading?: boolean; onClick?: () => void; href?: string; className?: string;
+}) {
+  if (href) {
+    return (
+      <Link 
+        href={href} 
+        className={`glass-card rounded-2xl p-4 flex flex-col gap-3 text-left w-full cursor-pointer hover:bg-slate-50/50 transition-all active:scale-[0.98] active:bg-slate-100/50 ${className}`}
+      >
+        <div className="flex items-center gap-2.5">
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${iconBg}`}>{icon}</div>
+          <span className="text-sm font-bold text-slate-700">{title}</span>
+        </div>
+        {loading ? (
+          <div className="flex gap-3 animate-pulse">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex-1 space-y-1.5">
+                <div className="h-3 bg-slate-200 rounded w-10 mx-auto" />
+                <div className="h-5 bg-slate-200 rounded w-14 mx-auto" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="flex items-start justify-around gap-1 w-full">{children}</div>
+        )}
+      </Link>
+    );
+  }
+
+  const Component = onClick ? "button" : "div";
+  return (
+    <Component 
+      onClick={onClick} 
+      className={`glass-card rounded-2xl p-4 flex flex-col gap-3 text-left w-full ${onClick ? "cursor-pointer hover:bg-slate-50/50 transition-all active:scale-[0.98] active:bg-slate-100/50" : ""} ${className}`}
+    >
+      <div className="flex items-center gap-2.5">
+        <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${iconBg}`}>{icon}</div>
+        <span className="text-sm font-bold text-slate-700">{title}</span>
+      </div>
+      {loading ? (
+        <div className="flex gap-3 animate-pulse">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex-1 space-y-1.5">
+              <div className="h-3 bg-slate-200 rounded w-10 mx-auto" />
+              <div className="h-5 bg-slate-200 rounded w-14 mx-auto" />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="flex items-start justify-around gap-1 w-full">{children}</div>
+      )}
+    </Component>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Three info cards (Main Dashboard / Variety Drill / Today Drill)
+// ─────────────────────────────────────────────────────────────
+function ThreeCards({ s, loading, onTodayClick, onSlipClick, onTotalClick, hideTotalPurchase }: { 
+  s: DashboardStats; 
+  loading: boolean;
+  onTodayClick?: () => void;
+  onSlipClick?: () => void;
+  onTotalClick?: () => void;
+  hideTotalPurchase?: boolean;
+}) {
+  return (
+    <div className={`grid grid-cols-1 ${hideTotalPurchase ? "sm:grid-cols-2" : "sm:grid-cols-3"} gap-4`}>
+      <InfoCard 
+        icon={<ShoppingCart size={16} className="text-blue-600" />} 
+        title="Today Purchase" 
+        iconBg="bg-blue-100" 
+        loading={loading}
+        onClick={onTodayClick}
+      >
+        <StatRow label="Bags"        value={fmt(s.todaysBags)} />
+        <VDiv />
+        <StatRow label="Weight Qtl." value={fmtCurrency(s.todaysPurchaseQtl)} />
+        <VDiv />
+        <StatRow label="Avg. Price"  value={`₹${fmtCurrency(s.todaysAveragePrice)}`} highlight />
+      </InfoCard>
+
+      <InfoCard 
+        icon={<ClipboardList size={16} className="text-amber-600" />} 
+        title="Purchase Slip" 
+        iconBg="bg-amber-100" 
+        loading={loading}
+        onClick={onSlipClick}
+      >
+        <StatRow label="Total Slip" value={fmt(s.totalPurchase)} />
+        <VDiv />
+        <StatRow label="Approved"   value={fmt(s.approved)} />
+        <VDiv />
+        <StatRow label="Awaiting"   value={fmt(s.pendingApproval)} />
+      </InfoCard>
+
+      {!hideTotalPurchase && (
+        <InfoCard 
+          icon={<TrendingUp size={16} className="text-emerald-600" />} 
+          title="Total Purchase" 
+          iconBg="bg-emerald-100" 
+          loading={loading}
+          href="/dashboard/history"
+        >
+          <StatRow label="Bags"        value={fmt(s.totalBags)} />
+          <VDiv />
+          <StatRow label="Weight Qtl." value={fmtCurrency(s.totalPurchaseQtl)} />
+          <VDiv />
+          <StatRow label="Avg. Price"  value={`₹${fmtCurrency(s.totalAveragePrice)}`} highlight />
+        </InfoCard>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Slip Stats Cards (Slips Drill-down)
+// ─────────────────────────────────────────────────────────────
+function SlipStatsCards({ s, loading }: { s: SlipStats; loading: boolean }) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      <div className="glass-card rounded-2xl p-4 flex flex-col gap-3 col-span-1 sm:col-span-2">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-indigo-100"><FileText size={16} className="text-indigo-600" /></div>
+          <span className="text-sm font-bold text-slate-700">All Slips Overview</span>
+        </div>
+        {loading ? (
+          <div className="flex gap-3 animate-pulse">
+            <div className="flex-1 space-y-1.5"><div className="h-3 bg-slate-200 rounded w-10" /><div className="h-5 bg-slate-200 rounded w-14" /></div>
+            <div className="flex-1 space-y-1.5"><div className="h-3 bg-slate-200 rounded w-10" /><div className="h-5 bg-slate-200 rounded w-14" /></div>
+          </div>
+        ) : (
+          <div className="flex items-start justify-around gap-1 w-full">
+            <StatRow label="Total Slips" value={fmt(s.total)} highlight />
+            <VDiv />
+            <StatRow label="Total Bags" value={fmt(s.totalBags)} />
+            <VDiv />
+            <StatRow label="Total Qtl" value={fmtCurrency(s.totalWeightQtl)} />
+          </div>
+        )}
+      </div>
+
+      <div className="glass-card rounded-2xl p-4 flex flex-col gap-3">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-green-100"><CheckCircle2 size={16} className="text-green-600" /></div>
+          <span className="text-sm font-bold text-slate-700">Approved</span>
+        </div>
+        {loading ? (
+          <div className="animate-pulse space-y-1.5"><div className="h-3 bg-slate-200 rounded w-10" /><div className="h-5 bg-slate-200 rounded w-14" /></div>
+        ) : (
+          <div className="flex flex-col"><span className="text-2xl font-bold text-green-700">{fmt(s.approved)}</span></div>
+        )}
+      </div>
+
+      <div className="glass-card rounded-2xl p-4 flex flex-col gap-3">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-amber-100"><Clock size={16} className="text-amber-600" /></div>
+          <span className="text-sm font-bold text-slate-700">Awaiting</span>
+        </div>
+        {loading ? (
+          <div className="animate-pulse space-y-1.5"><div className="h-3 bg-slate-200 rounded w-10" /><div className="h-5 bg-slate-200 rounded w-14" /></div>
+        ) : (
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col"><span className="text-2xl font-bold text-amber-700">{fmt(s.awaiting)}</span></div>
+            {s.cancelled > 0 && (
+              <div className="text-right">
+                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Cancelled</span>
+                <span className="text-sm font-bold text-red-600">{fmt(s.cancelled)}</span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Empty stats placeholder
+// ─────────────────────────────────────────────────────────────
+const EMPTY_STATS: DashboardStats = {
+  totalPurchase: 0, todayProcurements: 0, pendingApproval: 0, approved: 0,
+  rejected: 0, totalPurchaseQtl: "0.00", todaysPurchaseQtl: "0.00",
+  todaysAveragePrice: "0.00", totalBags: 0, todaysBags: 0, totalAveragePrice: "0.00",
+};
+
+const EMPTY_SLIP_STATS: SlipStats = {
+  total: 0, approved: 0, awaiting: 0, cancelled: 0, totalBags: 0, totalWeightQtl: "0.00", totalValue: "0.00"
+};
+
+type ViewMode = 
+  | { type: "main" }
+  | { type: "variety", value: string }
+  | { type: "today" }
+  | { type: "slips" };
+
+// ─────────────────────────────────────────────────────────────
+// Main page
+// ─────────────────────────────────────────────────────────────
+export default function DashboardClient({ initialStats, initialVarietyStats, initialMandisList }: any) {
+  const { data: session } = useSession();
+  const router = useRouter();
+
+  // Active filters applied to the queries
+  const [filters, setFilters] = useState({
+    state: "",
+    district: "",
+    mandi: "",
+    status: "ALL",
+    month: "",
+  });
+
+  // Draft filters inside the modal
+  const [draftState, setDraftState] = useState("");
+  const [draftDistrict, setDraftDistrict] = useState("");
+  const [draftMandi, setDraftMandi] = useState("");
+  const [draftStatus, setDraftStatus] = useState("ALL");
+  const [draftMonth, setDraftMonth] = useState("");
+
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+  // Combobox dropdown search inside the filter popup
+  const [activeDropdown, setActiveDropdown] = useState<"state" | "district" | "mandi" | "month" | null>(null);
+  const [dropdownSearch, setDropdownSearch] = useState("");
+
+  // Geographic master data list
+  const [mandisList, setMandisList] = useState<{ id: number; state: string; district: string; mandiName: string; }[]>(initialMandisList || []);
+
+  // Fetch geographic master data on mount
+  useEffect(() => {
+    if (!initialMandisList) {
+      getMandis().then((data) => {
+        setMandisList(data);
+      });
+    }
+  }, [initialMandisList]);
+
+  // Click outside listener for comboboxes
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.combobox-filter')) {
+        setActiveDropdown(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside, { passive: true });
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, []);
+
+  const hasActiveFilters =
+    filters.state !== "" ||
+    filters.district !== "" ||
+    filters.mandi !== "" ||
+    filters.status !== "ALL" ||
+    filters.month !== "";
+
+  // Global dashboard stats with serialized filter SWR key
+  const { data: stats, isLoading, isValidating } = useSWRCache(
+    `dashboard-stats-${JSON.stringify(filters)}`,
+    () => getDashboardStats(filters),
+    { ttl: 5 * 60 * 1000, revalidateOnFocus: true, initialData: hasActiveFilters ? undefined : initialStats }
+  );
+
+  // Variety summary table with serialized filter SWR key
+  const { data: varietyStats, isLoading: varietyLoading } = useSWRCache(
+    `dashboard-variety-stats-${JSON.stringify(filters)}`,
+    () => getVarietyStats(filters),
+    { ttl: 5 * 60 * 1000, revalidateOnFocus: true, initialData: hasActiveFilters ? undefined : initialVarietyStats }
+  );
+
+  // Drill-down states
+  const [viewMode, setViewMode] = useState<ViewMode>({ type: "main" });
+  const [drillStats, setDrillStats] = useState<DashboardStats>(EMPTY_STATS);
+  const [drillSlipStats, setDrillSlipStats] = useState<SlipStats>(EMPTY_SLIP_STATS);
+  const [drillRecords, setDrillRecords] = useState<VarietyRecord[] | SlipRecord[]>([]);
+  const [isPending, startTransition] = useTransition();
+
+  // Prefetch background pages after stats load
+  useEffect(() => {
+    if (!stats) return;
+    prefetchCache("farmers-list----", () => getFarmers({}).then((d) => d as any[]));
+    prefetchCache("history-records---", () => getProcurementHistory({}));
+    prefetchCache("history-summary-", () => getMonthlySummary());
+    if ((session?.user as any)?.isSuperAdmin) {
+      prefetchCache("agents-list", () => fetch("/api/agents").then((r) => r.json()));
+    }
+  }, [stats, session]);
+
+  // Click handlers
+  const handleVarietyClick = useCallback((variety: string) => {
+    setViewMode({ type: "variety", value: variety });
+    setDrillRecords([]);
+    startTransition(async () => {
+      const detail = await getVarietyDetail(variety);
+      setDrillStats(detail.stats);
+      setViewMode({ type: "variety", value: variety });
+      setDrillRecords(detail.records);
+    });
+  }, []);
+
+  const handleTodayClick = useCallback(() => {
+    setViewMode({ type: "today" });
+    setDrillRecords([]);
+    startTransition(async () => {
+      const detail = await getTodayDetail();
+      setDrillStats(detail.stats);
+      setViewMode({ type: "today" });
+      setDrillRecords(detail.records);
+    });
+  }, []);
+
+  const handleSlipsClick = useCallback(() => {
+    setViewMode({ type: "slips" });
+    setDrillRecords([]);
+    startTransition(async () => {
+      const detail = await getAllSlipsDetail();
+      setDrillSlipStats(detail.slipStats);
+      setViewMode({ type: "slips" });
+      setDrillRecords(detail.records);
+    });
+  }, []);
+
+  const handleTotalClick = useCallback(() => {
+    router.push("/dashboard/history");
+  }, [router]);
+
+  const s = stats || EMPTY_STATS;
+  const defaultVariety: VarietyStat[] = ["PB-1", "Pusa-1121", "Non Basmati", "Sarbati", "T.Basmati", "Type-3"]
+    .map((v) => ({ variety: v, bags: 0, weightQtl: "0.00", value: "0.00", avgCost: "0.00" }));
+  const varieties: VarietyStat[] = varietyStats || defaultVariety;
+
+  const assignedStates: string[] = (session?.user as any)?.assignedStates || [];
+  const assignedMandis: string[] = (session?.user as any)?.assignedMandis || [];
+  const roles: string[] = (session?.user as any)?.roles || [];
+  const isSuperAdmin = (session?.user as any)?.isSuperAdmin || false;
+  const isAdmin = roles.includes("L4_ADMIN") || isSuperAdmin;
+
+  // Derived lists for cascading dropdowns
+  const states = Array.from(new Set(mandisList.map((m) => m.state).filter(Boolean))).sort() as string[];
+  const allowedStates = (isAdmin || assignedStates.includes("ALL") || assignedStates.length === 0)
+    ? states
+    : states.filter((s) => assignedStates.includes(s));
+
+  const districts = Array.from(
+    new Set(
+      mandisList
+        .filter((m) => !draftState || m.state.toLowerCase() === draftState.toLowerCase())
+        .map((m) => m.district)
+        .filter(Boolean)
+    )
+  ).sort() as string[];
+
+  const mandis = Array.from(
+    new Set(
+      mandisList
+        .filter(
+          (m) =>
+            (!draftState || m.state.toLowerCase() === draftState.toLowerCase()) &&
+            (!draftDistrict || m.district.toLowerCase() === draftDistrict.toLowerCase())
+        )
+        .map((m) => m.mandiName)
+        .filter(Boolean)
+    )
+  ).sort() as string[];
+
+  const monthsList = Array.from({ length: 12 }).map((_, i) => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - i);
+    const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const label = d.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+    return { value, label };
+  });
+
+  const handleApplyFilters = () => {
+    setFilters({
+      state: draftState,
+      district: draftDistrict,
+      mandi: draftMandi,
+      status: draftStatus,
+      month: draftMonth,
+    });
+    setIsFilterOpen(false);
+  };
+
+  const handleResetFilters = () => {
+    setDraftState("");
+    setDraftDistrict("");
+    setDraftMandi("");
+    setDraftStatus("ALL");
+    setDraftMonth("");
+    setFilters({
+      state: "",
+      district: "",
+      mandi: "",
+      status: "ALL",
+      month: "",
+    });
+    setIsFilterOpen(false);
+  };
+
+  const handleStateChange = (stateName: string) => {
+    setDraftState(stateName);
+    setDraftDistrict("");
+    setDraftMandi("");
+    setDropdownSearch("");
+  };
+
+  const handleDistrictChange = (districtName: string) => {
+    setDraftDistrict(districtName);
+    setDraftMandi("");
+    setDropdownSearch("");
+  };
+
+  // ── DRILL-DOWN VIEWS ──────────────────────────────────────────
+  if (viewMode.type !== "main") {
+    let headerTitle = "";
+    let headerSubtitle = "";
+    let headerIcon = null;
+
+    if (viewMode.type === "variety") {
+      headerTitle = viewMode.value;
+      headerSubtitle = "Variety drill-down";
+      headerIcon = <Wheat size={16} className="text-forest-700" />;
+    } else if (viewMode.type === "today") {
+      headerTitle = "Today's Purchase";
+      headerSubtitle = "Procurement records for today";
+      headerIcon = <Calendar size={16} className="text-blue-700" />;
+    } else if (viewMode.type === "slips") {
+      headerTitle = "Purchase Slips";
+      headerSubtitle = "All slips across statuses";
+      headerIcon = <ClipboardList size={16} className="text-amber-700" />;
+    }
+
+    return (
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setViewMode({ type: "main" })}
+            className="w-9 h-9 shrink-0 rounded-xl bg-white border border-slate-200 flex items-center justify-center shadow-[0_2px_8px_-3px_rgba(0,0,0,0.1)] hover:bg-slate-50 active:bg-slate-100 active:scale-95 transition-all duration-200"
+          >
+            <ArrowLeft size={18} className="text-slate-700" />
+          </button>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+              viewMode.type === "variety" ? "bg-gradient-to-br from-forest-100 to-forest-200" :
+              viewMode.type === "today" ? "bg-gradient-to-br from-blue-100 to-blue-200" :
+              "bg-gradient-to-br from-amber-100 to-amber-200"
+            }`}>
+              {headerIcon}
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-xl font-bold text-slate-800 tracking-tight leading-tight truncate">
+                {headerTitle}
+              </h1>
+              <p className="text-xs text-slate-400">{headerSubtitle}</p>
+            </div>
+          </div>
+          {isPending && <Loader2 size={16} className="animate-spin text-forest-500 ml-auto shrink-0" />}
+        </div>
+
+        {/* Filtered stats cards */}
+        {viewMode.type === "slips" ? (
+          <SlipStatsCards s={drillSlipStats} loading={isPending && drillRecords.length === 0} />
+        ) : (
+          <ThreeCards s={drillStats} loading={isPending && drillRecords.length === 0} hideTotalPurchase={viewMode.type === "today"} />
+        )}
+
+        {/* Records list */}
+        <div className="glass-card rounded-2xl overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+            <div>
+              <h2 className="text-base font-bold text-slate-800">Purchase Records</h2>
+              <p className="text-xs text-slate-400">
+                {drillRecords.length} record{drillRecords.length !== 1 && 's'}
+              </p>
+            </div>
+          </div>
+
+          {/* Loading skeleton */}
+          {isPending && drillRecords.length === 0 ? (
+            <div className="divide-y divide-slate-100">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="px-5 py-4 flex items-center gap-4 animate-pulse">
+                  <div className="w-9 h-9 bg-slate-200 rounded-xl shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-slate-200 rounded w-36" />
+                    <div className="h-3 bg-slate-100 rounded w-24" />
+                  </div>
+                  <div className="space-y-1.5 text-right">
+                    <div className="h-4 bg-slate-200 rounded w-20 ml-auto" />
+                    <div className="h-3 bg-slate-100 rounded w-14 ml-auto" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : drillRecords.length === 0 ? (
+            <div className="px-5 py-12 text-center">
+              <ClipboardList size={32} className="text-slate-200 mx-auto mb-3" />
+              <p className="text-slate-400 text-sm font-medium">No records found</p>
+              <p className="text-slate-300 text-xs mt-1">No procurement has been recorded for this view</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {drillRecords.map((rec) => (
+                <div key={rec.id} className="px-5 py-4 flex items-center gap-3 hover:bg-slate-50/60 transition-colors">
+                  {/* Avatar */}
+                  <div className="w-9 h-9 rounded-xl bg-forest-100 flex items-center justify-center shrink-0 text-forest-700 font-bold text-sm">
+                    {rec.farmerName.charAt(0).toUpperCase()}
+                  </div>
+
+                  {/* Name + meta */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-slate-800 truncate">{rec.farmerName}</p>
+                    <p className="text-xs text-slate-400 truncate">
+                      {rec.farmerCode && <span className="font-mono">{rec.farmerCode} · </span>}
+                      {rec.village || rec.agentName}
+                      {'crop' in rec && rec.variety ? ` · ${rec.variety}` : ''}
+                    </p>
+                  </div>
+
+                  {/* Stats */}
+                  <div className="shrink-0 text-right space-y-0.5">
+                    <p className="text-sm font-bold text-slate-700 tabular-nums">
+                      ₹{fmtCurrency(rec.total)}
+                    </p>
+                    <p className="text-xs text-slate-400 tabular-nums">
+                      {fmt(rec.bags)} bags · {fmtCurrency(rec.weightQtl)} Qtl
+                    </p>
+                    <div className="flex items-center gap-1.5 justify-end">
+                      <StatusBadge status={rec.status} />
+                      <span className="text-[10px] text-slate-300">{fmtDate(rec.createdAt)}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── MAIN DASHBOARD VIEW ──────────────────────────────────────
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
+        <h1 className="text-2xl md:text-3xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
+          Namaste 🙏
+          {isValidating && <RefreshCw size={14} className="animate-spin text-forest-500 ml-2" />}
+        </h1>
+
+        <div className="flex items-center gap-2 self-end sm:self-auto">
+          {/* Quick status tabs */}
+          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+            {["ALL", "APPROVED", "PENDING", "CANCEL"].map((status) => (
+              <button
+                key={status}
+                onClick={() => {
+                  setFilters((prev) => ({ ...prev, status }));
+                  setDraftStatus(status);
+                }}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                  filters.status === status
+                    ? "bg-white text-forest-700 shadow-sm"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                {status === "ALL" ? "All" : status === "APPROVED" ? "Approved" : status === "PENDING" ? "Pending" : "Cancel"}
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={() => {
+              // Sync drafts with active filters when opening
+              setDraftState(filters.state);
+              setDraftDistrict(filters.district);
+              setDraftMandi(filters.mandi);
+              setDraftStatus(filters.status);
+              setDraftMonth(filters.month);
+              setIsFilterOpen(true);
+            }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${
+              hasActiveFilters
+                ? "bg-forest-50 border-forest-200 text-forest-700"
+                : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+            }`}
+          >
+            <Filter size={16} />
+            <span>Filter</span>
+            {hasActiveFilters && (
+              <span className="w-2 h-2 rounded-full bg-forest-600 animate-pulse" />
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Today's Purchase Overview (Upper Card) */}
+      <div className="glass-card rounded-2xl p-6 flex flex-col gap-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center border border-blue-100/50">
+              <ShoppingCart size={18} className="text-blue-600" />
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-800 text-[15px] tracking-tight">Today's Purchase Overview</h3>
+              <p className="text-[10px] text-slate-400 font-medium">Daily live metrics</p>
+            </div>
+          </div>
+          <button 
+            onClick={handleTodayClick}
+            className="text-xs text-blue-600 hover:text-blue-700 font-bold transition-colors flex items-center gap-1"
+          >
+            Details <ChevronRight size={14} />
+          </button>
+        </div>
+
+        {/* Metrics Grid */}
+        <div className="flex items-start justify-around gap-1 w-full border-b border-slate-100 pb-4">
+          <StatCardItem label="Bags" value={isLoading && !stats ? "..." : fmt(s.todaysBags ?? 0)} />
+          <VDiv />
+          <StatCardItem label="Weight Qtl." value={isLoading && !stats ? "..." : fmtCurrency(s.todaysPurchaseQtl ?? "0.00")} />
+          <VDiv />
+          <StatCardItem label="Value" value={isLoading && !stats ? "..." : fmt(s.todaysValue ? Math.round(parseFloat(String(s.todaysValue))) : 0)} />
+          <VDiv />
+          <StatCardItem label="Average Price" value={isLoading && !stats ? "..." : `₹${fmtCurrency(s.todaysAveragePrice ?? "0.00")}`} colorClass="text-green-600 font-bold" />
+        </div>
+
+        {/* Slips breakdown */}
+        <div className="flex flex-col gap-3">
+          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider text-center">Today Slips</h4>
+          {isLoading && !stats ? (
+            <div className="flex justify-around gap-1 w-full animate-pulse py-1">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="flex-1 space-y-1 text-center">
+                  <div className="h-3 bg-slate-100 rounded w-10 mx-auto" />
+                  <div className="h-4 bg-slate-100 rounded w-12 mx-auto" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex items-start justify-around gap-1 w-full">
+              <StatCardItem label="Total Slip" value={fmt(s.todaysTotalSlips ?? s.todayProcurements)} />
+              <VDiv />
+              <StatCardItem label="Approved" value={fmt(s.todaysApprovedSlips ?? 0)} colorClass="text-green-600 font-bold" />
+              <VDiv />
+              <StatCardItem label="Pending" value={fmt(s.todaysPendingSlips ?? 0)} colorClass="text-amber-600 font-bold" />
+              <VDiv />
+              <StatCardItem label="Cancel" value={fmt(s.todaysCancelSlips ?? 0)} colorClass="text-red-600 font-bold" />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Total / Monthly Purchase Overview (Bottom Card) */}
+      <div className="glass-card rounded-2xl p-6 flex flex-col gap-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-forest-50 flex items-center justify-center border border-forest-100/50">
+              <TrendingUp size={18} className="text-forest-600" />
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-800 text-[15px] tracking-tight">Total Purchase Overview</h3>
+              <p className="text-[10px] text-slate-400 font-medium">
+                {filters.month
+                  ? `For ${new Date(filters.month + "-02").toLocaleDateString("en-IN", { month: "long", year: "numeric" })}`
+                  : "For current month"}
+              </p>
+            </div>
+          </div>
+          <button 
+            onClick={handleTotalClick}
+            className="text-xs text-forest-700 hover:text-forest-800 font-bold transition-colors flex items-center gap-1"
+          >
+            Details <ChevronRight size={14} />
+          </button>
+        </div>
+
+        {/* Metrics Grid */}
+        <div className="flex items-start justify-around gap-1 w-full border-b border-slate-100 pb-4">
+          <StatCardItem label="Bags" value={isLoading && !stats ? "..." : fmt(s.totalBags ?? 0)} />
+          <VDiv />
+          <StatCardItem label="Weight Qtl." value={isLoading && !stats ? "..." : fmtCurrency(s.totalPurchaseQtl ?? "0.00")} />
+          <VDiv />
+          <StatCardItem label="Value" value={isLoading && !stats ? "..." : `₹${fmt(s.totalValue ? Math.round(parseFloat(String(s.totalValue))) : 0)}`} />
+          <VDiv />
+          <StatCardItem label="Average Price" value={isLoading && !stats ? "..." : `₹${fmtCurrency(s.totalAveragePrice ?? "0.00")}`} colorClass="text-green-600 font-bold" />
+        </div>
+
+        {/* Total Slips breakdown */}
+        <div className="flex flex-col gap-3">
+          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider text-center">Total Slips</h4>
+          {isLoading && !stats ? (
+            <div className="flex justify-around gap-1 w-full animate-pulse py-1">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="flex-1 space-y-1 text-center">
+                  <div className="h-3 bg-slate-100 rounded w-10 mx-auto" />
+                  <div className="h-4 bg-slate-100 rounded w-12 mx-auto" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex items-start justify-around gap-1 w-full">
+              <StatCardItem label="Total Slip" value={fmt(s.totalPurchase)} />
+              <VDiv />
+              <StatCardItem label="Approved" value={fmt(s.totalApprovedSlips ?? s.approved)} colorClass="text-green-600 font-bold" />
+              <VDiv />
+              <StatCardItem label="Pending" value={fmt(s.totalPendingSlips ?? s.pendingApproval)} colorClass="text-amber-600 font-bold" />
+              <VDiv />
+              <StatCardItem label="Cancel" value={fmt(s.totalCancelSlips ?? s.rejected)} colorClass="text-red-600 font-bold" />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Filter Popup Modal Overlay */}
+      {isFilterOpen && (
+        <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[10vh] md:pt-[12vh] px-4 overflow-y-auto pb-10">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/40 backdrop-blur-md backdrop-fade animate-in fade-in duration-200"
+            onClick={() => setIsFilterOpen(false)}
+          />
+
+          {/* Modal Content */}
+          <div className="relative w-full max-w-md modal-spring z-10 my-auto md:my-0">
+            <div className="bg-white rounded-[28px] shadow-2xl overflow-hidden border border-slate-100 flex flex-col">
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-forest-50 flex items-center justify-center border border-forest-100/50">
+                    <Filter size={15} className="text-forest-700" />
+                  </div>
+                  <h3 className="text-base font-bold text-slate-800 tracking-tight">Filter Dashboard</h3>
+                </div>
+                <button
+                  onClick={() => setIsFilterOpen(false)}
+                  className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 active:scale-95 transition-all"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Form Fields */}
+              <div className="max-h-[60vh] overflow-y-auto p-6 space-y-5">
+                {/* Status Filter */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
+                    Category Status
+                  </label>
+                  <div className="flex bg-slate-100/80 p-1 rounded-2xl w-full border border-slate-200/30">
+                    {["ALL", "APPROVED", "PENDING", "CANCEL"].map((status) => (
+                      <button
+                        key={status}
+                        type="button"
+                        onClick={() => setDraftStatus(status)}
+                        className={`flex-1 text-xs font-bold rounded-xl py-2.5 transition-all ${
+                          draftStatus === status
+                            ? "bg-white text-forest-700 shadow-sm"
+                            : "text-slate-500 hover:text-slate-700"
+                        }`}
+                      >
+                        {status === "ALL" ? "All" : status === "APPROVED" ? "Approved" : status === "PENDING" ? "Pending" : "Cancel"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* State selection */}
+                {allowedStates.length > 0 && (
+                  <div className="space-y-1.5 combobox-filter relative">
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <MapPin size={12} className="text-slate-400" /> State
+                    </label>
+                    <div className="relative">
+                      <MapPin size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                      <input
+                        value={activeDropdown === 'state' ? dropdownSearch : (draftState || "")}
+                        onChange={(e) => {
+                          setDropdownSearch(e.target.value);
+                          setActiveDropdown('state');
+                        }}
+                        onFocus={() => {
+                          setDropdownSearch(draftState);
+                          setActiveDropdown('state');
+                        }}
+                        placeholder="Select State"
+                        className="w-full pl-10 pr-10 py-3 rounded-2xl border border-slate-200 bg-slate-50/70 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-forest-500 focus:ring-forest-500/30 focus:bg-white transition-all text-sm font-semibold cursor-pointer"
+                      />
+                      {draftState && (
+                        <button
+                          type="button"
+                          onClick={() => handleStateChange("")}
+                          className="absolute right-8 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                      <ChevronDown size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    </div>
+                    {activeDropdown === 'state' && (
+                      <div className="absolute top-full mt-1.5 left-0 z-50 w-full bg-white border border-slate-100 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-1.5 duration-200">
+                        <div className="max-h-48 overflow-y-auto p-1.5 space-y-0.5">
+                          <div
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              handleStateChange("");
+                              setActiveDropdown(null);
+                            }}
+                            className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer transition-colors ${!draftState ? 'bg-forest-50 text-forest-700 font-bold' : 'text-slate-600 hover:bg-slate-50 font-medium'}`}
+                          >
+                            <span className="text-sm">All States</span>
+                            {!draftState && <Check size={14} />}
+                          </div>
+                          {allowedStates
+                            .filter((s) => s.toLowerCase().includes(dropdownSearch.toLowerCase()))
+                            .map((s) => (
+                              <div
+                                key={s}
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  handleStateChange(s);
+                                  setActiveDropdown(null);
+                                }}
+                                className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer transition-colors ${draftState === s ? 'bg-forest-50 text-forest-700 font-bold' : 'text-slate-600 hover:bg-slate-50 font-medium'}`}
+                              >
+                                <span className="text-sm">{s}</span>
+                                {draftState === s && <Check size={14} />}
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* District selection */}
+                <div className="space-y-1.5 combobox-filter relative">
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <MapPin size={12} className="text-slate-400" /> District
+                  </label>
+                  <div className="relative">
+                    <MapPin size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    <input
+                      disabled={!draftState}
+                      value={activeDropdown === 'district' ? dropdownSearch : (draftDistrict || "")}
+                      onChange={(e) => {
+                        setDropdownSearch(e.target.value);
+                        setActiveDropdown('district');
+                      }}
+                      onFocus={() => {
+                        setDropdownSearch(draftDistrict);
+                        setActiveDropdown('district');
+                      }}
+                      placeholder={draftState ? "Select District" : "Select State First"}
+                      className="w-full pl-10 pr-10 py-3 rounded-2xl border border-slate-200 bg-slate-50/70 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-forest-500 focus:ring-forest-500/30 focus:bg-white transition-all text-sm font-semibold cursor-pointer disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
+                    />
+                    {draftDistrict && (
+                      <button
+                        type="button"
+                        onClick={() => handleDistrictChange("")}
+                        className="absolute right-8 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                    <ChevronDown size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  </div>
+                  {activeDropdown === 'district' && draftState && (
+                    <div className="absolute top-full mt-1.5 left-0 z-50 w-full bg-white border border-slate-100 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-1.5 duration-200">
+                      <div className="max-h-48 overflow-y-auto p-1.5 space-y-0.5">
+                        <div
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            handleDistrictChange("");
+                            setActiveDropdown(null);
+                          }}
+                          className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer transition-colors ${!draftDistrict ? 'bg-forest-50 text-forest-700 font-bold' : 'text-slate-600 hover:bg-slate-50 font-medium'}`}
+                        >
+                          <span className="text-sm">All Districts</span>
+                          {!draftDistrict && <Check size={14} />}
+                        </div>
+                        {districts
+                          .filter((d) => d.toLowerCase().includes(dropdownSearch.toLowerCase()))
+                          .map((d) => (
+                            <div
+                              key={d}
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                handleDistrictChange(d);
+                                setActiveDropdown(null);
+                              }}
+                              className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer transition-colors ${draftDistrict === d ? 'bg-forest-50 text-forest-700 font-bold' : 'text-slate-600 hover:bg-slate-50 font-medium'}`}
+                            >
+                              <span className="text-sm">{d}</span>
+                              {draftDistrict === d && <Check size={14} />}
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Mandi selection */}
+                <div className="space-y-1.5 combobox-filter relative">
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <MapPin size={12} className="text-slate-400" /> Mandi
+                  </label>
+                  <div className="relative">
+                    <MapPin size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    <input
+                      disabled={!draftDistrict}
+                      value={activeDropdown === 'mandi' ? dropdownSearch : (draftMandi || "")}
+                      onChange={(e) => {
+                        setDropdownSearch(e.target.value);
+                        setActiveDropdown('mandi');
+                      }}
+                      onFocus={() => {
+                        setDropdownSearch(draftMandi);
+                        setActiveDropdown('mandi');
+                      }}
+                      placeholder={draftDistrict ? "Select Mandi" : "Select District First"}
+                      className="w-full pl-10 pr-10 py-3 rounded-2xl border border-slate-200 bg-slate-50/70 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-forest-500 focus:ring-forest-500/30 focus:bg-white transition-all text-sm font-semibold cursor-pointer disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
+                    />
+                    {draftMandi && (
+                      <button
+                        type="button"
+                        onClick={() => { setDraftMandi(""); setDropdownSearch(""); }}
+                        className="absolute right-8 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                    <ChevronDown size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  </div>
+                  {activeDropdown === 'mandi' && draftDistrict && (
+                    <div className="absolute top-full mt-1.5 left-0 z-50 w-full bg-white border border-slate-100 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-1.5 duration-200">
+                      <div className="max-h-48 overflow-y-auto p-1.5 space-y-0.5">
+                        <div
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setDraftMandi("");
+                            setDropdownSearch("");
+                            setActiveDropdown(null);
+                          }}
+                          className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer transition-colors ${!draftMandi ? 'bg-forest-50 text-forest-700 font-bold' : 'text-slate-600 hover:bg-slate-50 font-medium'}`}
+                        >
+                          <span className="text-sm">All Mandis</span>
+                          {!draftMandi && <Check size={14} />}
+                        </div>
+                        {mandis
+                          .filter((m) => m.toLowerCase().includes(dropdownSearch.toLowerCase()))
+                          .map((m) => (
+                            <div
+                              key={m}
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                setDraftMandi(m);
+                                setActiveDropdown(null);
+                              }}
+                              className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer transition-colors ${draftMandi === m ? 'bg-forest-50 text-forest-700 font-bold' : 'text-slate-600 hover:bg-slate-50 font-medium'}`}
+                            >
+                              <span className="text-sm">{m}</span>
+                              {draftMandi === m && <Check size={14} />}
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Month Picker */}
+                <div className="space-y-1.5 relative combobox-filter">
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <Calendar size={12} className="text-slate-400" /> Select Month
+                  </label>
+                  <div className="relative">
+                    <Calendar size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    <input
+                      readOnly
+                      value={draftMonth ? (monthsList.find((m) => m.value === draftMonth)?.label || "Current Month") : "Current Month"}
+                      onClick={() => {
+                        setActiveDropdown(activeDropdown === 'month' ? null : 'month');
+                      }}
+                      onFocus={() => {
+                        setActiveDropdown('month');
+                      }}
+                      placeholder="Select Month"
+                      className="w-full pl-10 pr-10 py-3 rounded-2xl border border-slate-200 bg-slate-50/70 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-forest-500 focus:ring-forest-500/30 focus:bg-white transition-all text-sm font-semibold cursor-pointer"
+                    />
+                    {draftMonth && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDraftMonth("");
+                          setActiveDropdown(null);
+                        }}
+                        className="absolute right-8 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                    <ChevronDown size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  </div>
+                  {activeDropdown === 'month' && (
+                    <div className="absolute bottom-full mb-1.5 left-0 z-50 w-full bg-white border border-slate-100 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-1.5 duration-200">
+                      <div className="max-h-48 overflow-y-auto p-1.5 space-y-0.5">
+                        <div
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setDraftMonth("");
+                            setActiveDropdown(null);
+                          }}
+                          className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer transition-colors ${!draftMonth ? 'bg-forest-50 text-forest-700 font-bold' : 'text-slate-600 hover:bg-slate-50 font-medium'}`}
+                        >
+                          <span className="text-sm">Current Month</span>
+                          {!draftMonth && <Check size={14} />}
+                        </div>
+                        {monthsList.map((m) => (
+                          <div
+                            key={m.value}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              setDraftMonth(m.value);
+                              setActiveDropdown(null);
+                            }}
+                            className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer transition-colors ${draftMonth === m.value ? 'bg-forest-50 text-forest-700 font-bold' : 'text-slate-600 hover:bg-slate-50 font-medium'}`}
+                          >
+                            <span className="text-sm">{m.label}</span>
+                            {draftMonth === m.value && <Check size={14} />}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-3 p-6 border-t border-slate-100 bg-slate-50">
+                <button
+                  type="button"
+                  onClick={handleResetFilters}
+                  className="flex-1 py-3 px-4 rounded-xl border border-slate-200 bg-white text-slate-700 font-semibold text-sm hover:bg-slate-50 active:scale-95 transition-all"
+                >
+                  Reset
+                </button>
+                <button
+                  type="button"
+                  onClick={handleApplyFilters}
+                  className="flex-1 py-3 px-4 rounded-xl bg-forest-700 text-white font-semibold text-sm hover:bg-forest-800 active:scale-95 transition-all shadow-md shadow-forest-700/10"
+                >
+                  Apply
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Crop Variety Summary — rows are clickable filters */}
+      <div className="glass-card rounded-2xl overflow-hidden">
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-100">
+          <div className="w-9 h-9 bg-gradient-to-br from-forest-100 to-forest-200 rounded-xl flex items-center justify-center">
+            <Wheat size={18} className="text-forest-700" />
+          </div>
+          <div className="flex-1">
+            <h2 className="text-base font-bold text-slate-800">Crop Variety Summary</h2>
+            <p className="text-xs text-slate-400">Tap a variety to filter records</p>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs sm:text-sm">
+            <thead>
+              <tr className="bg-gradient-to-r from-forest-700 to-forest-600 text-white">
+                <th className="text-left px-2 sm:px-4 py-2.5 sm:py-3 font-semibold text-[10px] sm:text-xs uppercase tracking-wide">Variety</th>
+                <th className="text-right px-1 sm:px-3 py-2.5 sm:py-3 font-semibold text-[10px] sm:text-xs uppercase tracking-wide">Bags</th>
+                <th className="text-right px-1 sm:px-3 py-2.5 sm:py-3 font-semibold text-[10px] sm:text-xs uppercase tracking-wide">Weight<br />(Qtls)</th>
+                <th className="text-right px-1 sm:px-3 py-2.5 sm:py-3 font-semibold text-[10px] sm:text-xs uppercase tracking-wide">Value</th>
+                <th className="text-right px-2 sm:px-4 py-2.5 sm:py-3 font-semibold text-[10px] sm:text-xs uppercase tracking-wide">Avg. Cost</th>
+                <th className="px-1 sm:px-3 py-2.5 sm:py-3 w-4 sm:w-6" />
+              </tr>
+            </thead>
+            <tbody>
+              {varietyLoading && !varietyStats
+                ? [...Array(6)].map((_, i) => (
+                    <tr key={i} className="border-b border-slate-100 animate-pulse">
+                      <td className="px-2 sm:px-4 py-3"><div className="h-3 sm:h-4 bg-slate-200 rounded w-16 sm:w-24" /></td>
+                      <td className="px-1 sm:px-3 py-3"><div className="h-3 sm:h-4 bg-slate-100 rounded w-8 sm:w-12 ml-auto" /></td>
+                      <td className="px-1 sm:px-3 py-3"><div className="h-3 sm:h-4 bg-slate-100 rounded w-8 sm:w-12 ml-auto" /></td>
+                      <td className="px-1 sm:px-3 py-3"><div className="h-3 sm:h-4 bg-slate-100 rounded w-12 sm:w-20 ml-auto" /></td>
+                      <td className="px-2 sm:px-4 py-3"><div className="h-3 sm:h-4 bg-slate-100 rounded w-10 sm:w-16 ml-auto" /></td>
+                      <td className="px-1 sm:px-3 py-3" />
+                    </tr>
+                  ))
+                : varieties.map((row, i) => (
+                    <tr
+                      key={row.variety}
+                      onClick={() => handleVarietyClick(row.variety)}
+                      className={`border-b border-slate-100 cursor-pointer transition-colors active:bg-forest-100/60 hover:bg-forest-50/60 ${
+                        i % 2 === 0 ? "bg-white" : "bg-slate-50/50"
+                      }`}
+                    >
+                      <td className="px-2 sm:px-4 py-2.5 sm:py-3 font-semibold text-forest-700 whitespace-nowrap">{row.variety}</td>
+                      <td className="px-1 sm:px-3 py-2.5 sm:py-3 text-right text-slate-600 tabular-nums tracking-tighter sm:tracking-normal">{row.bags.toLocaleString("en-IN")}</td>
+                      <td className="px-1 sm:px-3 py-2.5 sm:py-3 text-right text-slate-600 tabular-nums tracking-tighter sm:tracking-normal">
+                        {parseFloat(row.weightQtl).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="px-1 sm:px-3 py-2.5 sm:py-3 text-right text-slate-600 tabular-nums tracking-tighter sm:tracking-normal">
+                        ₹{parseFloat(row.value).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="px-2 sm:px-4 py-2.5 sm:py-3 text-right font-medium text-forest-700 tabular-nums tracking-tighter sm:tracking-normal">
+                        {parseFloat(row.avgCost) > 0
+                          ? `₹${parseFloat(row.avgCost).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
+                          : "—"}
+                      </td>
+                      <td className="px-1 sm:px-3 py-2.5 sm:py-3 text-slate-300">
+                        <ChevronRight size={14} className="sm:w-3.5 sm:h-3.5 w-3 h-3" />
+                      </td>
+                    </tr>
+                  ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {!((session?.user as any)?.roles?.includes("L3_PO_MAKER") && !(session?.user as any)?.roles?.includes("L4_ADMIN") && !(session?.user as any)?.isSuperAdmin) && (
+          <>
+            <Link href="/dashboard/procurement" className="glass-card rounded-2xl p-6 group">
+              <div className="flex items-center gap-4">
+                <div className="shrink-0 w-12 h-12 bg-forest-100 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
+                  <ShoppingCart size={22} className="text-forest-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-slate-800 group-hover:text-forest-700 transition-colors">New Procurement</h3>
+                  <p className="text-sm text-slate-500">Record a new purchase transaction</p>
+                </div>
+              </div>
+            </Link>
+
+            <Link href="/dashboard/farmers" className="glass-card rounded-2xl p-6 group">
+              <div className="flex items-center gap-4">
+                <div className="shrink-0 w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
+                  <Users size={22} className="text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-slate-800 group-hover:text-blue-700 transition-colors">Manage Farmers</h3>
+                  <p className="text-sm text-slate-500">View, search, or register new farmers</p>
+                </div>
+              </div>
+            </Link>
+          </>
+        )}
+
+        <Link href="/dashboard/history" className="glass-card rounded-2xl p-6 group">
+          <div className="flex items-center gap-4">
+            <div className="shrink-0 w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
+              <ClipboardList size={22} className="text-indigo-600" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-slate-800 group-hover:text-indigo-700 transition-colors">Procurement Records</h3>
+              <p className="text-sm text-slate-500">View history, monthly reports &amp; records</p>
+            </div>
+          </div>
+        </Link>
+
+        <Link href="/dashboard/settings" className="glass-card rounded-2xl p-6 group md:hidden">
+          <div className="flex items-center gap-4">
+            <div className="shrink-0 w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
+              <SettingsIcon size={22} className="text-slate-600" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-slate-800 group-hover:text-slate-600 transition-colors">App Settings</h3>
+              <p className="text-sm text-slate-500">View account info and sign out</p>
+            </div>
+          </div>
+        </Link>
+
+        {(session?.user as any)?.roles?.includes("L3_PO_MAKER") || (session?.user as any)?.roles?.includes("L4_ADMIN") || (session?.user as any)?.isSuperAdmin ? (
+          <Link href="/dashboard/po-records" className="glass-card rounded-2xl p-6 group">
+            <div className="flex items-center gap-4">
+              <div className="shrink-0 w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
+                <FileText size={22} className="text-indigo-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-slate-800 group-hover:text-indigo-700 transition-colors">PO Maker & Records</h3>
+                <p className="text-sm text-slate-500">Create, view, and edit Purchase Orders</p>
+              </div>
+            </div>
+          </Link>
+        ) : null}
+
+        {(session?.user as any)?.isSuperAdmin ? (
+          <Link href="/dashboard/agents" className="glass-card rounded-2xl p-6 group">
+            <div className="flex items-center gap-4">
+              <div className="shrink-0 w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
+                <Users size={22} className="text-purple-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-slate-800 group-hover:text-purple-700 transition-colors">Manage Agents</h3>
+                <p className="text-sm text-slate-500">View and manage agent accounts</p>
+              </div>
+            </div>
+          </Link>
+        ) : null}
+      </div>
+    </div>
+  );
+}
