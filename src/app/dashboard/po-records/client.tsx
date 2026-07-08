@@ -283,30 +283,20 @@ export default function PORecordsClient({ initialRecords }: { initialRecords: an
 
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 pb-20">
+    <>
       <style>{`
         @media print {
           @page { size: A4 portrait; margin: 8mm; }
           body { -webkit-print-color-adjust: exact; print-color-adjust: exact; margin: 0; padding: 0; background: white !important; min-width: 210mm !important; }
-          body * { visibility: hidden; }
-          #printable-po, #printable-po * { visibility: visible; }
           #printable-po {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
             width: 194mm !important;
             min-width: 194mm !important;
             max-width: 194mm !important;
             padding: 0 !important;
             margin: 0 !important;
-            transform: none !important;
             box-shadow: none !important;
             border: none !important;
             background: white !important;
-          }
-          .print-hide, .print-hide * {
-            visibility: hidden !important;
-            display: none !important;
           }
         }
         .po-grid-border {
@@ -326,6 +316,7 @@ export default function PORecordsClient({ initialRecords }: { initialRecords: an
           border-bottom: 1px solid black;
         }
       `}</style>
+      <div className="max-w-5xl mx-auto space-y-6 pb-20 print:hidden">
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="shrink-0 w-10 h-10 bg-indigo-100/80 rounded-xl flex items-center justify-center">
@@ -590,6 +581,7 @@ export default function PORecordsClient({ initialRecords }: { initialRecords: an
           </div>
         </div>
       )}
+      </div>
 
       {/* PO Preview / Download Hidden Container */}
       {(previewPO || downloadPO) && parsedPOData && (
@@ -949,6 +941,6 @@ export default function PORecordsClient({ initialRecords }: { initialRecords: an
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

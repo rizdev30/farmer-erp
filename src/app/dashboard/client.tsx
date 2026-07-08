@@ -653,9 +653,9 @@ export default function DashboardClient({ initialStats, initialVarietyStats, ini
           {isValidating && <RefreshCw size={14} className="animate-spin text-forest-500 ml-2" />}
         </h1>
 
-        <div className="flex items-center gap-2 self-end sm:self-auto">
+        <div className="flex w-full sm:w-auto items-center gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-hide snap-x self-start sm:self-auto">
           {/* Quick status tabs */}
-          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 shrink-0">
             {["ALL", "APPROVED", "PENDING", "CANCEL"].map((status) => (
               <button
                 key={status}
@@ -684,7 +684,7 @@ export default function DashboardClient({ initialStats, initialVarietyStats, ini
               setDraftMonth(filters.month);
               setIsFilterOpen(true);
             }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${
+            className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${
               hasActiveFilters
                 ? "bg-forest-50 border-forest-200 text-forest-700"
                 : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
