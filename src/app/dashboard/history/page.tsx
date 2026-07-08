@@ -404,9 +404,9 @@ export default function HistoryPage() {
                       focus:border-indigo-500 transition-all appearance-none"
                   >
                     <option value="">All Statuses</option>
-                    <option value="PENDING_L2">Pending Level 2</option>
                     <option value="APPROVED">Approved</option>
-                    <option value="REJECTED_L2">Rejected Level 2</option>
+                    <option value="PENDING_L2">Pending Level 2</option>
+                    <option value="REJECTED_L2">Cancelled</option>
                   </select>
                 </div>
               </div>
@@ -469,16 +469,6 @@ export default function HistoryPage() {
             All
           </button>
           <button
-            onClick={() => setSelectedStatus("PENDING")}
-            className={`py-2 rounded-xl text-[11px] sm:text-xs font-bold transition-all border ${
-              selectedStatus === "PENDING"
-                ? "bg-amber-500 text-white border-amber-500 shadow-md shadow-amber-500/20 scale-100"
-                : "bg-amber-50/50 text-amber-700 border-amber-200 hover:bg-amber-50 scale-95 opacity-80"
-            }`}
-          >
-            Pending
-          </button>
-          <button
             onClick={() => setSelectedStatus("APPROVED")}
             className={`py-2 rounded-xl text-[11px] sm:text-xs font-bold transition-all border ${
               selectedStatus === "APPROVED"
@@ -489,6 +479,16 @@ export default function HistoryPage() {
             Approved
           </button>
           <button
+            onClick={() => setSelectedStatus("PENDING")}
+            className={`py-2 rounded-xl text-[11px] sm:text-xs font-bold transition-all border ${
+              selectedStatus === "PENDING"
+                ? "bg-amber-500 text-white border-amber-500 shadow-md shadow-amber-500/20 scale-100"
+                : "bg-amber-50/50 text-amber-700 border-amber-200 hover:bg-amber-50 scale-95 opacity-80"
+            }`}
+          >
+            Pending
+          </button>
+          <button
             onClick={() => setSelectedStatus("REJECTED")}
             className={`py-2 rounded-xl text-[11px] sm:text-xs font-bold transition-all border ${
               selectedStatus === "REJECTED"
@@ -496,7 +496,7 @@ export default function HistoryPage() {
                 : "bg-red-50/50 text-red-600 border-red-200 hover:bg-red-50 scale-95 opacity-80"
             }`}
           >
-            Rejected
+            Cancel
           </button>
         </div>
       )}
