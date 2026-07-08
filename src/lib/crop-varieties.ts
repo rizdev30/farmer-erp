@@ -31,6 +31,15 @@ export interface DashboardStats {
   totalBags: number;
   todaysBags: number;
   totalAveragePrice: string;
+  todaysValue?: string;
+  totalValue?: string;
+  todaysTotalSlips?: number;
+  todaysApprovedSlips?: number;
+  todaysPendingSlips?: number;
+  todaysCancelSlips?: number;
+  totalApprovedSlips?: number;
+  totalPendingSlips?: number;
+  totalCancelSlips?: number;
 }
 
 export interface VarietyRecord {

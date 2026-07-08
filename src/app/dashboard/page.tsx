@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useTransition } from "react";
 import { getDashboardStats, getVarietyStats, getVarietyDetail, getTodayDetail, getAllSlipsDetail } from "@/app/actions/dashboard";
+import { getMandis } from "@/app/actions/mandis";
 import type { VarietyStat, DashboardStats, VarietyRecord, SlipRecord, SlipStats } from "@/lib/crop-varieties";
 import { useSession } from "next-auth/react";
 import {
@@ -19,7 +20,12 @@ import {
   XCircle,
   ChevronRight,
   Calendar,
-  FileText
+  FileText,
+  Filter,
+  X,
+  Check,
+  ChevronDown,
+  MapPin
 } from "lucide-react";
 
 import Link from "next/link";
@@ -64,13 +70,21 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Stat row
+// Stat row & Stat Card Item
 // ─────────────────────────────────────────────────────────────
 function StatRow({ label, value, highlight }: { label: string; value: string | number; highlight?: boolean }) {
   return (
     <div className="flex flex-col items-center gap-0.5 min-w-0">
       <span className={`text-xs font-medium truncate ${highlight ? "text-forest-500" : "text-slate-400"}`}>{label}</span>
       <span className={`font-bold tabular-nums leading-tight ${highlight ? "text-forest-800 text-base" : "text-slate-700 text-sm md:text-base"}`}>{value}</span>
+    </div>
+  );
+}
+function StatCardItem({ label, value, colorClass, highlight }: { label: string; value: string | number; colorClass?: string; highlight?: boolean }) {
+  return (
+    <div className="flex flex-col items-center gap-0.5 min-w-0 flex-1 text-center">
+      <span className={`text-[10px] sm:text-xs font-semibold uppercase tracking-wider ${highlight ? "text-forest-500" : "text-slate-400"}`}>{label}</span>
+      <span className={`font-bold tabular-nums leading-tight ${colorClass || (highlight ? "text-forest-800 text-sm sm:text-base" : "text-slate-700 text-xs sm:text-sm")}`}>{value}</span>
     </div>
   );
 }
@@ -285,17 +299,65 @@ export default function DashboardPage() {
   const { data: session } = useSession();
   const router = useRouter();
 
-  // Global dashboard stats
+  // Active filters applied to the queries
+  const [filters, setFilters] = useState({
+    state: "",
+    district: "",
+    mandi: "",
+    status: "ALL",
+    month: "",
+  });
+
+  // Draft filters inside the modal
+  const [draftState, setDraftState] = useState("");
+  const [draftDistrict, setDraftDistrict] = useState("");
+  const [draftMandi, setDraftMandi] = useState("");
+  const [draftStatus, setDraftStatus] = useState("ALL");
+  const [draftMonth, setDraftMonth] = useState("");
+
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+  // Combobox dropdown search inside the filter popup
+  const [activeDropdown, setActiveDropdown] = useState<"state" | "district" | "mandi" | "month" | null>(null);
+  const [dropdownSearch, setDropdownSearch] = useState("");
+
+  // Geographic master data list
+  const [mandisList, setMandisList] = useState<{ id: number; state: string; district: string; mandiName: string; }[]>([]);
+
+  // Fetch geographic master data on mount
+  useEffect(() => {
+    getMandis().then((data) => {
+      setMandisList(data);
+    });
+  }, []);
+
+  // Click outside listener for comboboxes
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.combobox-filter')) {
+        setActiveDropdown(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside, { passive: true });
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, []);
+
+  // Global dashboard stats with serialized filter SWR key
   const { data: stats, isLoading, isValidating } = useSWRCache(
-    "dashboard-stats",
-    () => getDashboardStats(),
+    `dashboard-stats-${JSON.stringify(filters)}`,
+    () => getDashboardStats(filters),
     { ttl: 5 * 60 * 1000, revalidateOnFocus: true }
   );
 
-  // Variety summary table
+  // Variety summary table with serialized filter SWR key
   const { data: varietyStats, isLoading: varietyLoading } = useSWRCache(
-    "dashboard-variety-stats",
-    () => getVarietyStats(),
+    `dashboard-variety-stats-${JSON.stringify(filters)}`,
+    () => getVarietyStats(filters),
     { ttl: 5 * 60 * 1000, revalidateOnFocus: true }
   );
 
@@ -324,6 +386,7 @@ export default function DashboardPage() {
     startTransition(async () => {
       const detail = await getVarietyDetail(variety);
       setDrillStats(detail.stats);
+      setViewMode({ type: "variety", value: variety });
       setDrillRecords(detail.records);
     });
   }, []);
@@ -334,6 +397,7 @@ export default function DashboardPage() {
     startTransition(async () => {
       const detail = await getTodayDetail();
       setDrillStats(detail.stats);
+      setViewMode({ type: "today" });
       setDrillRecords(detail.records);
     });
   }, []);
@@ -344,6 +408,7 @@ export default function DashboardPage() {
     startTransition(async () => {
       const detail = await getAllSlipsDetail();
       setDrillSlipStats(detail.slipStats);
+      setViewMode({ type: "slips" });
       setDrillRecords(detail.records);
     });
   }, []);
@@ -356,6 +421,95 @@ export default function DashboardPage() {
   const defaultVariety: VarietyStat[] = ["PB-1", "Pusa-1121", "Non Basmati", "Sarbati", "T.Basmati", "Type-3"]
     .map((v) => ({ variety: v, bags: 0, weightQtl: "0.00", value: "0.00", avgCost: "0.00" }));
   const varieties = varietyStats || defaultVariety;
+
+  const assignedStates: string[] = (session?.user as any)?.assignedStates || [];
+  const assignedMandis: string[] = (session?.user as any)?.assignedMandis || [];
+  const roles: string[] = (session?.user as any)?.roles || [];
+  const isSuperAdmin = (session?.user as any)?.isSuperAdmin || false;
+  const isAdmin = roles.includes("L4_ADMIN") || isSuperAdmin;
+
+  // Derived lists for cascading dropdowns
+  const states = Array.from(new Set(mandisList.map((m) => m.state).filter(Boolean))).sort() as string[];
+  const allowedStates = (isAdmin || assignedStates.includes("ALL") || assignedStates.length === 0)
+    ? states
+    : states.filter((s) => assignedStates.includes(s));
+
+  const districts = Array.from(
+    new Set(
+      mandisList
+        .filter((m) => !draftState || m.state.toLowerCase() === draftState.toLowerCase())
+        .map((m) => m.district)
+        .filter(Boolean)
+    )
+  ).sort() as string[];
+
+  const mandis = Array.from(
+    new Set(
+      mandisList
+        .filter(
+          (m) =>
+            (!draftState || m.state.toLowerCase() === draftState.toLowerCase()) &&
+            (!draftDistrict || m.district.toLowerCase() === draftDistrict.toLowerCase())
+        )
+        .map((m) => m.mandiName)
+        .filter(Boolean)
+    )
+  ).sort() as string[];
+
+  const monthsList = Array.from({ length: 12 }).map((_, i) => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - i);
+    const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const label = d.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+    return { value, label };
+  });
+
+  const handleApplyFilters = () => {
+    setFilters({
+      state: draftState,
+      district: draftDistrict,
+      mandi: draftMandi,
+      status: draftStatus,
+      month: draftMonth,
+    });
+    setIsFilterOpen(false);
+  };
+
+  const handleResetFilters = () => {
+    setDraftState("");
+    setDraftDistrict("");
+    setDraftMandi("");
+    setDraftStatus("ALL");
+    setDraftMonth("");
+    setFilters({
+      state: "",
+      district: "",
+      mandi: "",
+      status: "ALL",
+      month: "",
+    });
+    setIsFilterOpen(false);
+  };
+
+  const handleStateChange = (stateName: string) => {
+    setDraftState(stateName);
+    setDraftDistrict("");
+    setDraftMandi("");
+    setDropdownSearch("");
+  };
+
+  const handleDistrictChange = (districtName: string) => {
+    setDraftDistrict(districtName);
+    setDraftMandi("");
+    setDropdownSearch("");
+  };
+
+  const hasActiveFilters =
+    filters.state !== "" ||
+    filters.district !== "" ||
+    filters.mandi !== "" ||
+    filters.status !== "ALL" ||
+    filters.month !== "";
 
   // ── DRILL-DOWN VIEWS ──────────────────────────────────────────
   if (viewMode.type !== "main") {
@@ -491,21 +645,521 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-2 mb-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
         <h1 className="text-2xl md:text-3xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
           Namaste 🙏
           {isValidating && <RefreshCw size={14} className="animate-spin text-forest-500 ml-2" />}
         </h1>
+
+        <div className="flex items-center gap-2 self-end sm:self-auto">
+          {/* Quick status tabs */}
+          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+            {["ALL", "APPROVED", "PENDING", "CANCEL"].map((status) => (
+              <button
+                key={status}
+                onClick={() => {
+                  setFilters((prev) => ({ ...prev, status }));
+                  setDraftStatus(status);
+                }}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                  filters.status === status
+                    ? "bg-white text-forest-700 shadow-sm"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                {status === "ALL" ? "All" : status === "APPROVED" ? "Approved" : status === "PENDING" ? "Pending" : "Cancel"}
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={() => {
+              // Sync drafts with active filters when opening
+              setDraftState(filters.state);
+              setDraftDistrict(filters.district);
+              setDraftMandi(filters.mandi);
+              setDraftStatus(filters.status);
+              setDraftMonth(filters.month);
+              setIsFilterOpen(true);
+            }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${
+              hasActiveFilters
+                ? "bg-forest-50 border-forest-200 text-forest-700"
+                : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+            }`}
+          >
+            <Filter size={16} />
+            <span>Filter</span>
+            {hasActiveFilters && (
+              <span className="w-2 h-2 rounded-full bg-forest-600 animate-pulse" />
+            )}
+          </button>
+        </div>
       </div>
 
-      {/* 3 Info Cards (now clickable) */}
-      <ThreeCards 
-        s={s} 
-        loading={isLoading && !stats} 
-        onTodayClick={handleTodayClick}
-        onSlipClick={handleSlipsClick}
-        onTotalClick={handleTotalClick}
-      />
+      {/* Today's Purchase Overview (Upper Card) */}
+      <div className="glass-card rounded-2xl p-6 flex flex-col gap-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center border border-blue-100/50">
+              <ShoppingCart size={18} className="text-blue-600" />
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-800 text-[15px] tracking-tight">Today's Purchase Overview</h3>
+              <p className="text-[10px] text-slate-400 font-medium">Daily live metrics</p>
+            </div>
+          </div>
+          <button 
+            onClick={handleTodayClick}
+            className="text-xs text-blue-600 hover:text-blue-700 font-bold transition-colors flex items-center gap-1"
+          >
+            Details <ChevronRight size={14} />
+          </button>
+        </div>
+
+        {/* Metrics Grid */}
+        <div className="flex items-start justify-around gap-1 w-full border-b border-slate-100 pb-4">
+          <StatCardItem label="Bags" value={isLoading && !stats ? "..." : fmt(s.todaysBags ?? 0)} />
+          <VDiv />
+          <StatCardItem label="Weight Qtl." value={isLoading && !stats ? "..." : fmtCurrency(s.todaysPurchaseQtl ?? "0.00")} />
+          <VDiv />
+          <StatCardItem label="Value" value={isLoading && !stats ? "..." : fmt(s.todaysValue ? Math.round(parseFloat(String(s.todaysValue))) : 0)} />
+          <VDiv />
+          <StatCardItem label="Average Price" value={isLoading && !stats ? "..." : `₹${fmtCurrency(s.todaysAveragePrice ?? "0.00")}`} colorClass="text-green-600 font-bold" />
+        </div>
+
+        {/* Slips breakdown */}
+        <div className="flex flex-col gap-3">
+          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider text-center">Today Slips</h4>
+          {isLoading && !stats ? (
+            <div className="flex justify-around gap-1 w-full animate-pulse py-1">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="flex-1 space-y-1 text-center">
+                  <div className="h-3 bg-slate-100 rounded w-10 mx-auto" />
+                  <div className="h-4 bg-slate-100 rounded w-12 mx-auto" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex items-start justify-around gap-1 w-full">
+              <StatCardItem label="Total Slip" value={fmt(s.todaysTotalSlips ?? s.todayProcurements)} />
+              <VDiv />
+              <StatCardItem label="Approved" value={fmt(s.todaysApprovedSlips ?? 0)} colorClass="text-green-600 font-bold" />
+              <VDiv />
+              <StatCardItem label="Pending" value={fmt(s.todaysPendingSlips ?? 0)} colorClass="text-amber-600 font-bold" />
+              <VDiv />
+              <StatCardItem label="Cancel" value={fmt(s.todaysCancelSlips ?? 0)} colorClass="text-red-600 font-bold" />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Total / Monthly Purchase Overview (Bottom Card) */}
+      <div className="glass-card rounded-2xl p-6 flex flex-col gap-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-forest-50 flex items-center justify-center border border-forest-100/50">
+              <TrendingUp size={18} className="text-forest-600" />
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-800 text-[15px] tracking-tight">Total Purchase Overview</h3>
+              <p className="text-[10px] text-slate-400 font-medium">
+                {filters.month
+                  ? `For ${new Date(filters.month + "-02").toLocaleDateString("en-IN", { month: "long", year: "numeric" })}`
+                  : "For current month"}
+              </p>
+            </div>
+          </div>
+          <button 
+            onClick={handleTotalClick}
+            className="text-xs text-forest-700 hover:text-forest-800 font-bold transition-colors flex items-center gap-1"
+          >
+            Details <ChevronRight size={14} />
+          </button>
+        </div>
+
+        {/* Metrics Grid */}
+        <div className="flex items-start justify-around gap-1 w-full border-b border-slate-100 pb-4">
+          <StatCardItem label="Bags" value={isLoading && !stats ? "..." : fmt(s.totalBags ?? 0)} />
+          <VDiv />
+          <StatCardItem label="Weight Qtl." value={isLoading && !stats ? "..." : fmtCurrency(s.totalPurchaseQtl ?? "0.00")} />
+          <VDiv />
+          <StatCardItem label="Value" value={isLoading && !stats ? "..." : `₹${fmt(s.totalValue ? Math.round(parseFloat(String(s.totalValue))) : 0)}`} />
+          <VDiv />
+          <StatCardItem label="Average Price" value={isLoading && !stats ? "..." : `₹${fmtCurrency(s.totalAveragePrice ?? "0.00")}`} colorClass="text-green-600 font-bold" />
+        </div>
+
+        {/* Total Slips breakdown */}
+        <div className="flex flex-col gap-3">
+          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider text-center">Total Slips</h4>
+          {isLoading && !stats ? (
+            <div className="flex justify-around gap-1 w-full animate-pulse py-1">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="flex-1 space-y-1 text-center">
+                  <div className="h-3 bg-slate-100 rounded w-10 mx-auto" />
+                  <div className="h-4 bg-slate-100 rounded w-12 mx-auto" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex items-start justify-around gap-1 w-full">
+              <StatCardItem label="Total Slip" value={fmt(s.totalPurchase)} />
+              <VDiv />
+              <StatCardItem label="Approved" value={fmt(s.totalApprovedSlips ?? s.approved)} colorClass="text-green-600 font-bold" />
+              <VDiv />
+              <StatCardItem label="Pending" value={fmt(s.totalPendingSlips ?? s.pendingApproval)} colorClass="text-amber-600 font-bold" />
+              <VDiv />
+              <StatCardItem label="Cancel" value={fmt(s.totalCancelSlips ?? s.rejected)} colorClass="text-red-600 font-bold" />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Filter Popup Modal Overlay */}
+      {isFilterOpen && (
+        <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[10vh] md:pt-[12vh] px-4 overflow-y-auto pb-10">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/40 backdrop-blur-md backdrop-fade animate-in fade-in duration-200"
+            onClick={() => setIsFilterOpen(false)}
+          />
+
+          {/* Modal Content */}
+          <div className="relative w-full max-w-md modal-spring z-10 my-auto md:my-0">
+            <div className="bg-white rounded-[28px] shadow-2xl overflow-hidden border border-slate-100 flex flex-col">
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-forest-50 flex items-center justify-center border border-forest-100/50">
+                    <Filter size={15} className="text-forest-700" />
+                  </div>
+                  <h3 className="text-base font-bold text-slate-800 tracking-tight">Filter Dashboard</h3>
+                </div>
+                <button
+                  onClick={() => setIsFilterOpen(false)}
+                  className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 active:scale-95 transition-all"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Form Fields */}
+              <div className="max-h-[60vh] overflow-y-auto p-6 space-y-5">
+                {/* Status Filter */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
+                    Category Status
+                  </label>
+                  <div className="flex bg-slate-100/80 p-1 rounded-2xl w-full border border-slate-200/30">
+                    {["ALL", "APPROVED", "PENDING", "CANCEL"].map((status) => (
+                      <button
+                        key={status}
+                        type="button"
+                        onClick={() => setDraftStatus(status)}
+                        className={`flex-1 text-xs font-bold rounded-xl py-2.5 transition-all ${
+                          draftStatus === status
+                            ? "bg-white text-forest-700 shadow-sm"
+                            : "text-slate-500 hover:text-slate-700"
+                        }`}
+                      >
+                        {status === "ALL" ? "All" : status === "APPROVED" ? "Approved" : status === "PENDING" ? "Pending" : "Cancel"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* State selection */}
+                {allowedStates.length > 0 && (
+                  <div className="space-y-1.5 combobox-filter relative">
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <MapPin size={12} className="text-slate-400" /> State
+                    </label>
+                    <div className="relative">
+                      <MapPin size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                      <input
+                        value={activeDropdown === 'state' ? dropdownSearch : (draftState || "")}
+                        onChange={(e) => {
+                          setDropdownSearch(e.target.value);
+                          setActiveDropdown('state');
+                        }}
+                        onFocus={() => {
+                          setDropdownSearch(draftState);
+                          setActiveDropdown('state');
+                        }}
+                        placeholder="Select State"
+                        className="w-full pl-10 pr-10 py-3 rounded-2xl border border-slate-200 bg-slate-50/70 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-forest-500 focus:ring-forest-500/30 focus:bg-white transition-all text-sm font-semibold cursor-pointer"
+                      />
+                      {draftState && (
+                        <button
+                          type="button"
+                          onClick={() => handleStateChange("")}
+                          className="absolute right-8 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                      <ChevronDown size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    </div>
+                    {activeDropdown === 'state' && (
+                      <div className="absolute top-full mt-1.5 left-0 z-50 w-full bg-white border border-slate-100 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-1.5 duration-200">
+                        <div className="max-h-48 overflow-y-auto p-1.5 space-y-0.5">
+                          <div
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              handleStateChange("");
+                              setActiveDropdown(null);
+                            }}
+                            className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer transition-colors ${!draftState ? 'bg-forest-50 text-forest-700 font-bold' : 'text-slate-600 hover:bg-slate-50 font-medium'}`}
+                          >
+                            <span className="text-sm">All States</span>
+                            {!draftState && <Check size={14} />}
+                          </div>
+                          {allowedStates
+                            .filter((s) => s.toLowerCase().includes(dropdownSearch.toLowerCase()))
+                            .map((s) => (
+                              <div
+                                key={s}
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  handleStateChange(s);
+                                  setActiveDropdown(null);
+                                }}
+                                className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer transition-colors ${draftState === s ? 'bg-forest-50 text-forest-700 font-bold' : 'text-slate-600 hover:bg-slate-50 font-medium'}`}
+                              >
+                                <span className="text-sm">{s}</span>
+                                {draftState === s && <Check size={14} />}
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* District selection */}
+                <div className="space-y-1.5 combobox-filter relative">
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <MapPin size={12} className="text-slate-400" /> District
+                  </label>
+                  <div className="relative">
+                    <MapPin size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    <input
+                      disabled={!draftState}
+                      value={activeDropdown === 'district' ? dropdownSearch : (draftDistrict || "")}
+                      onChange={(e) => {
+                        setDropdownSearch(e.target.value);
+                        setActiveDropdown('district');
+                      }}
+                      onFocus={() => {
+                        setDropdownSearch(draftDistrict);
+                        setActiveDropdown('district');
+                      }}
+                      placeholder={draftState ? "Select District" : "Select State First"}
+                      className="w-full pl-10 pr-10 py-3 rounded-2xl border border-slate-200 bg-slate-50/70 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-forest-500 focus:ring-forest-500/30 focus:bg-white transition-all text-sm font-semibold cursor-pointer disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
+                    />
+                    {draftDistrict && (
+                      <button
+                        type="button"
+                        onClick={() => handleDistrictChange("")}
+                        className="absolute right-8 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                    <ChevronDown size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  </div>
+                  {activeDropdown === 'district' && draftState && (
+                    <div className="absolute top-full mt-1.5 left-0 z-50 w-full bg-white border border-slate-100 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-1.5 duration-200">
+                      <div className="max-h-48 overflow-y-auto p-1.5 space-y-0.5">
+                        <div
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            handleDistrictChange("");
+                            setActiveDropdown(null);
+                          }}
+                          className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer transition-colors ${!draftDistrict ? 'bg-forest-50 text-forest-700 font-bold' : 'text-slate-600 hover:bg-slate-50 font-medium'}`}
+                        >
+                          <span className="text-sm">All Districts</span>
+                          {!draftDistrict && <Check size={14} />}
+                        </div>
+                        {districts
+                          .filter((d) => d.toLowerCase().includes(dropdownSearch.toLowerCase()))
+                          .map((d) => (
+                            <div
+                              key={d}
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                handleDistrictChange(d);
+                                setActiveDropdown(null);
+                              }}
+                              className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer transition-colors ${draftDistrict === d ? 'bg-forest-50 text-forest-700 font-bold' : 'text-slate-600 hover:bg-slate-50 font-medium'}`}
+                            >
+                              <span className="text-sm">{d}</span>
+                              {draftDistrict === d && <Check size={14} />}
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Mandi selection */}
+                <div className="space-y-1.5 combobox-filter relative">
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <MapPin size={12} className="text-slate-400" /> Mandi
+                  </label>
+                  <div className="relative">
+                    <MapPin size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    <input
+                      disabled={!draftDistrict}
+                      value={activeDropdown === 'mandi' ? dropdownSearch : (draftMandi || "")}
+                      onChange={(e) => {
+                        setDropdownSearch(e.target.value);
+                        setActiveDropdown('mandi');
+                      }}
+                      onFocus={() => {
+                        setDropdownSearch(draftMandi);
+                        setActiveDropdown('mandi');
+                      }}
+                      placeholder={draftDistrict ? "Select Mandi" : "Select District First"}
+                      className="w-full pl-10 pr-10 py-3 rounded-2xl border border-slate-200 bg-slate-50/70 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-forest-500 focus:ring-forest-500/30 focus:bg-white transition-all text-sm font-semibold cursor-pointer disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
+                    />
+                    {draftMandi && (
+                      <button
+                        type="button"
+                        onClick={() => { setDraftMandi(""); setDropdownSearch(""); }}
+                        className="absolute right-8 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                    <ChevronDown size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  </div>
+                  {activeDropdown === 'mandi' && draftDistrict && (
+                    <div className="absolute top-full mt-1.5 left-0 z-50 w-full bg-white border border-slate-100 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-1.5 duration-200">
+                      <div className="max-h-48 overflow-y-auto p-1.5 space-y-0.5">
+                        <div
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setDraftMandi("");
+                            setDropdownSearch("");
+                            setActiveDropdown(null);
+                          }}
+                          className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer transition-colors ${!draftMandi ? 'bg-forest-50 text-forest-700 font-bold' : 'text-slate-600 hover:bg-slate-50 font-medium'}`}
+                        >
+                          <span className="text-sm">All Mandis</span>
+                          {!draftMandi && <Check size={14} />}
+                        </div>
+                        {mandis
+                          .filter((m) => m.toLowerCase().includes(dropdownSearch.toLowerCase()))
+                          .map((m) => (
+                            <div
+                              key={m}
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                setDraftMandi(m);
+                                setActiveDropdown(null);
+                              }}
+                              className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer transition-colors ${draftMandi === m ? 'bg-forest-50 text-forest-700 font-bold' : 'text-slate-600 hover:bg-slate-50 font-medium'}`}
+                            >
+                              <span className="text-sm">{m}</span>
+                              {draftMandi === m && <Check size={14} />}
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Month Picker */}
+                <div className="space-y-1.5 relative combobox-filter">
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <Calendar size={12} className="text-slate-400" /> Select Month
+                  </label>
+                  <div className="relative">
+                    <Calendar size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    <input
+                      readOnly
+                      value={draftMonth ? (monthsList.find((m) => m.value === draftMonth)?.label || "Current Month") : "Current Month"}
+                      onClick={() => {
+                        setActiveDropdown(activeDropdown === 'month' ? null : 'month');
+                      }}
+                      onFocus={() => {
+                        setActiveDropdown('month');
+                      }}
+                      placeholder="Select Month"
+                      className="w-full pl-10 pr-10 py-3 rounded-2xl border border-slate-200 bg-slate-50/70 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-forest-500 focus:ring-forest-500/30 focus:bg-white transition-all text-sm font-semibold cursor-pointer"
+                    />
+                    {draftMonth && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDraftMonth("");
+                          setActiveDropdown(null);
+                        }}
+                        className="absolute right-8 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                    <ChevronDown size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  </div>
+                  {activeDropdown === 'month' && (
+                    <div className="absolute bottom-full mb-1.5 left-0 z-50 w-full bg-white border border-slate-100 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-1.5 duration-200">
+                      <div className="max-h-48 overflow-y-auto p-1.5 space-y-0.5">
+                        <div
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setDraftMonth("");
+                            setActiveDropdown(null);
+                          }}
+                          className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer transition-colors ${!draftMonth ? 'bg-forest-50 text-forest-700 font-bold' : 'text-slate-600 hover:bg-slate-50 font-medium'}`}
+                        >
+                          <span className="text-sm">Current Month</span>
+                          {!draftMonth && <Check size={14} />}
+                        </div>
+                        {monthsList.map((m) => (
+                          <div
+                            key={m.value}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              setDraftMonth(m.value);
+                              setActiveDropdown(null);
+                            }}
+                            className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer transition-colors ${draftMonth === m.value ? 'bg-forest-50 text-forest-700 font-bold' : 'text-slate-600 hover:bg-slate-50 font-medium'}`}
+                          >
+                            <span className="text-sm">{m.label}</span>
+                            {draftMonth === m.value && <Check size={14} />}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-3 p-6 border-t border-slate-100 bg-slate-50">
+                <button
+                  type="button"
+                  onClick={handleResetFilters}
+                  className="flex-1 py-3 px-4 rounded-xl border border-slate-200 bg-white text-slate-700 font-semibold text-sm hover:bg-slate-50 active:scale-95 transition-all"
+                >
+                  Reset
+                </button>
+                <button
+                  type="button"
+                  onClick={handleApplyFilters}
+                  className="flex-1 py-3 px-4 rounded-xl bg-forest-700 text-white font-semibold text-sm hover:bg-forest-800 active:scale-95 transition-all shadow-md shadow-forest-700/10"
+                >
+                  Apply
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Crop Variety Summary — rows are clickable filters */}
       <div className="glass-card rounded-2xl overflow-hidden">
