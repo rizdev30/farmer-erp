@@ -655,9 +655,9 @@ export default function DashboardClient({ initialStats, initialVarietyStats, ini
           {isValidating && <RefreshCw size={14} className="animate-spin text-forest-500 ml-2" />}
         </h1>
 
-        <div className="flex w-full sm:w-auto items-center gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-hide snap-x self-start sm:self-auto">
+        <div className="flex w-full sm:w-auto items-center justify-between gap-1.5 sm:gap-2 self-stretch sm:self-auto">
           {/* Quick status tabs */}
-          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 shrink-0">
+          <div className="flex-1 sm:flex-initial flex bg-slate-100 p-0.5 rounded-xl border border-slate-200 justify-between">
             {["ALL", "APPROVED", "PENDING", "CANCEL"].map((status) => (
               <button
                 key={status}
@@ -665,7 +665,7 @@ export default function DashboardClient({ initialStats, initialVarietyStats, ini
                   setFilters((prev) => ({ ...prev, status }));
                   setDraftStatus(status);
                 }}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                className={`flex-1 sm:flex-initial text-center px-1.5 sm:px-3 py-1 sm:py-1.5 text-[11px] sm:text-xs font-semibold rounded-lg transition-all ${
                   filters.status === status
                     ? "bg-white text-forest-700 shadow-sm"
                     : "text-slate-500 hover:text-slate-700"
@@ -686,16 +686,16 @@ export default function DashboardClient({ initialStats, initialVarietyStats, ini
               setDraftMonth(filters.month);
               setIsFilterOpen(true);
             }}
-            className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${
+            className={`shrink-0 flex items-center gap-1 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold border transition-all ${
               hasActiveFilters
                 ? "bg-forest-50 border-forest-200 text-forest-700"
                 : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
             }`}
           >
-            <Filter size={16} />
+            <Filter size={14} className="sm:w-4 sm:h-4" />
             <span>Filter</span>
             {hasActiveFilters && (
-              <span className="w-2 h-2 rounded-full bg-forest-600 animate-pulse" />
+              <span className="w-1.5 h-1.5 rounded-full bg-forest-600 animate-pulse" />
             )}
           </button>
         </div>
