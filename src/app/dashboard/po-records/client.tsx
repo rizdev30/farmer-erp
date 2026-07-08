@@ -278,7 +278,7 @@ export default function PORecordsClient({ initialRecords }: { initialRecords?: a
         window.print();
         setTimeout(() => { document.title = originalTitle; }, 1000);
         setDownloadPO(null);
-      }, 300);
+      }, 600);
       return () => clearTimeout(timer);
     }
   }, [downloadPO, parsedPOData]);
@@ -587,7 +587,7 @@ export default function PORecordsClient({ initialRecords }: { initialRecords?: a
 
       {/* PO Preview / Download Hidden Container */}
       {(previewPO || downloadPO) && parsedPOData && (
-        <div className={previewPO ? "fixed inset-0 z-50 flex items-center justify-center p-4 no-print overflow-y-auto" : "hidden print:block absolute top-0 left-0 w-full"}>
+        <div className={previewPO ? "fixed inset-0 z-50 flex items-center justify-center p-4 no-print overflow-y-auto" : "absolute left-[-9999px] top-[-9999px] opacity-0 pointer-events-none print:absolute print:left-0 print:top-0 print:opacity-100 print:pointer-events-auto print:w-full print:block"}>
           {previewPO && <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm backdrop-fade" onClick={() => setPreviewPO(null)} />}
           <div className={previewPO ? "relative w-full max-w-[230mm] bg-white rounded-3xl shadow-2xl p-4 md:p-6 modal-spring my-8 max-h-[90vh] flex flex-col" : "bg-white p-0 m-0 w-full"}>
             
