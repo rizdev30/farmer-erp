@@ -17,7 +17,7 @@ import {
   deleteWarehouseAddress
 } from "@/app/actions/po";
 import { 
-  FileText, Search, Plus, Trash2, Save, Printer, Loader2, Users, PlusCircle, Building, Settings, Check, HelpCircle, ChevronDown, ChevronRight, MapPin, Truck, Receipt, Sprout, Home, AlertTriangle, Edit, Download
+  FileText, Search, Plus, Trash2, Save, Printer, Loader2, Users, PlusCircle, Building, Settings, Check, HelpCircle, ChevronDown, ChevronRight, MapPin, Truck, Receipt, Sprout, Home, AlertTriangle, Edit
 } from "lucide-react";
 import { useToast } from "@/components/Toast";
 import { getMandis } from "@/app/actions/mandis";
@@ -201,7 +201,6 @@ function POMakerForm() {
   const [slipDetailsOverrides, setSlipDetailsOverrides] = useState<Record<string, Record<string, any>>>({});
   const [editingSlipId, setEditingSlipId] = useState<string | null>(null);
   const [poStatus, setPoStatus] = useState("SAVED");
-  const [confirmBilled, setConfirmBilled] = useState(false);
 
   // PO Document States
   const [poNumber, setPoNumber] = useState("");
@@ -679,7 +678,6 @@ function POMakerForm() {
 
       if (data.status) {
         setPoStatus(data.status);
-        setConfirmBilled(data.status === "BILLED");
       }
 
     } catch (error: any) {
@@ -989,7 +987,6 @@ function POMakerForm() {
         supplierLocation: vendor.address,
         paymentDuration: 10, // Legacy support, actual metadata in items JSON
         paymentDate: new Date(),
-        status: confirmBilled ? "BILLED" : "SAVED",
         items: {
           vendor,
           billing,
@@ -1041,14 +1038,7 @@ function POMakerForm() {
     }
   };
 
-  const handlePrint = () => {
-    const originalTitle = document.title;
-    const safePoNumber = poNumber.replace(/[\/\\]/g, '-') || 'PO';
-    const safeSupplier = vendor.name.trim().replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_');
-    document.title = `PO_${safeSupplier}_${safePoNumber}`;
-    window.print();
-    setTimeout(() => { document.title = originalTitle; }, 1000);
-  };
+
 
   return (
     <div className="max-w-[100vw] mx-auto min-h-screen flex flex-col xl:flex-row pb-24 xl:pb-0 overflow-hidden print:overflow-visible print:h-auto print:block bg-[#f5f5f7]">
@@ -2221,35 +2211,12 @@ function POMakerForm() {
               </div>
             )}
 
-            {/* Confirmation Checkbox */}
-            <div className="flex items-center gap-3 p-4 bg-emerald-50 rounded-2xl border border-emerald-100 mt-6">
-              <input 
-                id="confirm-billed-checkbox"
-                type="checkbox"
-                checked={confirmBilled}
-                onChange={(e) => setConfirmBilled(e.target.checked)}
-                disabled={poStatus === "BILLED"}
-                className="w-5 h-5 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500 cursor-pointer disabled:cursor-not-allowed"
-              />
-              <label htmlFor="confirm-billed-checkbox" className="text-xs font-bold text-slate-700 cursor-pointer select-none">
-                I confirm this Purchase Order is <span className="text-emerald-700 font-extrabold">BILLED & APPROVED</span>.
-              </label>
-            </div>
-
             {/* Desktop Actions */}
             <div className="hidden xl:flex pt-4 pb-12 justify-end gap-3">
-            {(poStatus === "BILLED" || confirmBilled) && (
-              <button 
-                onClick={handlePrint} 
-                className="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-semibold flex items-center gap-2 hover:bg-slate-50 transition-all bg-white shadow-sm"
-              >
-                <Download size={18} /> Download / Print
-              </button>
-            )}
             <button 
                 onClick={handleSave} 
-                disabled={saving || !confirmBilled} 
-                className="px-6 py-2.5 bg-forest-800 text-white font-semibold rounded-xl hover:bg-forest-700 active:bg-forest-900 transition-all disabled:opacity-50 disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none flex items-center gap-2 shadow-md"
+                disabled={saving} 
+                className="px-6 py-2.5 bg-forest-800 text-white font-semibold rounded-xl hover:bg-forest-700 active:bg-forest-900 transition-all disabled:opacity-50 flex items-center gap-2 shadow-md"
               >
                 {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />} 
                 {saving ? "Saving..." : "Save PO"}
@@ -2656,40 +2623,15 @@ function POMakerForm() {
 
       {/* MOBILE STICKY ACTION BAR */}
       {(calcs.activeSlips.length > 0 || originalProcurement) && (
-        <div className="xl:hidden fixed bottom-[52px] left-0 right-0 p-4 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-[0_-4px_10px_-1px_rgba(0,0,0,0.1)] z-50 flex flex-col gap-3 print:hidden">
-          {/* Confirmation Checkbox for Mobile */}
-          <div className="flex items-center gap-3 p-3 bg-emerald-50 rounded-xl border border-emerald-100">
-            <input 
-              id="confirm-billed-checkbox-mobile"
-              type="checkbox"
-              checked={confirmBilled}
-              onChange={(e) => setConfirmBilled(e.target.checked)}
-              disabled={poStatus === "BILLED"}
-              className="w-4.5 h-4.5 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500 cursor-pointer disabled:cursor-not-allowed"
-            />
-            <label htmlFor="confirm-billed-checkbox-mobile" className="text-[11px] font-bold text-slate-700 cursor-pointer select-none">
-              Confirm this PO is <span className="text-emerald-700 font-extrabold">BILLED & APPROVED</span>.
-            </label>
-          </div>
-          
-          <div className="flex justify-between gap-3">
-            {(poStatus === "BILLED" || confirmBilled) && (
-              <button 
-                onClick={handlePrint} 
-                className="flex-1 justify-center px-4 py-3 rounded-xl border border-slate-300 text-slate-700 font-semibold flex items-center justify-center gap-2 hover:bg-slate-100 transition-all bg-white shadow-sm"
-              >
-                <Download size={18} /> Download / Print
-              </button>
-            )}
-            <button 
-              onClick={handleSave} 
-              disabled={saving || !confirmBilled} 
-              className="flex-1 justify-center px-4 py-3 bg-forest-800 text-white font-semibold rounded-xl hover:bg-forest-700 active:bg-forest-900 transition-all disabled:opacity-50 disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none flex items-center justify-center gap-2 shadow-md"
-            >
-              {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />} 
-              {saving ? "Saving..." : "Save PO"}
-            </button>
-          </div>
+        <div className="xl:hidden fixed bottom-[52px] left-0 right-0 p-4 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-[0_-4px_10px_-1px_rgba(0,0,0,0.1)] z-50 flex justify-between gap-3 print:hidden">
+          <button 
+            onClick={handleSave} 
+            disabled={saving} 
+            className="w-full justify-center px-4 py-3 bg-forest-800 text-white font-semibold rounded-xl hover:bg-forest-700 active:bg-forest-900 transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-md"
+          >
+            {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />} 
+            {saving ? "Saving..." : "Save PO"}
+          </button>
         </div>
       )}
 

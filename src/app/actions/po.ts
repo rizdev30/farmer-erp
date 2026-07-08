@@ -62,7 +62,7 @@ export async function savePO(data: any) {
     throw new Error("Unauthorized");
   }
 
-  const { slipId, poNumber, items, paymentDuration, paymentDate, companyName, companyAddress, supplierName, supplierLocation, status } = data;
+  const { slipId, poNumber, items, paymentDuration, paymentDate, companyName, companyAddress, supplierName, supplierLocation } = data;
 
   if (!slipId) throw new Error("slipId is required");
 
@@ -80,7 +80,6 @@ export async function savePO(data: any) {
         companyAddress,
         supplierName,
         supplierLocation,
-        status: status || existing.status,
       },
     });
     
@@ -106,7 +105,6 @@ export async function savePO(data: any) {
         companyAddress: companyAddress || "12, Krishi Bhawan Complex, Sector 4, Gandhinagar, Gujarat - 382010",
         supplierName: supplierName || "",
         supplierLocation: supplierLocation || "",
-        status: status || "SAVED",
         createdById: user.userId,
       },
     });
