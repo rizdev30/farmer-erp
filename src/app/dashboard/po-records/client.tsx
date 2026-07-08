@@ -286,12 +286,12 @@ export default function PORecordsClient({ initialRecords }: { initialRecords: an
     <>
       <style>{`
         @media print {
-          @page { size: A4 portrait; margin: 8mm; }
-          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; margin: 0; padding: 0; background: white !important; min-width: 210mm !important; }
+          @page { size: A4 portrait; margin: 5mm; }
+          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; margin: 0; padding: 0; background: white !important; }
           #printable-po {
-            width: 194mm !important;
-            min-width: 194mm !important;
-            max-width: 194mm !important;
+            width: 100% !important;
+            min-width: 100% !important;
+            max-width: 100% !important;
             padding: 0 !important;
             margin: 0 !important;
             box-shadow: none !important;
