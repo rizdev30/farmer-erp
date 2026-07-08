@@ -60,7 +60,7 @@ function numberToWords(num: number): string {
   return word.trim() + paiseWord + " Rupees Only";
 }
 
-export default function PORecordsClient({ initialRecords }: { initialRecords: any[] }) {
+export default function PORecordsClient({ initialRecords }: { initialRecords?: any[] }) {
   const router = useRouter();
   const { addToast } = useToast();
   const [records, setRecords] = useState<any[]>(initialRecords || []);

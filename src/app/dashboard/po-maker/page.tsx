@@ -2241,59 +2241,81 @@ function POMakerForm() {
 
       {/* RIGHT COLUMN: A4 PORTRAIT PREVIEW */}
       <div className={`w-full xl:w-[55%] h-full xl:max-h-screen xl:overflow-y-auto overflow-x-auto print:overflow-visible print:h-auto print:max-h-none bg-slate-300/60 flex flex-col items-start xl:items-center py-8 print:p-0 print:bg-white print:w-full print:block pb-40 xl:pb-8 ${mobileTab === 'edit' && (calcs.activeSlips.length > 0 || originalProcurement) ? 'hidden xl:flex' : 'flex'}`}>
+        <style>{`
+          .po-preview-wrapper {
+            position: relative;
+            width: 210mm;
+            height: 297mm;
+          }
+          .po-preview-inner {
+            transform: none;
+          }
+          @media (min-width: 1280px) { /* xl */
+            .po-preview-wrapper {
+              width: calc(210mm * 0.65);
+              height: calc(297mm * 0.65);
+            }
+            .po-preview-inner {
+              transform: scale(0.65);
+              transform-origin: top left;
+            }
+          }
+          @media (min-width: 1536px) { /* 2xl */
+            .po-preview-wrapper {
+              width: calc(210mm * 0.85);
+              height: calc(297mm * 0.85);
+            }
+            .po-preview-inner {
+              transform: scale(0.85);
+              transform-origin: top left;
+            }
+          }
+          @media print {
+            .po-preview-wrapper {
+              width: 100% !important;
+              height: auto !important;
+            }
+            #printable-po {
+              transform: none !important;
+              position: static !important;
+              width: 100% !important;
+              min-width: 100% !important;
+              max-width: 100% !important;
+              padding: 0 !important;
+              margin: 0 !important;
+              box-shadow: none !important;
+              border: none !important;
+              background: white !important;
+            }
+          }
+          .po-grid-border {
+            border: 1.5px solid black;
+          }
+          .po-cell-border-r {
+            border-right: 1.5px solid black;
+          }
+          .po-cell-border-b {
+            border-bottom: 1.5px solid black;
+          }
+          .po-cell-border-t {
+            border-top: 1.5px solid black;
+          }
+          .po-table-cell-border {
+            border-right: 1px solid black;
+            border-bottom: 1px solid black;
+          }
+        `}</style>
         
-        {loading ? (
-          <div className="w-[210mm] min-h-[297mm] ml-4 xl:mx-auto bg-white rounded-xl shadow-2xl flex items-center justify-center">
-            <div className="flex flex-col items-center gap-3 text-slate-400">
-              <Loader2 size={36} className="animate-spin text-forest-600" />
-              <p className="text-sm font-semibold">Generating live preview...</p>
+        <div className="po-preview-wrapper ml-4 xl:mx-auto shrink-0 print:w-full print:h-auto">
+          {loading ? (
+            <div className="po-preview-inner w-[210mm] min-h-[297mm] bg-white rounded-xl shadow-2xl flex items-center justify-center absolute top-0 left-0">
+              <div className="flex flex-col items-center gap-3 text-slate-400">
+                <Loader2 size={36} className="animate-spin text-forest-600" />
+                <p className="text-sm font-semibold">Generating live preview...</p>
+              </div>
             </div>
-          </div>
-        ) : calcs.activeSlips.length > 0 || originalProcurement ? (
-          <div id="printable-po" className="w-[210mm] min-w-[210mm] ml-4 xl:mx-auto bg-white text-black shadow-2xl print:shadow-none p-6 print:p-0 text-[11px] leading-tight transform origin-top xl:scale-[0.8] 2xl:scale-95 print:scale-100 print:transform-none transition-transform font-sans">
-            
-            <style>{`
-              @media print {
-                @page { size: A4 portrait; margin: 8mm; }
-                body { -webkit-print-color-adjust: exact; print-color-adjust: exact; margin: 0; padding: 0; background: white !important; min-width: 210mm !important; }
-                body * { visibility: hidden; }
-                #printable-po, #printable-po * { visibility: visible; }
-                #printable-po {
-                  position: absolute !important;
-                  left: 0 !important;
-                  top: 0 !important;
-                  width: 210mm !important;
-                  min-width: 210mm !important;
-                  max-width: 210mm !important;
-                  padding: 0 !important;
-                  margin: 0 !important;
-                  transform: none !important;
-                  box-shadow: none !important;
-                  border: none !important;
-                  background: white !important;
-                }
-                .print-hide, .print-hide * {
-                  visibility: hidden !important;
-                  display: none !important;
-                }
-              }
-              .po-grid-border {
-                border: 1.5px solid black;
-              }
-              .po-cell-border-r {
-                border-right: 1.5px solid black;
-              }
-              .po-cell-border-b {
-                border-bottom: 1.5px solid black;
-              }
-              .po-cell-border-t {
-                border-top: 1.5px solid black;
-              }
-              .po-table-cell-border {
-                border-right: 1px solid black;
-                border-bottom: 1px solid black;
-              }
-            `}</style>
+          ) : calcs.activeSlips.length > 0 || originalProcurement ? (
+            <div id="printable-po" className="po-preview-inner w-[210mm] min-w-[210mm] bg-white text-black shadow-2xl print:shadow-none p-6 print:p-0 text-[11px] leading-tight font-sans absolute top-0 left-0">
 
             <div className="po-grid-border flex flex-col min-h-[268mm] justify-between">
               <div>
@@ -2594,16 +2616,17 @@ function POMakerForm() {
               </div>
 
             </div>
-          </div>
-        ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-slate-400 p-8 h-full bg-white max-w-[210mm] w-full mx-auto rounded-xl">
-            <FileText size={48} className="mb-4 opacity-30 text-forest-700" />
-            <p className="font-semibold text-slate-700 text-sm">Select an Adhatiya or Fetch a Slip ID to begin</p>
-            <p className="text-xs text-slate-500 text-center max-w-sm mt-1">
-              Select an agent from the database to load their vendor coordinates and check matching procurements.
-            </p>
-          </div>
-        )}
+            </div>
+          ) : (
+            <div className="po-preview-inner w-[210mm] min-h-[297mm] flex flex-col items-center justify-center text-slate-400 p-8 bg-white rounded-xl shadow-2xl absolute top-0 left-0">
+              <FileText size={48} className="mb-4 opacity-30 text-forest-700" />
+              <p className="font-semibold text-slate-700 text-sm">Select an Adhatiya or Fetch a Slip ID to begin</p>
+              <p className="text-xs text-slate-500 text-center max-w-sm mt-1">
+                Select an agent from the database to load their vendor coordinates and check matching procurements.
+              </p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* MOBILE STICKY ACTION BAR */}
