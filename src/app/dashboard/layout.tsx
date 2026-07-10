@@ -325,6 +325,7 @@ function DashboardLayoutContent({
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <div id="mobile-filter-portal" className="flex md:hidden items-center" />
             <NotificationBell />
           </div>
         </header>

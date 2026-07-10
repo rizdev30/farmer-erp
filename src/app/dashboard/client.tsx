@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useTransition, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { getDashboardStats, getVarietyStats, getVarietyDetail, getTodayDetail, getAllSlipsDetail } from "@/app/actions/dashboard";
 import { getMandis } from "@/app/actions/mandis";
 import { isBasmatiVariety, isNonBasmatiVariety } from "@/lib/crop-varieties";
@@ -302,6 +303,11 @@ type ViewMode =
 export default function DashboardClient({ initialStats, initialVarietyStats, initialMandisList }: any) {
   const { data: session } = useSession();
   const router = useRouter();
+
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const roles: string[] = (session?.user as any)?.roles || [];
   const isSuperAdmin = (session?.user as any)?.isSuperAdmin || false;
@@ -691,7 +697,7 @@ export default function DashboardClient({ initialStats, initialVarietyStats, ini
           {isValidating && <RefreshCw size={14} className="animate-spin text-forest-500 ml-2" />}
         </h1>
 
-        <div className="flex w-full sm:w-auto items-center justify-between gap-1.5 sm:gap-2 self-stretch sm:self-auto">
+        <div className="hidden md:flex w-full md:w-auto items-center justify-between gap-1.5 md:gap-2 self-stretch md:self-auto">
           {/* Quick status tabs */}
           <div className="flex-1 sm:flex-initial flex bg-slate-100 p-0.5 rounded-xl border border-slate-200 justify-between">
             {["ALL", "APPROVED", "PENDING", "CANCEL"].map((status) => (
@@ -1305,33 +1311,33 @@ export default function DashboardClient({ initialStats, initialVarietyStats, ini
               <p className="text-xs text-slate-400">Tap a variety to filter detailed records</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 self-start sm:self-auto">
+          <div className="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200 self-start sm:self-auto">
             <button
               onClick={() => setCropCategoryFilter("ALL")}
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all duration-200 ${
+              className={`px-3 py-1 sm:py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
                 cropCategoryFilter === "ALL"
-                  ? "bg-forest-700 text-white shadow-md font-bold hover:bg-forest-800"
-                  : "bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold"
+                  ? "bg-white text-forest-700 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
               }`}
             >
               All Crops
             </button>
             <button
               onClick={() => setCropCategoryFilter("BASMATI")}
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all duration-200 ${
+              className={`px-3 py-1 sm:py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
                 cropCategoryFilter === "BASMATI"
-                  ? "bg-forest-700 text-white shadow-md font-bold hover:bg-forest-800"
-                  : "bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold"
+                  ? "bg-white text-forest-700 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
               }`}
             >
               Basmati
             </button>
             <button
               onClick={() => setCropCategoryFilter("NON_BASMATI")}
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all duration-200 ${
+              className={`px-3 py-1 sm:py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
                 cropCategoryFilter === "NON_BASMATI"
-                  ? "bg-forest-700 text-white shadow-md font-bold hover:bg-forest-800"
-                  : "bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold"
+                  ? "bg-white text-forest-700 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
               }`}
             >
               Non-Basmati
@@ -1482,6 +1488,28 @@ export default function DashboardClient({ initialStats, initialVarietyStats, ini
           </Link>
         ) : null}
       </div>
+      {mounted && typeof document !== "undefined" && document.getElementById("mobile-filter-portal") && createPortal(
+        <button
+          onClick={() => {
+            setDraftState(filters.state);
+            setDraftDistrict(filters.district);
+            setDraftMandi(filters.mandi);
+            setDraftStatus(filters.status);
+            setDraftMonth(filters.month);
+            setDraftAgentId(filters.agentId);
+            setIsFilterOpen(true);
+          }}
+          className="relative flex items-center justify-center p-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100/60 active:bg-slate-100 transition-all duration-150 active:scale-95"
+          aria-label="Filter"
+          style={{ minHeight: "36px", minWidth: "36px" }}
+        >
+          <Filter size={18} />
+          {hasActiveFilters && (
+            <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-forest-500 ring-1.5 ring-white shadow-sm" />
+          )}
+        </button>,
+        document.getElementById("mobile-filter-portal")!
+      )}
     </div>
   );
 }

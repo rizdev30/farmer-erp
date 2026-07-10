@@ -195,7 +195,7 @@ export default function NotificationBell() {
       {/* Bell Button — compact on mobile, blends with header */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-1.5 sm:p-2 rounded-lg sm:rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100/60 active:bg-slate-100 transition-all duration-150 active:scale-95"
+        className="relative flex items-center justify-center p-1.5 sm:p-2 rounded-lg sm:rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100/60 active:bg-slate-100 transition-all duration-150 active:scale-95"
         aria-label="Notifications"
         style={{ minHeight: "36px", minWidth: "36px" }}
       >
@@ -217,24 +217,23 @@ export default function NotificationBell() {
         />
       )}
 
-      {/* Popover Dropdown — full-width sheet on mobile, positioned dropdown on desktop */}
+      {/* Popover Dropdown — full-screen sheet on mobile, positioned dropdown on desktop */}
       {isOpen && (
         <div 
           className="
-            fixed inset-x-0 top-0 sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto
-            sm:mt-2 z-50
-            w-full sm:w-[380px]
-            bg-white sm:bg-white sm:backdrop-blur-md 
+            fixed inset-0 z-50 w-full h-[100dvh]
+            bg-white flex flex-col overflow-hidden
+            animate-mobile-slide-up
+            sm:absolute sm:inset-auto sm:right-0 sm:top-auto sm:mt-2
+            sm:w-[380px] sm:h-auto sm:max-h-[75vh]
             sm:rounded-2xl sm:border sm:border-slate-200/80 sm:shadow-xl
-            overflow-hidden animate-slide-up sm:origin-top-right
-            max-h-[100dvh] sm:max-h-[75vh]
-            flex flex-col
+            sm:animate-slide-up sm:origin-top-right
           "
           style={{ paddingTop: "env(safe-area-inset-top)" }}
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 shrink-0">
-            <h3 className="font-bold text-slate-800 text-[15px]">Notifications</h3>
+          <div className="flex items-center justify-between px-5 py-4 sm:px-4 sm:py-3 border-b border-slate-100 shrink-0 bg-white">
+            <h3 className="font-bold text-slate-800 text-base sm:text-[15px]">Notifications</h3>
             <div className="flex items-center gap-2">
               {count > 0 && (
                 <button

@@ -192,3 +192,12 @@ input[type="number"] {
   animation: slide-up 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+@keyframes mobile-slide-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.animate-mobile-slide-up {
+  animation: mobile-slide-up 0.28s cubic-bezier(0.32, 0.94, 0.6, 1) forwards;
+}
+
