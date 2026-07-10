@@ -58,6 +58,33 @@ async function getSessionUser() {
   };
 }
 
+async function getTargetUsersForLocation(role: "L2_APPROVAL" | "L3_PO_MAKER", state: string, town: string) {
+  try {
+    const candidateUsers = await prisma.user.findMany({
+      where: {
+        active: true,
+        roles: {
+          has: role,
+        },
+      },
+    });
+
+    return candidateUsers.filter((u) => {
+      // Admins/SuperAdmins might have all access, or users with explicit "ALL"
+      const hasAllState = u.assignedStates.includes("ALL");
+      const hasAllMandi = u.assignedMandis.includes("ALL");
+      if (hasAllState || hasAllMandi) return true;
+
+      const stateMatch = u.assignedStates.length > 0 && u.assignedStates.includes(state);
+      const mandiMatch = u.assignedMandis.length > 0 && u.assignedMandis.includes(town);
+      return stateMatch || mandiMatch;
+    });
+  } catch (err) {
+    console.error("Error in getTargetUsersForLocation:", err);
+    return [];
+  }
+}
+
 export interface ProcurementData {
   farmerId: number;
   farmerName: string;
@@ -204,17 +231,17 @@ export async function createProcurement(
     }
   }
 
-  // Verify the farmer/trader belongs to this agent (if not admin/approver)
+  // Verify the farmer/trader exists and user has mandi-based access
   let entity: any = null;
   if (data.category === "TRADER") {
     entity = await prisma.trader.findUnique({
       where: { id: data.farmerId },
-      select: { registeredBy: true, state: true },
+      select: { registeredBy: true, state: true, town: true },
     });
   } else {
     entity = await prisma.farmer.findUnique({
       where: { id: data.farmerId },
-      select: { registeredBy: true, state: true },
+      select: { registeredBy: true, state: true, town: true },
     });
   }
 
@@ -222,9 +249,16 @@ export async function createProcurement(
     return { success: false, error: `${data.category === "TRADER" ? "Trader" : "Farmer"} not found` };
   }
   
+  // Mandi-based permission check: user must have access via registration, assigned mandi, or assigned state
   if (!user.isSuperAdmin && !user.roles.includes("L2_APPROVAL")) {
-    if (entity.registeredBy !== user.userId) {
-      return { success: false, error: `You can only procure from ${data.category === "TRADER" ? "traders" : "farmers"} you registered` };
+    const hasAllAccess = user.assignedStates.includes("ALL") || user.assignedMandis.includes("ALL");
+    if (!hasAllAccess) {
+      const isRegisteredByMe = entity.registeredBy === user.userId;
+      const hasMandiAccess = user.assignedMandis.length > 0 && user.assignedMandis.includes(entity.town);
+      const hasStateAccess = user.assignedStates.length > 0 && user.assignedStates.includes(entity.state);
+      if (!isRegisteredByMe && !hasMandiAccess && !hasStateAccess) {
+        return { success: false, error: `You do not have permission to procure from this ${data.category === "TRADER" ? "trader" : "farmer"}. Contact admin to assign the required mandi.` };
+      }
     }
   }
 
@@ -283,28 +317,41 @@ export async function createProcurement(
 
     // Create Notification for Level 2 Approvers and L4 Admin
     try {
-      await prisma.notification.create({
-        data: {
-          title: "New Approval Required",
-          message: `A new procurement list **${slipId}** has arrived from L1 agent **${user.userName}** for approval.`,
-          type: "PROCUREMENT_CREATED",
-          link: `/dashboard/history/${slipId}`,
-          targetRole: "L2_APPROVAL",
-          senderName: user.userName,
-        },
-      });
+      const state = entity.state || "";
+      const town = entity.town || "";
+      
+      const matchingL2 = await getTargetUsersForLocation("L2_APPROVAL", state, town);
 
-      // Notify L4 Admin about new procurement
-      await prisma.notification.create({
-        data: {
-          title: "New Procurement Created",
-          message: `L1 agent **${user.userName}** created procurement **${slipId}** for farmer **${data.farmerName}**.`,
-          type: "PROCUREMENT_CREATED",
-          link: `/dashboard/history/${slipId}`,
-          targetRole: "L4_ADMIN",
-          senderName: user.userName,
-        },
-      });
+      if (matchingL2.length > 0) {
+        await Promise.all(
+          matchingL2.map((l2) =>
+            prisma.notification.create({
+              data: {
+                title: "New Approval Required",
+                message: `A new procurement list **${slipId}** has arrived from L1 agent **${user.userName}** for approval.`,
+                type: "PROCUREMENT_CREATED",
+                link: `/dashboard/history/${slipId}`,
+                userId: l2.id,
+                targetRole: "L2_APPROVAL",
+                senderName: user.userName,
+              },
+            })
+          )
+        );
+      } else {
+        // Fallback: create a generic one
+        await prisma.notification.create({
+          data: {
+            title: "New Approval Required",
+            message: `A new procurement list **${slipId}** has arrived from L1 agent **${user.userName}** for approval.`,
+            type: "PROCUREMENT_CREATED",
+            link: `/dashboard/history/${slipId}`,
+            targetRole: "L2_APPROVAL",
+            senderName: user.userName,
+          },
+        });
+      }
+
     } catch (notifErr) {
       console.error("Failed to create notification inside createProcurement:", notifErr);
     }
@@ -354,6 +401,7 @@ export async function getProcurementHistory(filters?: {
   month?: number;
   agentId?: string;
   status?: string;
+  state?: string;
   limit?: number;
   skip?: number;
 }) {
@@ -433,6 +481,14 @@ export async function getProcurementHistory(filters?: {
     }
   }
 
+  // State filter
+  if (filters?.state) {
+    where.farmer = {
+      ...(where.farmer as any || {}),
+      state: filters.state,
+    };
+  }
+
   // Monthly filter
   if (filters?.year && filters?.month) {
     const startDate = new Date(filters.year, filters.month - 1, 1);
@@ -450,7 +506,7 @@ export async function getProcurementHistory(filters?: {
     skip: filters?.skip ?? 0,
     include: {
       farmer: {
-        select: { name: true, farmerCode: true, village: true, registeredByName: true },
+        select: { name: true, farmerCode: true, village: true, registeredByName: true, town: true },
       },
     },
   });
@@ -499,6 +555,7 @@ export async function getProcurementHistory(filters?: {
     l3Edited: p.l3Edited,
     createdByAdmin: p.createdByAdmin,
     validated: p.validated,
+    mandiName: p.farmer?.town || "",
     createdAt: p.createdAt.toISOString(),
   }));
 }
@@ -608,8 +665,15 @@ export async function getProcurementsByFarmer(farmerId: number, category?: strin
     where.status = { in: ["APPROVED", "PENDING_L3"] };
   }
 
+  // Use mandi-based scoping: L1 users can see procurements from entities in their assigned mandis/states
   if (!user.roles.includes("L4_ADMIN") && !user.isSuperAdmin) {
-    where.agentId = user.userId;
+    const hasAllAccess = user.assignedStates.includes("ALL") || user.assignedMandis.includes("ALL");
+    if (!hasAllAccess) {
+      const scopeOr: any[] = [{ agentId: user.userId }];
+      if (user.assignedStates.length > 0) scopeOr.push({ farmer: { state: { in: user.assignedStates } } });
+      if (user.assignedMandis.length > 0) scopeOr.push({ farmer: { town: { in: user.assignedMandis } } });
+      where.OR = scopeOr;
+    }
   }
 
   const records = await prisma.procurement.findMany({
@@ -631,7 +695,7 @@ export async function getProcurementsByFarmer(farmerId: number, category?: strin
   return records;
 }
 
-export async function getMonthlySummary(filters?: { agentId?: string }) {
+export async function getMonthlySummary(filters?: { agentId?: string; state?: string }) {
   const user = await getSessionUser();
 
   const where: Record<string, unknown> = {};
@@ -667,6 +731,14 @@ export async function getMonthlySummary(filters?: { agentId?: string }) {
         where.OR = assignmentOr;
       }
     }
+  }
+
+  // State filter
+  if (filters?.state) {
+    where.farmer = {
+      ...(where.farmer as any || {}),
+      state: filters.state,
+    };
   }
 
   const procurements = await prisma.procurement.findMany({
@@ -852,23 +924,67 @@ export async function updateProcurementStatus(
         },
       });
 
-      // 2. Notify L3 PO Makers that a new approved slip is ready
-      await prisma.notification.create({
-        data: {
-          title: "New Approved Procurement",
-          message: `A new approved procurement list **${slipId}** has arrived from L2 approver **${user.userName}** for PO creation.`,
-          type: "PROCUREMENT_APPROVED_TO_PO",
-          link: `/dashboard/history/${slipId}`,
-          targetRole: "L3_PO_MAKER",
-          senderName: user.userName,
-        },
-      });
+      // 2. Notify L3 PO Makers that a new approved slip is ready (routed by location)
+      let state = "";
+      let town = "";
+      if (procurement.farmerCode && procurement.farmerCode.startsWith("T")) {
+        const trader = await prisma.trader.findUnique({
+          where: { id: procurement.farmerId },
+          select: { state: true, town: true },
+        });
+        if (trader) {
+          state = trader.state;
+          town = trader.town;
+        }
+      }
+      if (!state || !town) {
+        const farmer = await prisma.farmer.findUnique({
+          where: { id: procurement.farmerId },
+          select: { state: true, town: true },
+        });
+        if (farmer) {
+          state = farmer.state;
+          town = farmer.town;
+        }
+      }
 
-      // 3. Notify L4 Admin about the approval
+      const matchingL3 = await getTargetUsersForLocation("L3_PO_MAKER", state, town);
+
+      if (matchingL3.length > 0) {
+        await Promise.all(
+          matchingL3.map((l3) =>
+            prisma.notification.create({
+              data: {
+                title: "New Approved Procurement",
+                message: `A new approved procurement list **${slipId}** has arrived from L2 approver **${user.userName}** for PO creation.`,
+                type: "PROCUREMENT_APPROVED_TO_PO",
+                link: `/dashboard/history/${slipId}`,
+                userId: l3.id,
+                targetRole: "L3_PO_MAKER",
+                senderName: user.userName,
+              },
+            })
+          )
+        );
+      } else {
+        // Fallback: create a generic one
+        await prisma.notification.create({
+          data: {
+            title: "New Approved Procurement",
+            message: `A new approved procurement list **${slipId}** has arrived from L2 approver **${user.userName}** for PO creation.`,
+            type: "PROCUREMENT_APPROVED_TO_PO",
+            link: `/dashboard/history/${slipId}`,
+            targetRole: "L3_PO_MAKER",
+            senderName: user.userName,
+          },
+        });
+      }
+
+      // 3. Notify L4 Admin about the approval (L2 approved) with total cost details
       await prisma.notification.create({
         data: {
           title: "Slip Approved by L2",
-          message: `Procurement **${slipId}** was approved by L2 approver **${user.userName}**.`,
+          message: `L2 Approver **${user.userName}** approved procurement **${slipId}** with total payout **₹${updatedProcurement.total.toLocaleString("en-IN")}** (Rate: ₹${updatedProcurement.rate}/Qtl, deduction: ${updatedProcurement.deduction}kg, Gross Qty: ${updatedProcurement.grossQuantity} Qtl).`,
           type: "PROCUREMENT_APPROVED",
           link: `/dashboard/history/${slipId}`,
           targetRole: "L4_ADMIN",
@@ -887,18 +1003,7 @@ export async function updateProcurementStatus(
           senderName: user.userName,
         },
       });
-
-      // 2. Notify L4 Admin about the cancellation
-      await prisma.notification.create({
-        data: {
-          title: "Slip Cancelled by L2",
-          message: `Procurement **${slipId}** was cancelled by L2 approver **${user.userName}**.`,
-          type: "PROCUREMENT_CANCELLED",
-          link: `/dashboard/history/${slipId}`,
-          targetRole: "L4_ADMIN",
-          senderName: user.userName,
-        },
-      });
+      // (Do NOT notify L4 Admin on L2 Rejection)
     } else if (action === "L3_APPROVE") {
       // 1. Notify L1 Agent
       await prisma.notification.create({
@@ -912,11 +1017,11 @@ export async function updateProcurementStatus(
         },
       });
 
-      // 2. Notify L4 Admin
+      // 2. Notify L4 Admin with total cost details
       await prisma.notification.create({
         data: {
           title: "Slip Approved by L3",
-          message: `Procurement **${slipId}** was approved by L3 PO Maker **${user.userName}**.`,
+          message: `L3 PO Maker **${user.userName}** approved and generated PO for procurement **${slipId}** with total payout **₹${updatedProcurement.total.toLocaleString("en-IN")}**.`,
           type: "PROCUREMENT_APPROVED",
           link: `/dashboard/history/${slipId}`,
           targetRole: "L4_ADMIN",
@@ -935,18 +1040,7 @@ export async function updateProcurementStatus(
           senderName: user.userName,
         },
       });
-
-      // 2. Notify L4 Admin
-      await prisma.notification.create({
-        data: {
-          title: "Slip Rejected by L3",
-          message: `Procurement **${slipId}** was rejected by L3 PO Maker **${user.userName}**.`,
-          type: "PROCUREMENT_CANCELLED",
-          link: `/dashboard/history/${slipId}`,
-          targetRole: "L4_ADMIN",
-          senderName: user.userName,
-        },
-      });
+      // (Do NOT notify L4 Admin on L3 Rejection)
     }
   } catch (notifErr) {
     console.error("Failed to create notifications in updateProcurementStatus:", notifErr);

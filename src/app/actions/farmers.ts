@@ -335,6 +335,56 @@ export async function getFarmerById(idParam: string | number) {
   };
 }
 
+export async function notifyL2OnRegistration(
+  category: "FARMER" | "TRADER",
+  name: string,
+  code: string,
+  state: string,
+  town: string,
+  senderName: string
+) {
+  try {
+    const candidateL2 = await prisma.user.findMany({
+      where: {
+        active: true,
+        roles: {
+          has: "L2_APPROVAL",
+        },
+      },
+    });
+
+    const matchingL2 = candidateL2.filter((u) => {
+      const hasAllState = u.assignedStates.includes("ALL");
+      const hasAllMandi = u.assignedMandis.includes("ALL");
+      if (hasAllState || hasAllMandi) return true;
+
+      const stateMatch = u.assignedStates.length > 0 && u.assignedStates.includes(state);
+      const mandiMatch = u.assignedMandis.length > 0 && u.assignedMandis.includes(town);
+      return stateMatch || mandiMatch;
+    });
+
+    if (matchingL2.length > 0) {
+      await Promise.all(
+        matchingL2.map((l2) =>
+          prisma.notification.create({
+            data: {
+              title: `New ${category === "TRADER" ? "Trader" : "Farmer"} Registered`,
+              message: `L1 Agent **${senderName}** registered a new ${category.toLowerCase()} **${name}** (${code}) in State **${state}**, Mandi **${town}**.`,
+              type: `${category}_REGISTERED`, // FARMER_REGISTERED or TRADER_REGISTERED
+              link: `/dashboard/farmers`,
+              userId: l2.id,
+              targetRole: "L2_APPROVAL",
+              senderName: senderName,
+            },
+          })
+        )
+      );
+    }
+  } catch (err) {
+    console.error("Failed to notify L2 on registration:", err);
+  }
+}
+
 export async function registerFarmer(data: {
   name: string;
   phone: string;
@@ -457,6 +507,16 @@ export async function registerFarmer(data: {
     });
 
     await logAuditAction(user.userId, "FARMER_REGISTERED", `Registered farmer ${farmer.name} (${farmer.farmerCode})`);
+
+    // Trigger notification for L2 approvers of this region
+    await notifyL2OnRegistration(
+      "FARMER",
+      farmer.name,
+      farmer.farmerCode,
+      farmer.state,
+      farmer.town,
+      user.userName
+    );
 
     return {
       success: true,

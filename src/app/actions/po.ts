@@ -232,6 +232,86 @@ export async function getAdhatiyas(query?: string) {
   });
 }
 
+async function notifyOnAdhatiyaCreation(
+  adhatiyaName: string,
+  state: string,
+  district: string,
+  mandiName: string,
+  creatorName: string,
+  creatorRoles: string[]
+) {
+  try {
+    // 1. Always notify L4 Admin
+    await prisma.notification.create({
+      data: {
+        title: "New Adhatiya Added",
+        message: `User **${creatorName}** (${creatorRoles.join(", ")}) added a new Adhatiya **${adhatiyaName}** in state **${state}**, district **${district}**, mandi **${mandiName}**.`,
+        type: "ADHATIYA_ADDED",
+        link: "/dashboard/settings",
+        targetRole: "L4_ADMIN",
+        senderName: creatorName,
+      },
+    });
+
+    // 2. Find all active L1, L2, L3 users
+    const allUsers = await prisma.user.findMany({
+      where: { active: true },
+    });
+
+    const isL3Creator = creatorRoles.includes("L3_PO_MAKER");
+
+    const targets = allUsers.filter((u) => {
+      // Don't notify the creator
+      if (u.name === creatorName) return false;
+
+      // Don't notify L4 admin here (we already created a separate global notification for them)
+      if (u.roles.includes("L4_ADMIN")) return false;
+
+      const hasAllState = u.assignedStates.includes("ALL");
+      const hasAllMandi = u.assignedMandis.includes("ALL");
+      
+      const matchesMandi = hasAllMandi || (u.assignedMandis.length > 0 && u.assignedMandis.includes(mandiName));
+      const matchesState = hasAllState || (u.assignedStates.length > 0 && u.assignedStates.includes(state));
+
+      if (isL3Creator) {
+        // If L3 added: notify other L1 and L2 users assigned to this mandi/town
+        const isL1OrL2 = u.roles.includes("L1_AGENT") || u.roles.includes("L2_APPROVAL");
+        return isL1OrL2 && matchesMandi;
+      } else {
+        // If L1 or L2 added: notify all L1 and L2 users assigned to this mandi,
+        // and L3 users assigned to this state
+        const isL1OrL2 = u.roles.includes("L1_AGENT") || u.roles.includes("L2_APPROVAL");
+        const isL3 = u.roles.includes("L3_PO_MAKER");
+        
+        if (isL1OrL2 && matchesMandi) return true;
+        if (isL3 && matchesState) return true;
+        
+        return false;
+      }
+    });
+
+    if (targets.length > 0) {
+      await Promise.all(
+        targets.map((t) =>
+          prisma.notification.create({
+            data: {
+              title: "New Adhatiya Added",
+              message: `New Adhatiya **${adhatiyaName}** has been added in state **${state}**, mandi **${mandiName}** by **${creatorName}**.`,
+              type: "ADHATIYA_ADDED",
+              link: "/dashboard/settings",
+              userId: t.id,
+              targetRole: t.roles.includes("L3_PO_MAKER") ? "L3_PO_MAKER" : (t.roles.includes("L2_APPROVAL") ? "L2_APPROVAL" : "L1_AGENT"),
+              senderName: creatorName,
+            },
+          })
+        )
+      );
+    }
+  } catch (err) {
+    console.error("Failed to send Adhatiya addition notifications:", err);
+  }
+}
+
 export async function saveAdhatiya(data: { 
   id?: number; 
   name: string; 
@@ -303,6 +383,17 @@ export async function saveAdhatiya(data: {
       }
     });
     await logAuditAction(user.userId, "ADAHATIYA_CREATED", `Created Adhatiya ${name} by user ${user.userName}`);
+    
+    // Trigger notifications for new Adhatiya creation
+    await notifyOnAdhatiyaCreation(
+      name,
+      state || "",
+      district || "",
+      mandi || "",
+      user.userName,
+      user.roles
+    );
+
     return created;
   }
 }

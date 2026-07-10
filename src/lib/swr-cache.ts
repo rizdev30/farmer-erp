@@ -24,6 +24,9 @@ interface CacheEntry<T> {
 // In-memory cache (fastest) — survives client-side navigations in SPA
 const memoryCache = new Map<string, CacheEntry<any>>();
 
+// In-flight request deduplication map (prevents concurrent identical requests)
+const inFlightRequests = new Map<string, Promise<any>>();
+
 // Default TTL: 5 minutes — pages won't re-fetch from DB unless stale or invalidated
 const DEFAULT_TTL = 5 * 60 * 1000;
 
@@ -250,8 +253,20 @@ export function useSWRCache<T>(
 
     setIsValidating(true);
     try {
-      // Wrap the fetcher in the high-priority queue
-      const freshData = await executeHighPriority(fetcherRef.current);
+      // Wrap the fetcher with in-flight deduplication
+      const fetcherPromise = () => {
+        let active = inFlightRequests.get(currentKey);
+        if (!active) {
+          active = fetcherRef.current();
+          inFlightRequests.set(currentKey, active);
+          active.finally(() => {
+            inFlightRequests.delete(currentKey);
+          });
+        }
+        return active;
+      };
+
+      const freshData = await executeHighPriority(fetcherPromise);
       if (!mountedRef.current) return;
 
       const freshHash = quickHash(freshData);

@@ -7,6 +7,7 @@ import type { VarietyStat, DashboardStats, VarietyRecord, SlipRecord, SlipStats 
 import { useSession } from "next-auth/react";
 import {
   Users,
+  User,
   ShoppingCart,
   ClipboardList,
   Settings as SettingsIcon,
@@ -301,6 +302,10 @@ export default function DashboardClient({ initialStats, initialVarietyStats, ini
   const { data: session } = useSession();
   const router = useRouter();
 
+  const roles: string[] = (session?.user as any)?.roles || [];
+  const isSuperAdmin = (session?.user as any)?.isSuperAdmin || false;
+  const isAdmin = roles.includes("L4_ADMIN") || isSuperAdmin;
+
   // Active filters applied to the queries
   const [filters, setFilters] = useState({
     state: "",
@@ -308,6 +313,7 @@ export default function DashboardClient({ initialStats, initialVarietyStats, ini
     mandi: "",
     status: "ALL",
     month: "",
+    agentId: "",
   });
 
   // Draft filters inside the modal
@@ -316,12 +322,16 @@ export default function DashboardClient({ initialStats, initialVarietyStats, ini
   const [draftMandi, setDraftMandi] = useState("");
   const [draftStatus, setDraftStatus] = useState("ALL");
   const [draftMonth, setDraftMonth] = useState("");
+  const [draftAgentId, setDraftAgentId] = useState("");
 
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   // Combobox dropdown search inside the filter popup
-  const [activeDropdown, setActiveDropdown] = useState<"state" | "district" | "mandi" | "month" | null>(null);
+  const [activeDropdown, setActiveDropdown] = useState<"state" | "district" | "mandi" | "month" | "agent" | null>(null);
   const [dropdownSearch, setDropdownSearch] = useState("");
+
+  // Agent list for admin/superadmin filter
+  const [agents, setAgents] = useState<{ id: string; name: string; roles: string[] }[]>([]);
 
   // Geographic master data list
   const [mandisList, setMandisList] = useState<{ id: number; state: string; district: string; mandiName: string; }[]>(initialMandisList || []);
@@ -334,6 +344,21 @@ export default function DashboardClient({ initialStats, initialVarietyStats, ini
       });
     }
   }, [initialMandisList]);
+
+
+  // Fetch agents list for admin on mount
+  useEffect(() => {
+    if (isAdmin) {
+      fetch("/api/agents")
+        .then((r) => r.json())
+        .then((data) => {
+          if (Array.isArray(data)) {
+            setAgents(data);
+          }
+        })
+        .catch((err) => console.error("Error fetching agents:", err));
+    }
+  }, [isAdmin]);
 
   // Click outside listener for comboboxes
   useEffect(() => {
@@ -356,7 +381,8 @@ export default function DashboardClient({ initialStats, initialVarietyStats, ini
     filters.district !== "" ||
     filters.mandi !== "" ||
     filters.status !== "ALL" ||
-    filters.month !== "";
+    filters.month !== "" ||
+    filters.agentId !== "";
 
   // Global dashboard stats with serialized filter SWR key
   const { data: stats, isLoading, isValidating } = useSWRCache(
@@ -435,9 +461,7 @@ export default function DashboardClient({ initialStats, initialVarietyStats, ini
 
   const assignedStates: string[] = (session?.user as any)?.assignedStates || [];
   const assignedMandis: string[] = (session?.user as any)?.assignedMandis || [];
-  const roles: string[] = (session?.user as any)?.roles || [];
-  const isSuperAdmin = (session?.user as any)?.isSuperAdmin || false;
-  const isAdmin = roles.includes("L4_ADMIN") || isSuperAdmin;
+  // roles, isSuperAdmin, isAdmin are already defined at the top of DashboardClient
 
   // Derived lists for cascading dropdowns
   const states = Array.from(new Set(mandisList.map((m) => m.state).filter(Boolean))).sort() as string[];
@@ -482,6 +506,7 @@ export default function DashboardClient({ initialStats, initialVarietyStats, ini
       mandi: draftMandi,
       status: draftStatus,
       month: draftMonth,
+      agentId: draftAgentId,
     });
     setIsFilterOpen(false);
   };
@@ -492,12 +517,14 @@ export default function DashboardClient({ initialStats, initialVarietyStats, ini
     setDraftMandi("");
     setDraftStatus("ALL");
     setDraftMonth("");
+    setDraftAgentId("");
     setFilters({
       state: "",
       district: "",
       mandi: "",
       status: "ALL",
       month: "",
+      agentId: "",
     });
     setIsFilterOpen(false);
   };
@@ -684,6 +711,7 @@ export default function DashboardClient({ initialStats, initialVarietyStats, ini
               setDraftMandi(filters.mandi);
               setDraftStatus(filters.status);
               setDraftMonth(filters.month);
+              setDraftAgentId(filters.agentId);
               setIsFilterOpen(true);
             }}
             className={`shrink-0 flex items-center gap-1 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold border transition-all ${
@@ -1084,6 +1112,87 @@ export default function DashboardClient({ initialStats, initialVarietyStats, ini
                     </div>
                   )}
                 </div>
+
+                {/* Agent Selection (Admin only) */}
+                {isAdmin && (
+                  <div className="space-y-1.5 combobox-filter relative">
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <User size={12} className="text-slate-400" /> Agent
+                    </label>
+                    <div className="relative">
+                      <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                      <input
+                        value={activeDropdown === 'agent' ? dropdownSearch : (agents.find(a => a.id === draftAgentId)?.name || "")}
+                        onChange={(e) => {
+                          setDropdownSearch(e.target.value);
+                          setActiveDropdown('agent');
+                        }}
+                        onFocus={() => {
+                          setDropdownSearch("");
+                          setActiveDropdown('agent');
+                        }}
+                        placeholder="Select Agent"
+                        className="w-full pl-10 pr-10 py-3 rounded-2xl border border-slate-200 bg-slate-50/70 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-forest-500 focus:ring-forest-500/30 focus:bg-white transition-all text-sm font-semibold cursor-pointer"
+                      />
+                      {draftAgentId && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDraftAgentId("");
+                            setDropdownSearch("");
+                            setActiveDropdown(null);
+                          }}
+                          className="absolute right-8 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                      <ChevronDown size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    </div>
+                    {activeDropdown === 'agent' && (
+                      <div className="absolute top-full mt-1.5 left-0 z-50 w-full bg-white border border-slate-100 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-1.5 duration-200">
+                        <div className="max-h-48 overflow-y-auto p-1.5 space-y-0.5">
+                          <div
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              setDraftAgentId("");
+                              setDropdownSearch("");
+                              setActiveDropdown(null);
+                            }}
+                            className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer transition-colors ${!draftAgentId ? 'bg-forest-50 text-forest-700 font-bold' : 'text-slate-600 hover:bg-slate-50 font-medium'}`}
+                          >
+                            <span className="text-sm">All Agents</span>
+                            {!draftAgentId && <Check size={14} className="text-forest-700" />}
+                          </div>
+                          {agents
+                            .filter(a =>
+                              a.name.toLowerCase().includes(dropdownSearch.toLowerCase()) ||
+                              a.roles?.some(r => r.toLowerCase().includes(dropdownSearch.toLowerCase()))
+                            )
+                            .map((a) => (
+                              <div
+                                key={a.id}
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  setDraftAgentId(a.id);
+                                  setDropdownSearch(a.name);
+                                  setActiveDropdown(null);
+                                }}
+                                className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer transition-colors ${draftAgentId === a.id ? 'bg-forest-50 text-forest-700 font-bold' : 'text-slate-600 hover:bg-slate-50 font-medium'}`}
+                              >
+                                <div className="flex flex-col truncate pr-2">
+                                  <span className="text-sm truncate">{a.name}</span>
+                                  <span className="text-[10px] text-slate-400 font-normal truncate">{a.roles?.map(r => r.replace("_", " ")).join(", ")}</span>
+                                </div>
+                                {draftAgentId === a.id && <Check size={14} className="text-forest-700 shrink-0" />}
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Month Picker */}
                 <div className="space-y-1.5 relative combobox-filter">

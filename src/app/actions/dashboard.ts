@@ -43,6 +43,7 @@ function buildFilteredWhere(user: any, filters?: {
   state?: string;
   district?: string;
   mandi?: string;
+  agentId?: string;
 }) {
   const roles = user?.roles || ["L1_AGENT"];
   const userId = user?.id || "";
@@ -53,6 +54,10 @@ function buildFilteredWhere(user: any, filters?: {
   const assignedL2Users: string[] = user?.assignedL2Users || [];
 
   const where: Record<string, any> = {};
+
+  if (filters?.agentId) {
+    where.agentId = filters.agentId;
+  }
 
   if (roles.includes("L4_ADMIN") || isSuperAdmin) {
     // Admin has no base geographic scoping restriction.
@@ -127,6 +132,7 @@ export async function getDashboardStats(filters?: {
   mandi?: string;
   status?: string;
   month?: string;
+  agentId?: string;
 }): Promise<DashboardStats> {
   try {
     const session = await auth();
@@ -253,6 +259,7 @@ export async function getVarietyStats(filters?: {
   mandi?: string;
   status?: string;
   month?: string;
+  agentId?: string;
 }): Promise<VarietyStat[]> {
   try {
     const session = await auth();

@@ -160,6 +160,7 @@ export default function ReceiptPage() {
       invalidateCache(`receipt-${slipId}`);
       invalidateCache("history-*");
       invalidateCache("dashboard-*");
+      invalidateCache("notifications");
       
       alert("Status updated successfully.");
       router.push("/dashboard/history");

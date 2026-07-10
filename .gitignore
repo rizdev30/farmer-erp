@@ -45,7 +45,39 @@ next-env.d.ts
 *.db-journal
 
 
-# security / secrets
+# security / secrets / credentials
 *.key
 *.secret
 *.credentials
+*.pem
+*.pfx
+*.p12
+*.cer
+*.crt
+*.der
+*.pub
+id_rsa
+id_dsa
+id_ecdsa
+id_ed25519
+*passwd*
+*password*
+credentials.json
+client_secret.json
+service-account.json
+service_account.json
+secrets.json
+secrets.yaml
+secrets.yml
+.npmrc.local
+.yarnrc.local
+
+# IDEs and editors
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.eslintcache

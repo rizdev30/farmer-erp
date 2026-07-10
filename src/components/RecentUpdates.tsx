@@ -14,8 +14,9 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getNotifications, markAsRead } from "@/app/actions/notifications";
+import { useSWRCache, invalidateCache } from "@/lib/swr-cache";
 
-function formatTimeAgo(dateStr: string) {
+function formatTimeAgo(dateStr: any) {
   const date = new Date(dateStr);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
@@ -99,23 +100,40 @@ function getNotifConfig(type: string) {
   }
 }
 
+function isImportantNotification(notif: any, roles: string[]) {
+  if (notif.type === "ADHATIYA_ADDED") {
+    return true;
+  }
+  if (roles.includes("L2_APPROVAL") && notif.type === "PROCUREMENT_CREATED") {
+    return true;
+  }
+  if (roles.includes("L1_AGENT") && (notif.type === "PROCUREMENT_APPROVED" || notif.type === "PROCUREMENT_CANCELLED")) {
+    return true;
+  }
+  if (roles.includes("L3_PO_MAKER") && notif.type === "PROCUREMENT_APPROVED_TO_PO") {
+    return true;
+  }
+  if ((roles.includes("L4_ADMIN") || roles.includes("SUPERADMIN")) && (notif.type === "PROCUREMENT_APPROVED" || notif.type === "ADHATIYA_ADDED")) {
+    return true;
+  }
+  return false;
+}
+
 export default function RecentUpdates() {
-  const [notifications, setNotifications] = useState<any[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [userRoles, setUserRoles] = useState<string[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
-  const fetchNotifs = useCallback(async () => {
-    try {
-      const res = await getNotifications();
-      if (res.success && res.notifications) {
-        setNotifications(res.notifications);
-      }
-    } catch (err) {
-      console.error("Error fetching updates:", err);
-    }
-  }, []);
+  // Fetch notifications using SWR cache (shares with NotificationBell)
+  const { data: notifRes, refetch } = useSWRCache(
+    "notifications",
+    async () => await getNotifications(),
+    { ttl: 15000 }
+  );
+
+  const notifications = notifRes?.success ? notifRes.notifications || [] : [];
 
   useEffect(() => {
     fetch("/api/auth/session")
@@ -123,20 +141,23 @@ export default function RecentUpdates() {
       .then((session) => {
         if (session?.user?.id) {
           setCurrentUserId(session.user.id);
+          setUserRoles(session.user.roles || []);
         }
       })
       .catch((err) => console.error("Session error:", err));
 
-    fetchNotifs();
-    // Poll every 10 seconds for real-time updates
-    const interval = setInterval(fetchNotifs, 10000);
+    // Poll every 15 seconds. Since we use useSWRCache, it will only result in one actual DB call
+    const interval = setInterval(() => {
+      refetch();
+    }, 15000);
     return () => clearInterval(interval);
-  }, [fetchNotifs]);
+  }, [refetch]);
 
   const handleItemClick = async (notif: any) => {
     if (currentUserId && !notif.readBy.includes(currentUserId)) {
       await markAsRead(notif.id);
-      fetchNotifs();
+      invalidateCache("notifications");
+      refetch();
     }
     setIsModalOpen(false);
     if (notif.link) {
@@ -175,14 +196,19 @@ export default function RecentUpdates() {
             sidebarNotifs.map((notif) => {
               const cfg = getNotifConfig(notif.type);
               const isRead = currentUserId ? notif.readBy.includes(currentUserId) : true;
+              const isImportant = isImportantNotification(notif, userRoles);
               return (
                 <div
                   key={notif.id}
                   onClick={() => handleItemClick(notif)}
-                  className={`flex items-start gap-2.5 p-2.5 rounded-xl transition-all duration-150 cursor-pointer border ${
-                    !isRead 
-                      ? `bg-white ${cfg.borderColor} shadow-sm` 
-                      : "bg-slate-50/60 border-slate-100/60 hover:bg-white hover:border-slate-200/40"
+                  className={`flex items-start gap-2.5 p-2.5 rounded-xl transition-all duration-150 cursor-pointer border relative overflow-hidden ${
+                    isImportant
+                      ? !isRead 
+                        ? "bg-amber-50/45 border-amber-200 shadow-sm border-l-4 border-l-amber-500" 
+                        : "bg-amber-50/15 border-amber-100 border-l-4 border-l-amber-500 hover:bg-amber-50/25"
+                      : !isRead 
+                        ? `bg-white ${cfg.borderColor} shadow-sm` 
+                        : "bg-slate-50/60 border-slate-100/60 hover:bg-white hover:border-slate-200/40"
                   }`}
                 >
                   {/* Type Icon */}
@@ -191,9 +217,16 @@ export default function RecentUpdates() {
                   </div>
                   <div className="flex-1 min-w-0 pr-1">
                     {/* Type label */}
-                    <span className={`text-[8px] font-bold uppercase tracking-wider ${cfg.iconColor} leading-none`}>
-                      {cfg.label}
-                    </span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className={`text-[8px] font-bold uppercase tracking-wider ${cfg.iconColor} leading-none`}>
+                        {cfg.label}
+                      </span>
+                      {isImportant && (
+                        <span className="text-[7.5px] font-extrabold uppercase px-1 py-0.5 rounded bg-amber-500 text-white leading-none scale-[0.9] origin-left">
+                          Important
+                        </span>
+                      )}
+                    </div>
                     <p className="text-[11px] text-slate-600 leading-snug break-words mt-0.5">
                       {parseBoldText(notif.message)}
                     </p>
@@ -232,14 +265,19 @@ export default function RecentUpdates() {
               {notifications.map((notif) => {
                 const cfg = getNotifConfig(notif.type);
                 const isRead = currentUserId ? notif.readBy.includes(currentUserId) : true;
+                const isImportant = isImportantNotification(notif, userRoles);
                 return (
                   <div
                     key={notif.id}
                     onClick={() => handleItemClick(notif)}
-                    className={`flex gap-3 p-3 rounded-2xl cursor-pointer transition-all duration-150 active:scale-[0.98] border ${
-                      !isRead 
-                        ? `bg-white ${cfg.borderColor} shadow-sm` 
-                        : "bg-white/60 border-transparent hover:bg-white hover:border-slate-200/40"
+                    className={`flex gap-3 p-3 rounded-2xl cursor-pointer transition-all duration-150 active:scale-[0.98] border relative overflow-hidden ${
+                      isImportant
+                        ? !isRead 
+                          ? "bg-white border-amber-200 shadow-sm border-l-4 border-l-amber-500" 
+                          : "bg-white/60 border-amber-100/60 border-l-4 border-l-amber-500 hover:bg-white hover:border-slate-200/40"
+                        : !isRead 
+                          ? `bg-white ${cfg.borderColor} shadow-sm` 
+                          : "bg-white/60 border-transparent hover:bg-white hover:border-slate-200/40"
                     }`}
                   >
                     {/* Type Icon */}
@@ -248,10 +286,15 @@ export default function RecentUpdates() {
                     </div>
                     <div className="flex-1 min-w-0 pr-2">
                       {/* Type label + unread dot */}
-                      <div className="flex items-center gap-2 mb-0.5">
+                      <div className="flex items-center gap-2 flex-wrap mb-0.5">
                         <span className={`text-[9px] font-bold uppercase tracking-wider ${cfg.iconColor}`}>
                           {cfg.label}
                         </span>
+                        {isImportant && (
+                          <span className="text-[7.5px] font-extrabold uppercase px-1 py-0.5 rounded bg-amber-500 text-white leading-none scale-[0.9] origin-left">
+                            Important
+                          </span>
+                        )}
                         {!isRead && (
                           <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
                         )}

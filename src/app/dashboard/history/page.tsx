@@ -24,10 +24,14 @@ import {
   Search,
   RefreshCw,
   SlidersHorizontal,
+  Check,
+  X,
+  MapPin,
 } from "lucide-react";
 import Link from "next/link";
 import { useDebounce } from "@/lib/use-debounce";
 import { useSWRCache, prefetchCache } from "@/lib/swr-cache";
+import { getMandis } from "@/app/actions/mandis";
 
 interface ProcurementRecord {
   id: number;
@@ -54,6 +58,7 @@ interface ProcurementRecord {
   l3Edited?: boolean;
   createdByAdmin: boolean;
   validated: boolean;
+  mandiName?: string;
   createdAt: string;
 }
 
@@ -82,6 +87,7 @@ export default function HistoryPage() {
   // Filters
   const [selectedMonth, setSelectedMonth] = useState("");
   const [selectedAgent, setSelectedAgent] = useState("");
+  const [selectedState, setSelectedState] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [activeTab, setActiveTab] = useState<"records" | "summary">("records");
   const [selectedStatus, setSelectedStatus] = useState("");
@@ -95,12 +101,76 @@ export default function HistoryPage() {
   // Debounce search query — 400ms wait after user stops typing
   const debouncedSearch = useDebounce(searchQuery, 400, 2);
 
-  // Data via agents list (admin only)
+  // Data lists
   const [agents, setAgents] = useState<AgentOption[]>([]);
+  const [states, setStates] = useState<string[]>([]);
+  const [mandisList, setMandisList] = useState<{ state: string }[]>([]);
+
+  // Dropdown states & refs
+  const [activeDropdown, setActiveDropdown] = useState(false); // agent dropdown
+  const [agentSearch, setAgentSearch] = useState("");
+  const agentDropdownRef = useRef<HTMLDivElement>(null);
+
+  const [activeStateDropdown, setActiveStateDropdown] = useState(false);
+  const [stateSearch, setStateSearch] = useState("");
+  const stateDropdownRef = useRef<HTMLDivElement>(null);
+
+  const [activeMonthDropdown, setActiveMonthDropdown] = useState(false);
+  const monthDropdownRef = useRef<HTMLDivElement>(null);
+
+  const [activeStatusDropdown, setActiveStatusDropdown] = useState(false);
+  const statusDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Fetch states on mount
+  useEffect(() => {
+    getMandis().then((data) => {
+      setMandisList(data);
+      const uniqueStates = Array.from(new Set(data.map((m) => m.state).filter(Boolean))).sort() as string[];
+      setStates(uniqueStates);
+    }).catch(err => console.error("Error fetching states:", err));
+  }, []);
+
+  // Click outside for agent, state, month, status dropdowns
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent | TouchEvent) {
+      if (agentDropdownRef.current && !agentDropdownRef.current.contains(event.target as Node)) {
+        setActiveDropdown(false);
+      }
+      if (stateDropdownRef.current && !stateDropdownRef.current.contains(event.target as Node)) {
+        setActiveStateDropdown(false);
+      }
+      if (monthDropdownRef.current && !monthDropdownRef.current.contains(event.target as Node)) {
+        setActiveMonthDropdown(false);
+      }
+      if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target as Node)) {
+        setActiveStatusDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside, { passive: true });
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, []);
+
+  const filteredAgents = useMemo(() => {
+    if (!agentSearch) return agents;
+    return agents.filter(a => 
+      a.name.toLowerCase().includes(agentSearch.toLowerCase()) ||
+      a.roles?.some(r => r.toLowerCase().includes(agentSearch.toLowerCase()))
+    );
+  }, [agents, agentSearch]);
+
+  const filteredStates = useMemo(() => {
+    const list = states;
+    if (!stateSearch) return list;
+    return list.filter(s => s.toLowerCase().includes(stateSearch.toLowerCase()));
+  }, [states, stateSearch]);
 
   // SWR cache key based on current filters
-  const recordsCacheKey = `history-records-${selectedMonth}-${selectedAgent}-${selectedStatus}`;
-  const summaryCacheKey = `history-summary-${selectedAgent}`;
+  const recordsCacheKey = `history-records-${selectedMonth}-${selectedAgent}-${selectedStatus}-${selectedState}`;
+  const summaryCacheKey = `history-summary-${selectedAgent}-${selectedState}`;
 
   // SWR cached records — instant on repeat navigation (fetches first 15)
   const {
@@ -110,7 +180,7 @@ export default function HistoryPage() {
   } = useSWRCache<ProcurementRecord[]>(
     recordsCacheKey,
     async () => {
-      const filters: { year?: number; month?: number; agentId?: string; status?: string; limit?: number } = {};
+      const filters: { year?: number; month?: number; agentId?: string; status?: string; state?: string; limit?: number } = {};
       if (selectedMonth) {
         const [year, month] = selectedMonth.split("-").map(Number);
         filters.year = year;
@@ -118,6 +188,7 @@ export default function HistoryPage() {
       }
       if (selectedAgent) filters.agentId = selectedAgent;
       if (selectedStatus) filters.status = selectedStatus;
+      if (selectedState) filters.state = selectedState;
       filters.limit = 15;
       return await getProcurementHistory(filters);
     },
@@ -147,6 +218,7 @@ export default function HistoryPage() {
       }
       if (selectedAgent) filters.agentId = selectedAgent;
       if (selectedStatus) filters.status = selectedStatus;
+      if (selectedState) filters.state = selectedState;
       filters.limit = 15;
       filters.skip = allRecords.length;
 
@@ -193,7 +265,10 @@ export default function HistoryPage() {
     isLoading: summaryLoading,
   } = useSWRCache<MonthlySummary[]>(
     summaryCacheKey,
-    () => getMonthlySummary(selectedAgent ? { agentId: selectedAgent } : undefined),
+    () => getMonthlySummary({
+      agentId: selectedAgent || undefined,
+      state: selectedState || undefined,
+    }),
     { ttl: 60000 }
   );
 
@@ -228,7 +303,8 @@ export default function HistoryPage() {
     return allRecords.filter((r) => 
       r.slipId.toLowerCase().includes(lowerQuery) ||
       r.farmerName.toLowerCase().includes(lowerQuery) ||
-      (r.farmerCode && r.farmerCode.toLowerCase().includes(lowerQuery))
+      (r.farmerCode && r.farmerCode.toLowerCase().includes(lowerQuery)) ||
+      (r.mandiName && r.mandiName.toLowerCase().includes(lowerQuery))
     );
   }, [allRecords, debouncedSearch]);
 
@@ -328,13 +404,13 @@ export default function HistoryPage() {
             <button
               onClick={() => setShowFilters(!showFilters)}
               className={`shrink-0 w-12 h-12 flex items-center justify-center rounded-xl border transition-all relative ${
-                showFilters || selectedMonth || selectedAgent || selectedStatus
+                showFilters || selectedMonth || selectedAgent || selectedStatus || selectedState
                   ? "bg-indigo-50 text-indigo-700 border-indigo-200"
                   : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
               }`}
             >
               <SlidersHorizontal size={20} />
-              {(selectedMonth || selectedAgent || selectedStatus) && (
+              {(selectedMonth || selectedAgent || selectedStatus || selectedState) && (
                 <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-indigo-500" />
               )}
             </button>
@@ -343,81 +419,297 @@ export default function HistoryPage() {
           {/* Filters Panel */}
           {showFilters && (
             <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-4 animate-in slide-in-from-top-2 shadow-sm">
-              <div className="flex flex-col md:flex-row gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* Month Filter */}
-                <div className="flex-1">
-                  <label className="block text-xs font-medium text-slate-500 mb-1.5">
-                    <Calendar size={12} className="inline mr-1" />
+                <div className="flex-1 relative" ref={monthDropdownRef}>
+                  <label className="block text-xs font-medium text-slate-500 mb-1.5 flex items-center gap-1">
+                    <Calendar size={12} className="text-slate-400" />
                     Filter by Month
                   </label>
-                  <select
-                    value={selectedMonth}
-                    onChange={(e) => setSelectedMonth(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 
-                      text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 
-                      focus:border-indigo-500 transition-all appearance-none"
-                  >
-                    <option value="">All Months</option>
-                    {monthOptions.map((opt) => (
-                      <option key={opt.key} value={opt.key}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <Calendar size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    <input
+                      readOnly
+                      value={selectedMonth ? (monthOptions.find(opt => opt.key === selectedMonth)?.label || "") : "All Months"}
+                      onClick={() => setActiveMonthDropdown(!activeMonthDropdown)}
+                      className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-800 focus:outline-none focus:ring-2 focus:border-indigo-500 focus:ring-indigo-500/30 focus:bg-white transition-all text-sm font-semibold cursor-pointer"
+                    />
+                    {selectedMonth && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedMonth("");
+                          setActiveMonthDropdown(false);
+                        }}
+                        className="absolute right-8 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 active:scale-95 transition-all"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                    <ChevronDown size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  </div>
+                  {activeMonthDropdown && (
+                    <div className="absolute top-full mt-1.5 left-0 z-50 w-full bg-white border border-slate-100 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-1.5 duration-200">
+                      <div className="max-h-48 overflow-y-auto p-1.5 space-y-0.5">
+                        <div
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setSelectedMonth("");
+                            setActiveMonthDropdown(false);
+                          }}
+                          className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer transition-colors ${!selectedMonth ? 'bg-indigo-50 text-indigo-700 font-bold' : 'text-slate-600 hover:bg-slate-50 font-medium'}`}
+                        >
+                          <span className="text-sm">All Months</span>
+                          {!selectedMonth && <Check size={14} className="text-indigo-600" />}
+                        </div>
+                        {monthOptions.map((opt) => (
+                          <div
+                            key={opt.key}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              setSelectedMonth(opt.key);
+                              setActiveMonthDropdown(false);
+                            }}
+                            className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer transition-colors ${selectedMonth === opt.key ? 'bg-indigo-50 text-indigo-700 font-bold' : 'text-slate-600 hover:bg-slate-50 font-medium'}`}
+                          >
+                            <span className="text-sm">{opt.label}</span>
+                            {selectedMonth === opt.key && <Check size={14} className="text-indigo-600" />}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* State Filter */}
+                <div className="flex-1 relative" ref={stateDropdownRef}>
+                  <label className="block text-xs font-medium text-slate-500 mb-1.5 flex items-center gap-1">
+                    <MapPin size={12} className="text-slate-400" />
+                    Filter by State
+                  </label>
+                  <div className="relative">
+                    <MapPin size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    <input
+                      value={activeStateDropdown ? stateSearch : (selectedState || "")}
+                      onChange={(e) => {
+                        setStateSearch(e.target.value);
+                        setActiveStateDropdown(true);
+                      }}
+                      onFocus={() => {
+                        setStateSearch("");
+                        setActiveStateDropdown(true);
+                      }}
+                      placeholder="Search and select state..."
+                      className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-indigo-500 focus:ring-indigo-500/30 focus:bg-white transition-all text-sm font-semibold cursor-pointer"
+                    />
+                    {selectedState && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedState("");
+                          setStateSearch("");
+                          setActiveStateDropdown(false);
+                        }}
+                        className="absolute right-8 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 active:scale-95 transition-all"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                    <ChevronDown size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  </div>
+                  {activeStateDropdown && (
+                    <div className="absolute top-full mt-1.5 left-0 z-50 w-full bg-white border border-slate-100 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-1.5 duration-200">
+                      <div className="max-h-48 overflow-y-auto p-1.5 space-y-0.5">
+                        <div
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setSelectedState("");
+                            setStateSearch("");
+                            setActiveStateDropdown(false);
+                          }}
+                          className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer transition-colors ${!selectedState ? 'bg-indigo-50 text-indigo-700 font-bold' : 'text-slate-600 hover:bg-slate-50 font-medium'}`}
+                        >
+                          <span className="text-sm">All States</span>
+                          {!selectedState && <Check size={14} className="text-indigo-600" />}
+                        </div>
+                        {filteredStates.length === 0 ? (
+                          <div className="px-3.5 py-2.5 text-xs text-slate-400 text-center">No states found</div>
+                        ) : (
+                          filteredStates.map((s) => (
+                            <div
+                              key={s}
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                setSelectedState(s);
+                                setStateSearch(s);
+                                setActiveStateDropdown(false);
+                              }}
+                              className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer transition-colors ${selectedState === s ? 'bg-indigo-50 text-indigo-700 font-bold' : 'text-slate-600 hover:bg-slate-50 font-medium'}`}
+                            >
+                              <span className="text-sm">{s}</span>
+                              {selectedState === s && <Check size={14} className="text-indigo-600" />}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Agent Filter (Admin only) */}
                 {isAdmin && (
-                  <div className="flex-1">
-                    <label className="block text-xs font-medium text-slate-500 mb-1.5">
-                      <User size={12} className="inline mr-1" />
+                  <div className="flex-1 relative" ref={agentDropdownRef}>
+                    <label className="block text-xs font-medium text-slate-500 mb-1.5 flex items-center gap-1">
+                      <User size={12} className="text-slate-400" />
                       Filter by Agent
                     </label>
-                    <select
-                      value={selectedAgent}
-                      onChange={(e) => setSelectedAgent(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 
-                        text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 
-                        focus:border-indigo-500 transition-all appearance-none"
-                    >
-                      <option value="">All Agents</option>
-                      {agents.map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.name} ({a.roles?.join(", ")})
-                        </option>
-                      ))}
-                    </select>
+                    <div className="relative">
+                      <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                      <input
+                        value={activeDropdown ? agentSearch : (agents.find(a => a.id === selectedAgent)?.name || "")}
+                        onChange={(e) => {
+                          setAgentSearch(e.target.value);
+                          setActiveDropdown(true);
+                        }}
+                        onFocus={() => {
+                          setAgentSearch("");
+                          setActiveDropdown(true);
+                        }}
+                        placeholder="Search and select agent..."
+                        className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-indigo-500 focus:ring-indigo-500/30 focus:bg-white transition-all text-sm font-semibold cursor-pointer"
+                      />
+                      {selectedAgent && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedAgent("");
+                            setAgentSearch("");
+                            setActiveDropdown(false);
+                          }}
+                          className="absolute right-8 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 active:scale-95 transition-all"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                      <ChevronDown size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    </div>
+                    {activeDropdown && (
+                      <div className="absolute top-full mt-1.5 left-0 z-50 w-full bg-white border border-slate-100 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-1.5 duration-200">
+                        <div className="max-h-48 overflow-y-auto p-1.5 space-y-0.5">
+                          <div
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              setSelectedAgent("");
+                              setAgentSearch("");
+                              setActiveDropdown(false);
+                            }}
+                            className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer transition-colors ${!selectedAgent ? 'bg-indigo-50 text-indigo-700 font-bold' : 'text-slate-600 hover:bg-slate-50 font-medium'}`}
+                          >
+                            <span className="text-sm">All Agents</span>
+                            {!selectedAgent && <Check size={14} className="text-indigo-600" />}
+                          </div>
+                          {filteredAgents.length === 0 ? (
+                            <div className="px-3.5 py-2.5 text-xs text-slate-400 text-center">No agents found</div>
+                          ) : (
+                            filteredAgents.map((a) => (
+                              <div
+                                key={a.id}
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  setSelectedAgent(a.id);
+                                  setAgentSearch(a.name);
+                                  setActiveDropdown(false);
+                                }}
+                                className={`flex items-center justify-between px-3.5 py-2 rounded-xl cursor-pointer transition-colors ${selectedAgent === a.id ? 'bg-indigo-50 text-indigo-700 font-bold' : 'text-slate-600 hover:bg-slate-50 font-medium'}`}
+                              >
+                                <div className="flex flex-col truncate pr-2">
+                                  <span className="text-sm truncate">{a.name}</span>
+                                  <span className="text-[10px] text-slate-400 font-normal truncate">{a.roles?.map(r => r.replace("_", " ")).join(", ")}</span>
+                                </div>
+                                {selectedAgent === a.id && <Check size={14} className="text-indigo-600 shrink-0" />}
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
                 {/* Status Filter */}
-                <div className="flex-1">
-                  <label className="block text-xs font-medium text-slate-500 mb-1.5">
-                    <Filter size={12} className="inline mr-1" />
+                <div className="flex-1 relative" ref={statusDropdownRef}>
+                  <label className="block text-xs font-medium text-slate-500 mb-1.5 flex items-center gap-1">
+                    <Filter size={12} className="text-slate-400" />
                     Filter by Status
                   </label>
-                  <select
-                    value={selectedStatus}
-                    onChange={(e) => setSelectedStatus(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 
-                      text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 
-                      focus:border-indigo-500 transition-all appearance-none"
-                  >
-                    <option value="">All Statuses</option>
-                    <option value="APPROVED">Approved</option>
-                    <option value="PENDING_L2">Pending Level 2</option>
-                    <option value="REJECTED_L2">Cancelled</option>
-                  </select>
+                  <div className="relative">
+                    <Filter size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    <input
+                      readOnly
+                      value={
+                        selectedStatus === "APPROVED"
+                          ? "Approved"
+                          : selectedStatus === "PENDING_L2"
+                          ? "Pending Level 2"
+                          : selectedStatus === "REJECTED_L2"
+                          ? "Cancelled"
+                          : "All Statuses"
+                      }
+                      onClick={() => setActiveStatusDropdown(!activeStatusDropdown)}
+                      className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-800 focus:outline-none focus:ring-2 focus:border-indigo-500 focus:ring-indigo-500/30 focus:bg-white transition-all text-sm font-semibold cursor-pointer"
+                    />
+                    {selectedStatus && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedStatus("");
+                          setActiveStatusDropdown(false);
+                        }}
+                        className="absolute right-8 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 active:scale-95 transition-all"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                    <ChevronDown size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  </div>
+                  {activeStatusDropdown && (
+                    <div className="absolute top-full mt-1.5 left-0 z-50 w-full bg-white border border-slate-100 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-1.5 duration-200">
+                      <div className="max-h-48 overflow-y-auto p-1.5 space-y-0.5">
+                        {[
+                          { value: "", label: "All Statuses" },
+                          { value: "APPROVED", label: "Approved" },
+                          { value: "PENDING_L2", label: "Pending Level 2" },
+                          { value: "REJECTED_L2", label: "Cancelled" },
+                        ].map((opt) => (
+                          <div
+                            key={opt.value}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              setSelectedStatus(opt.value);
+                              setActiveStatusDropdown(false);
+                            }}
+                            className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer transition-colors ${selectedStatus === opt.value ? 'bg-indigo-50 text-indigo-700 font-bold' : 'text-slate-600 hover:bg-slate-50 font-medium'}`}
+                          >
+                            <span className="text-sm">{opt.label}</span>
+                            {selectedStatus === opt.value && <Check size={14} className="text-indigo-600" />}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Clear Filters */}
-              {(selectedMonth || selectedAgent || selectedStatus) && (
+              {(selectedMonth || selectedAgent || selectedStatus || selectedState) && (
                 <button
                   onClick={() => {
                     setSelectedMonth("");
                     setSelectedAgent("");
                     setSelectedStatus("");
+                    setSelectedState("");
                   }}
                   className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 underline transition-colors"
                 >

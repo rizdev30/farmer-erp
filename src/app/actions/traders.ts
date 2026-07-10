@@ -1,7 +1,7 @@
 "use server";
 
 import prisma from "@/lib/prisma";
-import { generateFarmerCode, getSessionUser } from "./farmers";
+import { generateFarmerCode, getSessionUser, notifyL2OnRegistration } from "./farmers";
 import { logAuditAction } from "@/lib/logger";
 
 export async function registerTrader(data: {
@@ -125,6 +125,16 @@ export async function registerTrader(data: {
     });
 
     await logAuditAction(user.userId, "TRADER_REGISTERED", `Registered trader ${trader.name} (${trader.traderCode})`);
+
+    // Trigger notification for L2 approvers of this region
+    await notifyL2OnRegistration(
+      "TRADER",
+      trader.name,
+      trader.traderCode,
+      trader.state,
+      trader.town,
+      user.userName
+    );
 
     return {
       success: true,

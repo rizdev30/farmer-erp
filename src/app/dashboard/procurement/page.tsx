@@ -576,6 +576,7 @@ export default function ProcurementPage() {
       } else {
         invalidateCache("dashboard-*");
         invalidateCache("history-*");
+        invalidateCache("notifications");
         prefetchCache("dashboard-stats", () => getDashboardStats());
         prefetchCache("history-records---", () => getProcurementHistory({}));
       }
