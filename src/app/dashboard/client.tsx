@@ -1305,33 +1305,33 @@ export default function DashboardClient({ initialStats, initialVarietyStats, ini
               <p className="text-xs text-slate-400">Tap a variety to filter detailed records</p>
             </div>
           </div>
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl self-start sm:self-auto">
+          <div className="flex items-center gap-2 self-start sm:self-auto">
             <button
               onClick={() => setCropCategoryFilter("ALL")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all duration-200 ${
                 cropCategoryFilter === "ALL"
-                  ? "bg-forest-800 text-white shadow-sm"
-                  : "text-slate-600 hover:text-slate-800"
+                  ? "bg-forest-700 text-white shadow-md font-bold hover:bg-forest-800"
+                  : "bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold"
               }`}
             >
               All Crops
             </button>
             <button
               onClick={() => setCropCategoryFilter("BASMATI")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all duration-200 ${
                 cropCategoryFilter === "BASMATI"
-                  ? "bg-forest-800 text-white shadow-sm"
-                  : "text-slate-600 hover:text-slate-800"
+                  ? "bg-forest-700 text-white shadow-md font-bold hover:bg-forest-800"
+                  : "bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold"
               }`}
             >
               Basmati
             </button>
             <button
               onClick={() => setCropCategoryFilter("NON_BASMATI")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all duration-200 ${
                 cropCategoryFilter === "NON_BASMATI"
-                  ? "bg-forest-800 text-white shadow-sm"
-                  : "text-slate-600 hover:text-slate-800"
+                  ? "bg-forest-700 text-white shadow-md font-bold hover:bg-forest-800"
+                  : "bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold"
               }`}
             >
               Non-Basmati
