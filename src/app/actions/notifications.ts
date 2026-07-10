@@ -57,12 +57,17 @@ export async function getNotifications() {
     };
 
     if (!isAdmin) {
+      // Non-admin users see notifications that are:
+      // 1. Directly assigned to them (userId matches)
+      // 2. Targeted at ANY role they possess (targetRole matches one of their roles)
+      // 3. Broadcast to everyone (both userId and targetRole are null)
       where.OR = [
-        { userId: user.userId }, // directly assigned to user
-        { targetRole: { in: user.roles } }, // targeted at a role they possess
+        { userId: user.userId },                        // directly assigned to user
+        { targetRole: { in: user.roles } },             // targeted at a role they possess
         { AND: [{ userId: null }, { targetRole: null }] } // broadcast to everyone
       ];
     }
+    // Admins see all notifications (no additional filter)
 
     const notifications = await prisma.notification.findMany({
       where,
@@ -97,7 +102,6 @@ export async function markAsRead(notificationId: string) {
       });
     }
 
-    revalidatePath("/dashboard");
     return { success: true };
   } catch (error: any) {
     console.error("Failed to mark notification as read:", error);
@@ -130,18 +134,22 @@ export async function markAllAsRead() {
       select: { id: true, readBy: true },
     });
 
-    for (const notif of unreadNotifications) {
-      await prisma.notification.update({
-        where: { id: notif.id },
-        data: {
-          readBy: {
-            set: [...notif.readBy, user.userId],
-          },
-        },
-      });
+    // Use Promise.all for faster batch update
+    if (unreadNotifications.length > 0) {
+      await Promise.all(
+        unreadNotifications.map((notif) =>
+          prisma.notification.update({
+            where: { id: notif.id },
+            data: {
+              readBy: {
+                set: [...notif.readBy, user.userId],
+              },
+            },
+          })
+        )
+      );
     }
 
-    revalidatePath("/dashboard");
     return { success: true };
   } catch (error: any) {
     console.error("Failed to mark all notifications as read:", error);

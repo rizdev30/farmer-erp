@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useTransition, useCallback } from "react";
 import { 
   Bell, 
   CheckCircle2, 
@@ -9,7 +9,8 @@ import {
   FileText, 
   ChevronRight, 
   Clock, 
-  X 
+  X,
+  UserPlus
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getNotifications, markAsRead } from "@/app/actions/notifications";
@@ -44,6 +45,60 @@ function parseBoldText(text: string) {
   });
 }
 
+// Notification type config — each type gets a distinct icon, color, and label
+function getNotifConfig(type: string) {
+  switch (type) {
+    case "PROCUREMENT_CREATED":
+      return {
+        icon: <ShoppingCart size={14} strokeWidth={2.2} />,
+        iconBg: "bg-amber-100",
+        iconColor: "text-amber-600",
+        borderColor: "border-amber-200/60",
+        label: "New Procurement",
+      };
+    case "PROCUREMENT_APPROVED":
+      return {
+        icon: <CheckCircle2 size={14} strokeWidth={2.2} />,
+        iconBg: "bg-emerald-100",
+        iconColor: "text-emerald-600",
+        borderColor: "border-emerald-200/60",
+        label: "Approved",
+      };
+    case "PROCUREMENT_APPROVED_TO_PO":
+      return {
+        icon: <FileText size={14} strokeWidth={2.2} />,
+        iconBg: "bg-indigo-100",
+        iconColor: "text-indigo-600",
+        borderColor: "border-indigo-200/60",
+        label: "Ready for PO",
+      };
+    case "PROCUREMENT_CANCELLED":
+      return {
+        icon: <XCircle size={14} strokeWidth={2.2} />,
+        iconBg: "bg-red-100",
+        iconColor: "text-red-600",
+        borderColor: "border-red-200/60",
+        label: "Cancelled",
+      };
+    case "FARMER_ADDED":
+      return {
+        icon: <UserPlus size={14} strokeWidth={2.2} />,
+        iconBg: "bg-blue-100",
+        iconColor: "text-blue-600",
+        borderColor: "border-blue-200/60",
+        label: "New Registration",
+      };
+    default:
+      return {
+        icon: <Bell size={14} strokeWidth={2.2} />,
+        iconBg: "bg-slate-100",
+        iconColor: "text-slate-500",
+        borderColor: "border-slate-200/60",
+        label: "Update",
+      };
+  }
+}
+
 export default function RecentUpdates() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -51,7 +106,7 @@ export default function RecentUpdates() {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
-  const fetchNotifs = async () => {
+  const fetchNotifs = useCallback(async () => {
     try {
       const res = await getNotifications();
       if (res.success && res.notifications) {
@@ -60,7 +115,7 @@ export default function RecentUpdates() {
     } catch (err) {
       console.error("Error fetching updates:", err);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetch("/api/auth/session")
@@ -73,9 +128,10 @@ export default function RecentUpdates() {
       .catch((err) => console.error("Session error:", err));
 
     fetchNotifs();
-    const interval = setInterval(fetchNotifs, 12000);
+    // Poll every 10 seconds for real-time updates
+    const interval = setInterval(fetchNotifs, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchNotifs]);
 
   const handleItemClick = async (notif: any) => {
     if (currentUserId && !notif.readBy.includes(currentUserId)) {
@@ -88,44 +144,14 @@ export default function RecentUpdates() {
     }
   };
 
-  const getIconConfig = (type: string) => {
-    switch (type) {
-      case "PROCUREMENT_CREATED":
-        return {
-          icon: <ShoppingCart size={15} />,
-          bg: "bg-amber-50 border border-amber-100/50 text-amber-600",
-        };
-      case "PROCUREMENT_APPROVED":
-        return {
-          icon: <CheckCircle2 size={15} />,
-          bg: "bg-emerald-50 border border-emerald-100/50 text-emerald-600",
-        };
-      case "PROCUREMENT_APPROVED_TO_PO":
-        return {
-          icon: <FileText size={15} />,
-          bg: "bg-indigo-50 border border-indigo-100/50 text-indigo-600",
-        };
-      case "PROCUREMENT_CANCELLED":
-        return {
-          icon: <XCircle size={15} />,
-          bg: "bg-red-50 border border-red-100/50 text-red-600",
-        };
-      default:
-        return {
-          icon: <Bell size={15} />,
-          bg: "bg-slate-50 border border-slate-100/50 text-slate-600",
-        };
-    }
-  };
-
   // Only display the latest 4 updates in the sidebar card
   const sidebarNotifs = notifications.slice(0, 4);
 
   return (
     <>
-      <div className="glass-card rounded-2xl p-5 flex flex-col gap-4 w-full border border-slate-200/40">
+      <div className="glass-card rounded-2xl p-5 flex flex-col gap-3 w-full border border-slate-200/40">
         {/* Header */}
-        <div className="flex items-center justify-between pb-1">
+        <div className="flex items-center justify-between">
           <h3 className="font-bold text-slate-800 text-[15px] tracking-tight">Recent Updates</h3>
           {notifications.length > 0 && (
             <button 
@@ -138,7 +164,7 @@ export default function RecentUpdates() {
         </div>
 
         {/* List of Updates */}
-        <div className="flex flex-col gap-3.5">
+        <div className="flex flex-col gap-2">
           {notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-center bg-slate-50/50 rounded-xl border border-dashed border-slate-200/60 p-4">
               <Bell size={18} className="text-slate-300 mb-1.5" />
@@ -147,29 +173,37 @@ export default function RecentUpdates() {
             </div>
           ) : (
             sidebarNotifs.map((notif) => {
-              const cfg = getIconConfig(notif.type);
+              const cfg = getNotifConfig(notif.type);
               const isRead = currentUserId ? notif.readBy.includes(currentUserId) : true;
               return (
                 <div
                   key={notif.id}
                   onClick={() => handleItemClick(notif)}
-                  className={`flex items-start gap-3 p-2.5 rounded-xl transition-all duration-150 cursor-pointer border ${
+                  className={`flex items-start gap-2.5 p-2.5 rounded-xl transition-all duration-150 cursor-pointer border ${
                     !isRead 
-                      ? "bg-indigo-50/15 border-indigo-100/40 hover:bg-indigo-50/30" 
-                      : "bg-white/40 border-transparent hover:bg-slate-50/50"
+                      ? `bg-white ${cfg.borderColor} shadow-sm` 
+                      : "bg-slate-50/60 border-slate-100/60 hover:bg-white hover:border-slate-200/40"
                   }`}
                 >
-                  <div className={`shrink-0 w-8.5 h-8.5 rounded-xl flex items-center justify-center ${cfg.bg}`}>
+                  {/* Type Icon */}
+                  <div className={`shrink-0 w-8 h-8 rounded-lg ${cfg.iconBg} ${cfg.iconColor} flex items-center justify-center`}>
                     {cfg.icon}
                   </div>
                   <div className="flex-1 min-w-0 pr-1">
-                    <p className="text-[11px] text-slate-600 leading-snug break-words">
+                    {/* Type label */}
+                    <span className={`text-[8px] font-bold uppercase tracking-wider ${cfg.iconColor} leading-none`}>
+                      {cfg.label}
+                    </span>
+                    <p className="text-[11px] text-slate-600 leading-snug break-words mt-0.5">
                       {parseBoldText(notif.message)}
                     </p>
                     <span className="text-[9px] text-slate-400 font-medium block mt-1">
                       {formatTimeAgo(notif.createdAt)}
                     </span>
                   </div>
+                  {!isRead && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0 mt-2.5" />
+                  )}
                 </div>
               );
             })
@@ -181,48 +215,54 @@ export default function RecentUpdates() {
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 no-print overflow-y-auto">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm backdrop-fade" onClick={() => setIsModalOpen(false)} />
-          <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl p-5 md:p-6 modal-spring my-8 flex flex-col max-h-[85vh]">
+          <div className="relative w-full max-w-lg bg-[#f2f2f7] rounded-3xl shadow-2xl modal-spring my-8 flex flex-col max-h-[85vh] overflow-hidden">
             {/* Header */}
-            <div className="flex justify-between items-center border-b pb-3 mb-4">
-              <div>
-                <h3 className="text-sm font-bold text-slate-800">All Updates (Today)</h3>
-                <p className="text-[10px] text-slate-400 font-medium">Activity logs for the last 24 hours</p>
-              </div>
+            <div className="flex justify-between items-center px-5 py-4 bg-white/80 backdrop-blur-sm border-b border-slate-200/60 shrink-0">
+              <h3 className="text-[15px] font-bold text-slate-800">All Updates</h3>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 rounded-lg transition-colors"
               >
                 <X size={18} />
               </button>
             </div>
 
             {/* Content List */}
-            <div className="flex-1 overflow-y-auto divide-y divide-slate-100 pr-1">
+            <div className="flex-1 overflow-y-auto p-3 space-y-2">
               {notifications.map((notif) => {
-                const cfg = getIconConfig(notif.type);
+                const cfg = getNotifConfig(notif.type);
                 const isRead = currentUserId ? notif.readBy.includes(currentUserId) : true;
                 return (
                   <div
                     key={notif.id}
                     onClick={() => handleItemClick(notif)}
-                    className={`flex gap-3.5 py-3 hover:bg-slate-50/50 px-2.5 rounded-xl cursor-pointer transition-colors relative ${
-                      !isRead ? "bg-indigo-50/20" : ""
+                    className={`flex gap-3 p-3 rounded-2xl cursor-pointer transition-all duration-150 active:scale-[0.98] border ${
+                      !isRead 
+                        ? `bg-white ${cfg.borderColor} shadow-sm` 
+                        : "bg-white/60 border-transparent hover:bg-white hover:border-slate-200/40"
                     }`}
                   >
-                    <div className={`shrink-0 w-9 h-9 rounded-xl flex items-center justify-center ${cfg.bg}`}>
+                    {/* Type Icon */}
+                    <div className={`shrink-0 w-9 h-9 rounded-xl ${cfg.iconBg} ${cfg.iconColor} flex items-center justify-center`}>
                       {cfg.icon}
                     </div>
-                    <div className="flex-1 min-w-0 pr-4">
+                    <div className="flex-1 min-w-0 pr-2">
+                      {/* Type label + unread dot */}
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className={`text-[9px] font-bold uppercase tracking-wider ${cfg.iconColor}`}>
+                          {cfg.label}
+                        </span>
+                        {!isRead && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
+                        )}
+                      </div>
                       <p className="text-xs text-slate-600 leading-relaxed">
                         {parseBoldText(notif.message)}
                       </p>
-                      <span className="text-[9.5px] text-slate-400 font-medium block mt-1.5 font-mono">
+                      <span className="text-[9.5px] text-slate-400 font-medium block mt-1 font-mono">
                         {formatTimeAgo(notif.createdAt)}
                       </span>
                     </div>
-                    {!isRead && (
-                      <div className="absolute right-3.5 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-indigo-600" />
-                    )}
                   </div>
                 );
               })}

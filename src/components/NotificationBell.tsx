@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { 
   Bell, 
   CheckCircle2, 
@@ -10,7 +10,9 @@ import {
   FileText, 
   Check, 
   Eye,
-  BellOff
+  BellOff,
+  UserPlus,
+  X
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getNotifications, markAsRead, markAllAsRead } from "@/app/actions/notifications";
@@ -34,42 +36,90 @@ function formatTimeAgo(dateStr: string) {
   return `${days}d ago`;
 }
 
+// Notification type config — each type gets a distinct icon, color, and label
+function getNotifConfig(type: string) {
+  switch (type) {
+    case "PROCUREMENT_CREATED":
+      return {
+        icon: <ShoppingCart size={15} strokeWidth={2.2} />,
+        iconBg: "bg-amber-100",
+        iconColor: "text-amber-600",
+        borderColor: "border-amber-200/60",
+        label: "New Procurement",
+      };
+    case "PROCUREMENT_APPROVED":
+      return {
+        icon: <CheckCircle2 size={15} strokeWidth={2.2} />,
+        iconBg: "bg-emerald-100",
+        iconColor: "text-emerald-600",
+        borderColor: "border-emerald-200/60",
+        label: "Approved",
+      };
+    case "PROCUREMENT_APPROVED_TO_PO":
+      return {
+        icon: <FileText size={15} strokeWidth={2.2} />,
+        iconBg: "bg-indigo-100",
+        iconColor: "text-indigo-600",
+        borderColor: "border-indigo-200/60",
+        label: "Ready for PO",
+      };
+    case "PROCUREMENT_CANCELLED":
+      return {
+        icon: <XCircle size={15} strokeWidth={2.2} />,
+        iconBg: "bg-red-100",
+        iconColor: "text-red-600",
+        borderColor: "border-red-200/60",
+        label: "Cancelled",
+      };
+    case "FARMER_ADDED":
+      return {
+        icon: <UserPlus size={15} strokeWidth={2.2} />,
+        iconBg: "bg-blue-100",
+        iconColor: "text-blue-600",
+        borderColor: "border-blue-200/60",
+        label: "New Registration",
+      };
+    default:
+      return {
+        icon: <Bell size={15} strokeWidth={2.2} />,
+        iconBg: "bg-slate-100",
+        iconColor: "text-slate-500",
+        borderColor: "border-slate-200/60",
+        label: "Update",
+      };
+  }
+}
+
 export default function NotificationBell() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [isOpen, setIsOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
   const popoverRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   // Load and poll notifications
-  const fetchNotifs = async () => {
+  const fetchNotifs = useCallback(async () => {
     try {
       const res = await getNotifications();
       if (res.success && res.notifications) {
         setNotifications(res.notifications);
-        // Find how many don't have current user ID in readBy array
-        // We'll obtain user session details or rely on local storage / backend filter
-        // Since getNotifications only returns notifications readable by the user,
-        // we can count how many don't have the user's ID in readBy.
-        // Wait, to know the user's ID, we can fetch it once or rely on the count 
-        // determined on client side or backend.
-        // Actually, we can get the user's ID from the session or just parse readBy.
-        // Wait! Let's check: the server action return includes notifications.
-        // Let's check how many are unread. But we need the current user's ID!
-        // We can fetch the user ID from the session on load, or we can add a flag 
-        // in the notification objects from the backend, or check client session.
-        // Let's get the session from NextAuth or parse the user ID from a meta tag / session.
-        // Wait, a very simple way is to check the user ID by calling a session check or checking
-        // if readBy array on client matches a key.
-        // Let's see: we can query the session directly, or getNotifications can return the unread count
-        // or a list of notifications already marked with a boolean field `isRead`.
-        // That is even simpler! Let's modify getNotifications in `src/app/actions/notifications.ts` 
-        // to return `isRead` on each notification!
       }
     } catch (err) {
       console.error("Error fetching notifications:", err);
     }
-  };
+  }, []);
+
+  // Get current user ID from session
+  useEffect(() => {
+    fetch("/api/auth/session")
+      .then((res) => res.json())
+      .then((session) => {
+        if (session?.user?.id) {
+          setCurrentUserId(session.user.id);
+        }
+      })
+      .catch((err) => console.error("Session fetch error:", err));
+  }, []);
 
   // Click outside listener
   useEffect(() => {
@@ -82,34 +132,20 @@ export default function NotificationBell() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Poll every 12 seconds
+  // Poll every 10 seconds for real-time updates
   useEffect(() => {
     fetchNotifs();
-    const interval = setInterval(fetchNotifs, 12000);
+    const interval = setInterval(fetchNotifs, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchNotifs]);
 
-  // Compute unread count based on readBy array
+  // Lock body scroll when open on mobile
   useEffect(() => {
-    // To identify if unread, we need the user's session ID.
-    // Let's fetch the session or decode the client session.
-    // Alternatively, let's just count notifications where the user hasn't read it.
-    // We can fetch user id via session.
-  }, [notifications]);
-
-  // Let's find current user from the session
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetch("/api/auth/session")
-      .then((res) => res.json())
-      .then((session) => {
-        if (session?.user?.id) {
-          setCurrentUserId(session.user.id);
-        }
-      })
-      .catch((err) => console.error("Session fetch error:", err));
-  }, []);
+    if (isOpen && window.innerWidth < 640) {
+      document.body.style.overflow = "hidden";
+      return () => { document.body.style.overflow = ""; };
+    }
+  }, [isOpen]);
 
   const unreadNotifs = notifications.filter(
     (n) => currentUserId && !n.readBy.includes(currentUserId)
@@ -133,113 +169,117 @@ export default function NotificationBell() {
     fetchNotifs();
   };
 
-  const getNotifIcon = (type: string) => {
-    switch (type) {
-      case "PROCUREMENT_CREATED":
-        return (
-          <div className="w-8 h-8 rounded-full bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 shrink-0">
-            <ShoppingCart size={15} />
-          </div>
-        );
-      case "PROCUREMENT_APPROVED":
-        return (
-          <div className="w-8 h-8 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
-            <CheckCircle2 size={15} />
-          </div>
-        );
-      case "PROCUREMENT_APPROVED_TO_PO":
-        return (
-          <div className="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
-            <FileText size={15} />
-          </div>
-        );
-      case "PROCUREMENT_CANCELLED":
-        return (
-          <div className="w-8 h-8 rounded-full bg-red-50 border border-red-100 flex items-center justify-center text-red-600 shrink-0">
-            <XCircle size={15} />
-          </div>
-        );
-      default:
-        return (
-          <div className="w-8 h-8 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-600 shrink-0">
-            <Bell size={15} />
-          </div>
-        );
-    }
-  };
-
   return (
     <div className="relative" ref={popoverRef}>
-      {/* Bell Button */}
+      {/* Bell Button — compact on mobile, blends with header */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-800 transition-all duration-200 active:scale-95 shadow-sm"
+        className="relative p-1.5 sm:p-2 rounded-lg sm:rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100/60 active:bg-slate-100 transition-all duration-150 active:scale-95"
         aria-label="Notifications"
+        style={{ minHeight: "36px", minWidth: "36px" }}
       >
-        <Bell size={19} className={count > 0 ? "animate-wiggle" : ""} />
+        <Bell size={18} className={count > 0 ? "animate-wiggle" : ""} />
         {count > 0 && (
-          <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-white animate-fade-in shadow-sm">
+          <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white ring-1.5 ring-white shadow-sm"
+            style={{ lineHeight: 1 }}
+          >
             {count > 9 ? "9+" : count}
           </span>
         )}
       </button>
 
-      {/* Popover Dropdown */}
+      {/* Backdrop for mobile */}
       {isOpen && (
-        <div className="absolute right-0 mt-2.5 w-[340px] sm:w-[380px] bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/80 shadow-xl z-50 overflow-hidden animate-slide-up origin-top-right">
+        <div 
+          className="fixed inset-0 bg-black/30 backdrop-blur-[2px] z-40 sm:hidden backdrop-fade" 
+          onClick={() => setIsOpen(false)} 
+        />
+      )}
+
+      {/* Popover Dropdown — full-width sheet on mobile, positioned dropdown on desktop */}
+      {isOpen && (
+        <div 
+          className="
+            fixed inset-x-0 top-0 sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto
+            sm:mt-2 z-50
+            w-full sm:w-[380px]
+            bg-white sm:bg-white sm:backdrop-blur-md 
+            sm:rounded-2xl sm:border sm:border-slate-200/80 sm:shadow-xl
+            overflow-hidden animate-slide-up sm:origin-top-right
+            max-h-[100dvh] sm:max-h-[75vh]
+            flex flex-col
+          "
+          style={{ paddingTop: "env(safe-area-inset-top)" }}
+        >
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-100 bg-slate-50/50">
-            <div>
-              <h3 className="font-bold text-slate-800 text-sm">Notifications</h3>
-              <p className="text-[10px] text-slate-400 font-medium">Updates from the last 24h</p>
-            </div>
-            {count > 0 && (
+          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 shrink-0">
+            <h3 className="font-bold text-slate-800 text-[15px]">Notifications</h3>
+            <div className="flex items-center gap-2">
+              {count > 0 && (
+                <button
+                  onClick={handleMarkAllRead}
+                  className="text-[11px] font-semibold text-forest-600 hover:text-forest-700 px-2 py-1 rounded-lg transition-colors flex items-center gap-1"
+                >
+                  <Check size={12} />
+                  Read all
+                </button>
+              )}
+              {/* Close button for mobile */}
               <button
-                onClick={handleMarkAllRead}
-                className="text-[11px] font-bold text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100/80 px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1"
+                onClick={() => setIsOpen(false)}
+                className="sm:hidden p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 rounded-lg transition-colors"
               >
-                <Check size={12} />
-                Mark all read
+                <X size={18} />
               </button>
-            )}
+            </div>
           </div>
 
           {/* List */}
-          <div className="max-h-[360px] overflow-y-auto divide-y divide-slate-50">
+          <div className="flex-1 overflow-y-auto overscroll-contain p-2.5 sm:p-3 space-y-2 bg-[#f5f5f7]">
             {notifications.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
-                <div className="w-12 h-12 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-300 mb-3">
-                  <BellOff size={20} />
+              <div className="flex flex-col items-center justify-center py-14 px-4 text-center">
+                <div className="w-11 h-11 rounded-full bg-slate-100 flex items-center justify-center text-slate-300 mb-2.5">
+                  <BellOff size={18} />
                 </div>
-                <p className="text-xs font-semibold text-slate-600">All caught up!</p>
-                <p className="text-[10px] text-slate-400 mt-0.5">No notifications in the last 24 hours.</p>
+                <p className="text-xs font-semibold text-slate-500">All caught up!</p>
+                <p className="text-[10px] text-slate-400 mt-0.5">No new notifications.</p>
               </div>
             ) : (
               notifications.map((notif) => {
                 const isRead = currentUserId ? notif.readBy.includes(currentUserId) : true;
+                const cfg = getNotifConfig(notif.type);
                 return (
                   <div
                     key={notif.id}
                     onClick={() => handleNotificationClick(notif)}
-                    className={`flex gap-3 p-3.5 hover:bg-slate-50/80 cursor-pointer transition-all duration-150 relative ${
-                      !isRead ? "bg-indigo-50/20" : ""
+                    className={`flex gap-3 p-3 rounded-2xl cursor-pointer transition-all duration-150 active:scale-[0.98] border ${
+                      !isRead 
+                        ? `bg-white ${cfg.borderColor} shadow-sm` 
+                        : "bg-white/60 border-transparent hover:bg-white hover:border-slate-200/40"
                     }`}
                   >
-                    {/* Unread Blue Dot */}
-                    {!isRead && (
-                      <div className="absolute right-3.5 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-indigo-600" />
-                    )}
+                    {/* Type Icon */}
+                    <div className={`w-9 h-9 rounded-xl ${cfg.iconBg} ${cfg.iconColor} flex items-center justify-center shrink-0`}>
+                      {cfg.icon}
+                    </div>
 
-                    {getNotifIcon(notif.type)}
-
-                    <div className="flex-1 pr-4 min-w-0">
-                      <p className="text-xs font-bold text-slate-800 leading-tight">
+                    <div className="flex-1 min-w-0 pr-1">
+                      {/* Type label */}
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className={`text-[9px] font-bold uppercase tracking-wider ${cfg.iconColor}`}>
+                          {cfg.label}
+                        </span>
+                        {!isRead && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
+                        )}
+                      </div>
+                      <p className="text-[11.5px] font-medium text-slate-700 leading-snug">
                         {notif.title}
                       </p>
-                      <p className="text-[11px] text-slate-600 mt-0.5 leading-snug">
+                      <p className="text-[10.5px] text-slate-500 mt-0.5 leading-snug line-clamp-2">
                         {notif.message}
                       </p>
-                      <span className="text-[9px] text-slate-400 font-medium block mt-1.5 font-mono">
+                      <span className="text-[9px] text-slate-400 font-medium block mt-1 font-mono">
                         {formatTimeAgo(notif.createdAt)}
                       </span>
                     </div>
@@ -248,6 +288,9 @@ export default function NotificationBell() {
               })
             )}
           </div>
+
+          {/* Safe area bottom padding on mobile */}
+          <div className="sm:hidden" style={{ paddingBottom: "env(safe-area-inset-bottom)" }} />
         </div>
       )}
     </div>

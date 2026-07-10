@@ -281,15 +281,27 @@ export async function createProcurement(
 
     await logAuditAction(user.userId, "PROCUREMENT_CREATED", `Created procurement slip ${slipId} for farmer ${data.farmerName}`);
 
-    // Create Notification for Level 2 Approvers
+    // Create Notification for Level 2 Approvers and L4 Admin
     try {
       await prisma.notification.create({
         data: {
           title: "New Approval Required",
-          message: `A procurement list has arrived from L1 agent **${user.userName}** for approval.`,
+          message: `A new procurement list **${slipId}** has arrived from L1 agent **${user.userName}** for approval.`,
           type: "PROCUREMENT_CREATED",
           link: `/dashboard/history/${slipId}`,
           targetRole: "L2_APPROVAL",
+          senderName: user.userName,
+        },
+      });
+
+      // Notify L4 Admin about new procurement
+      await prisma.notification.create({
+        data: {
+          title: "New Procurement Created",
+          message: `L1 agent **${user.userName}** created procurement **${slipId}** for farmer **${data.farmerName}**.`,
+          type: "PROCUREMENT_CREATED",
+          link: `/dashboard/history/${slipId}`,
+          targetRole: "L4_ADMIN",
           senderName: user.userName,
         },
       });
@@ -828,7 +840,7 @@ export async function updateProcurementStatus(
   // Create Notifications on Approval Status Change
   try {
     if (action === "L2_APPROVE") {
-      // 1. Notify L1 Agent
+      // 1. Notify L1 Agent that their slip was approved
       await prisma.notification.create({
         data: {
           title: "Procurement Approved",
@@ -840,26 +852,98 @@ export async function updateProcurementStatus(
         },
       });
 
-      // 2. Notify L3 PO Makers
+      // 2. Notify L3 PO Makers that a new approved slip is ready
       await prisma.notification.create({
         data: {
           title: "New Approved Procurement",
-          message: `A new approved procurement list has arrived from L2 approver **${user.userName}** for PO creation.`,
+          message: `A new approved procurement list **${slipId}** has arrived from L2 approver **${user.userName}** for PO creation.`,
           type: "PROCUREMENT_APPROVED_TO_PO",
           link: `/dashboard/history/${slipId}`,
           targetRole: "L3_PO_MAKER",
           senderName: user.userName,
         },
       });
+
+      // 3. Notify L4 Admin about the approval
+      await prisma.notification.create({
+        data: {
+          title: "Slip Approved by L2",
+          message: `Procurement **${slipId}** was approved by L2 approver **${user.userName}**.`,
+          type: "PROCUREMENT_APPROVED",
+          link: `/dashboard/history/${slipId}`,
+          targetRole: "L4_ADMIN",
+          senderName: user.userName,
+        },
+      });
     } else if (action === "L2_REJECT") {
-      // Notify L1 Agent
+      // 1. Notify L1 Agent that their slip was cancelled
       await prisma.notification.create({
         data: {
           title: "Procurement Cancelled",
-          message: `Your procurement list **${slipId}** has been canceled by L2 approver **${user.userName}**.`,
+          message: `Your procurement list **${slipId}** has been cancelled by L2 approver **${user.userName}**.`,
           type: "PROCUREMENT_CANCELLED",
           link: `/dashboard/history/${slipId}`,
           userId: procurement.agentId,
+          senderName: user.userName,
+        },
+      });
+
+      // 2. Notify L4 Admin about the cancellation
+      await prisma.notification.create({
+        data: {
+          title: "Slip Cancelled by L2",
+          message: `Procurement **${slipId}** was cancelled by L2 approver **${user.userName}**.`,
+          type: "PROCUREMENT_CANCELLED",
+          link: `/dashboard/history/${slipId}`,
+          targetRole: "L4_ADMIN",
+          senderName: user.userName,
+        },
+      });
+    } else if (action === "L3_APPROVE") {
+      // 1. Notify L1 Agent
+      await prisma.notification.create({
+        data: {
+          title: "Procurement Fully Approved",
+          message: `Your procurement list **${slipId}** has been fully approved by L3 PO Maker **${user.userName}**.`,
+          type: "PROCUREMENT_APPROVED",
+          link: `/dashboard/history/${slipId}`,
+          userId: procurement.agentId,
+          senderName: user.userName,
+        },
+      });
+
+      // 2. Notify L4 Admin
+      await prisma.notification.create({
+        data: {
+          title: "Slip Approved by L3",
+          message: `Procurement **${slipId}** was approved by L3 PO Maker **${user.userName}**.`,
+          type: "PROCUREMENT_APPROVED",
+          link: `/dashboard/history/${slipId}`,
+          targetRole: "L4_ADMIN",
+          senderName: user.userName,
+        },
+      });
+    } else if (action === "L3_REJECT") {
+      // 1. Notify L1 Agent
+      await prisma.notification.create({
+        data: {
+          title: "Procurement Rejected by L3",
+          message: `Your procurement list **${slipId}** has been rejected by L3 PO Maker **${user.userName}**.`,
+          type: "PROCUREMENT_CANCELLED",
+          link: `/dashboard/history/${slipId}`,
+          userId: procurement.agentId,
+          senderName: user.userName,
+        },
+      });
+
+      // 2. Notify L4 Admin
+      await prisma.notification.create({
+        data: {
+          title: "Slip Rejected by L3",
+          message: `Procurement **${slipId}** was rejected by L3 PO Maker **${user.userName}**.`,
+          type: "PROCUREMENT_CANCELLED",
+          link: `/dashboard/history/${slipId}`,
+          targetRole: "L4_ADMIN",
           senderName: user.userName,
         },
       });
