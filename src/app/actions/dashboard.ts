@@ -289,35 +289,25 @@ export async function getVarietyStats(filters?: {
       _avg: { rate: true },
     });
 
-    // Build a map for quick lookup
-    const resultMap = new Map(
-      results.map((r) => [r.variety, r])
-    );
-
-    // Return rows for all 6 standard varieties, even if zero
-    return CROP_VARIETIES.map((v) => {
-      const r = resultMap.get(v);
-      const bags = r?._sum.bags ?? 0;
-      const weight = r?._sum.netQuantity ?? 0;
-      const value = r?._sum.total ?? 0;
-      const avg = r?._avg.rate ?? 0;
-      return {
-        variety: v,
-        bags,
-        weightQtl: (Math.round(weight * 100) / 100).toFixed(2),
-        value: value.toFixed(2),
-        avgCost: (Math.round(avg * 100) / 100).toFixed(2),
-      };
-    });
+    // Map only active database results
+    return results
+      .map((r) => {
+        const bags = r._sum.bags ?? 0;
+        const weight = r._sum.netQuantity ?? 0;
+        const value = r._sum.total ?? 0;
+        const avg = r._avg.rate ?? 0;
+        return {
+          variety: r.variety,
+          bags,
+          weightQtl: (Math.round(weight * 100) / 100).toFixed(2),
+          value: value.toFixed(2),
+          avgCost: (Math.round(avg * 100) / 100).toFixed(2),
+        };
+      })
+      .filter((v) => v.bags > 0);
   } catch (error) {
     console.error("Variety stats error:", error);
-    return CROP_VARIETIES.map((v) => ({
-      variety: v,
-      bags: 0,
-      weightQtl: "0.00",
-      value: "0.00",
-      avgCost: "0.00",
-    }));
+    return [];
   }
 }
 

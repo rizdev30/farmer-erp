@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback, useTransition } from "react";
+import { useEffect, useState, useCallback, useTransition, useMemo } from "react";
 import { getDashboardStats, getVarietyStats, getVarietyDetail, getTodayDetail, getAllSlipsDetail } from "@/app/actions/dashboard";
 import { getMandis } from "@/app/actions/mandis";
+import { isBasmatiVariety, isNonBasmatiVariety } from "@/lib/crop-varieties";
 import type { VarietyStat, DashboardStats, VarietyRecord, SlipRecord, SlipStats } from "@/lib/crop-varieties";
 import { useSession } from "next-auth/react";
 import {
@@ -323,6 +324,7 @@ export default function DashboardClient({ initialStats, initialVarietyStats, ini
   const [draftStatus, setDraftStatus] = useState("ALL");
   const [draftMonth, setDraftMonth] = useState("");
   const [draftAgentId, setDraftAgentId] = useState("");
+  const [cropCategoryFilter, setCropCategoryFilter] = useState<"ALL" | "BASMATI" | "NON_BASMATI">("ALL");
 
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
@@ -455,9 +457,16 @@ export default function DashboardClient({ initialStats, initialVarietyStats, ini
   }, [router]);
 
   const s = stats || EMPTY_STATS;
-  const defaultVariety: VarietyStat[] = ["PB-1", "Pusa-1121", "Non Basmati", "Sarbati", "T.Basmati", "Type-3"]
-    .map((v) => ({ variety: v, bags: 0, weightQtl: "0.00", value: "0.00", avgCost: "0.00" }));
-  const varieties: VarietyStat[] = varietyStats || defaultVariety;
+  const rawVarieties: VarietyStat[] = varietyStats || [];
+  const varieties = useMemo(() => {
+    let list = rawVarieties.filter((v) => v.bags > 0);
+    if (cropCategoryFilter === "BASMATI") {
+      list = list.filter((v) => isBasmatiVariety(v.variety));
+    } else if (cropCategoryFilter === "NON_BASMATI") {
+      list = list.filter((v) => isNonBasmatiVariety(v.variety));
+    }
+    return list;
+  }, [rawVarieties, cropCategoryFilter]);
 
   const assignedStates: string[] = (session?.user as any)?.assignedStates || [];
   const assignedMandis: string[] = (session?.user as any)?.assignedMandis || [];
@@ -1286,13 +1295,47 @@ export default function DashboardClient({ initialStats, initialVarietyStats, ini
 
       {/* Crop Variety Summary — rows are clickable filters */}
       <div className="glass-card rounded-2xl overflow-hidden">
-        <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-100">
-          <div className="w-9 h-9 bg-gradient-to-br from-forest-100 to-forest-200 rounded-xl flex items-center justify-center">
-            <Wheat size={18} className="text-forest-700" />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-5 py-4 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-gradient-to-br from-forest-100 to-forest-200 rounded-xl flex items-center justify-center">
+              <Wheat size={18} className="text-forest-700" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-slate-800">Crop Variety Summary</h2>
+              <p className="text-xs text-slate-400">Tap a variety to filter detailed records</p>
+            </div>
           </div>
-          <div className="flex-1">
-            <h2 className="text-base font-bold text-slate-800">Crop Variety Summary</h2>
-            <p className="text-xs text-slate-400">Tap a variety to filter records</p>
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl self-start sm:self-auto">
+            <button
+              onClick={() => setCropCategoryFilter("ALL")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                cropCategoryFilter === "ALL"
+                  ? "bg-forest-800 text-white shadow-sm"
+                  : "text-slate-600 hover:text-slate-800"
+              }`}
+            >
+              All Crops
+            </button>
+            <button
+              onClick={() => setCropCategoryFilter("BASMATI")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                cropCategoryFilter === "BASMATI"
+                  ? "bg-forest-800 text-white shadow-sm"
+                  : "text-slate-600 hover:text-slate-800"
+              }`}
+            >
+              Basmati
+            </button>
+            <button
+              onClick={() => setCropCategoryFilter("NON_BASMATI")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                cropCategoryFilter === "NON_BASMATI"
+                  ? "bg-forest-800 text-white shadow-sm"
+                  : "text-slate-600 hover:text-slate-800"
+              }`}
+            >
+              Non-Basmati
+            </button>
           </div>
         </div>
 
@@ -1320,7 +1363,13 @@ export default function DashboardClient({ initialStats, initialVarietyStats, ini
                       <td className="px-1 sm:px-3 py-3" />
                     </tr>
                   ))
-                : varieties.map((row, i) => (
+                : varieties.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="text-center py-8 text-slate-400 font-medium text-xs">
+                        No active procurement records found for the selected filters.
+                      </td>
+                    </tr>
+                  ) : varieties.map((row, i) => (
                     <tr
                       key={row.variety}
                       onClick={() => handleVarietyClick(row.variety)}

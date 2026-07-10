@@ -5,7 +5,7 @@ import {
   createProcurement,
   ProcurementReceipt,
 } from "@/app/actions/procurement";
-import { CROP_VARIETIES } from "@/lib/crop-varieties";
+import { CROP_VARIETIES, CROP_TYPES, BASMATI_VARIETIES, NON_BASMATI_VARIETIES } from "@/lib/crop-varieties";
 import { searchFarmers } from "@/app/actions/farmers";
 import { getAdhatiyas, saveAdhatiya, deleteAdhatiya } from "@/app/actions/po";
 import PurchaseSlip from "@/components/PurchaseSlip";
@@ -67,7 +67,7 @@ export default function ProcurementPage() {
   const [categoryFilter, setCategoryFilter] = useState("FARMER");
 
   const [cropItems, setCropItems] = useState([
-    { id: '1', crop: "Rice", variety: "", bags: "", packingSize: "", grossQuantity: "", deduction: "", rate: "", bones: "" }
+    { id: '1', crop: "Basmati Paddy", variety: "", bags: "", packingSize: "", grossQuantity: "", deduction: "", rate: "", bones: "" }
   ]);
   const [adtiyaName, setAdtiyaName] = useState("");
   const [lotNo, setLotNo] = useState("");
@@ -433,7 +433,7 @@ export default function ProcurementPage() {
   function resetForm() {
     setSelectedFarmer(null);
     setFarmerQuery("");
-    setCropItems([{ id: '1', crop: "Rice", variety: "", bags: "", packingSize: "", grossQuantity: "", deduction: "", rate: "", bones: "" }]);
+    setCropItems([{ id: '1', crop: "Basmati Paddy", variety: "", bags: "", packingSize: "", grossQuantity: "", deduction: "", rate: "", bones: "" }]);
     setAdtiyaName("");
     setLotNo("");
     clearDraft();
@@ -948,13 +948,18 @@ export default function ProcurementPage() {
                     {activeDropdown?.index === index && activeDropdown.type === 'crop' && (
                       <div className="absolute z-[60] w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                         <div className="max-h-48 overflow-y-auto p-1" onTouchMove={() => (document.activeElement as HTMLElement)?.blur()}>
-                          {["Rice", "Paddy"].filter(c => c.toLowerCase().includes(dropdownSearch.toLowerCase())).map((c) => (
+                          {CROP_TYPES.filter(c => c.toLowerCase().includes(dropdownSearch.toLowerCase())).map((c) => (
                             <div
                               key={c}
                               onMouseDown={(e) => {
                                 e.preventDefault();
                                 const newItems = [...cropItems];
                                 newItems[index].crop = c;
+                                if (c === "Basmati Paddy" && !BASMATI_VARIETIES.includes(newItems[index].variety as any)) {
+                                  newItems[index].variety = "";
+                                } else if (c === "Non-Basmati Paddy" && !NON_BASMATI_VARIETIES.includes(newItems[index].variety as any)) {
+                                  newItems[index].variety = "";
+                                }
                                 setCropItems(newItems);
                                 setActiveDropdown(null);
                               }}
@@ -997,14 +1002,27 @@ export default function ProcurementPage() {
                     {activeDropdown?.index === index && activeDropdown.type === 'variety' && (
                       <div className="absolute z-[60] w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                         <div className="max-h-48 overflow-y-auto p-1" onTouchMove={() => (document.activeElement as HTMLElement)?.blur()}>
-                          {CROP_VARIETIES.filter(v => v.toLowerCase().includes(dropdownSearch.toLowerCase())).length > 0 ? (
-                            CROP_VARIETIES.filter(v => v.toLowerCase().includes(dropdownSearch.toLowerCase())).map((v) => (
+                          {(() => {
+                            const availableVarieties = 
+                              item.crop === "Basmati Paddy" ? BASMATI_VARIETIES :
+                              item.crop === "Non-Basmati Paddy" ? NON_BASMATI_VARIETIES :
+                              CROP_VARIETIES;
+                            const filtered = availableVarieties.filter(v => v.toLowerCase().includes(dropdownSearch.toLowerCase()));
+                            if (filtered.length === 0) {
+                              return <div className="px-4 py-3 text-xs text-slate-500 text-center">No varieties found</div>;
+                            }
+                            return filtered.map((v) => (
                               <div
                                 key={v}
                                 onMouseDown={(e) => {
                                   e.preventDefault();
                                   const newItems = [...cropItems];
                                   newItems[index].variety = v;
+                                  if (BASMATI_VARIETIES.includes(v as any)) {
+                                    newItems[index].crop = "Basmati Paddy";
+                                  } else if (NON_BASMATI_VARIETIES.includes(v as any)) {
+                                    newItems[index].crop = "Non-Basmati Paddy";
+                                  }
                                   setCropItems(newItems);
                                   setActiveDropdown(null);
                                 }}
@@ -1013,10 +1031,8 @@ export default function ProcurementPage() {
                                 <span className="text-sm truncate pr-2">{v}</span>
                                 {item.variety === v && <Check size={14} className="flex-shrink-0" />}
                               </div>
-                            ))
-                          ) : (
-                            <div className="px-4 py-3 text-xs text-slate-500 text-center">No varieties found</div>
-                          )}
+                            ));
+                          })()}
                         </div>
                       </div>
                     )}
@@ -1163,7 +1179,7 @@ export default function ProcurementPage() {
               <button
                 type="button"
                 onClick={() => {
-                  setCropItems([...cropItems, { id: Date.now().toString(), crop: "Rice", variety: "", bags: "", packingSize: "", grossQuantity: "", deduction: "", rate: "", bones: "" }]);
+                  setCropItems([...cropItems, { id: Date.now().toString(), crop: "Basmati Paddy", variety: "", bags: "", packingSize: "", grossQuantity: "", deduction: "", rate: "", bones: "" }]);
                 }}
                 className={`w-full text-sm font-semibold px-4 py-3 rounded-xl border flex items-center justify-center gap-2 transition-colors shadow-sm active:scale-95 ${categoryFilter === 'TRADER' ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' : 'bg-forest-50 text-forest-700 border-forest-200 hover:bg-forest-100'}`}
               >
