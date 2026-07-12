@@ -919,7 +919,7 @@ export default function ProcurementPage() {
                   </button>
                 )}
                 <div className="text-xs font-bold text-slate-400 mb-3 uppercase tracking-wider">Item {index + 1}</div>
-                <div className="grid grid-cols-2 gap-3 mb-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                   {/* Crop */}
                   <div className="relative combobox-crop">
                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">

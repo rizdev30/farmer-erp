@@ -471,7 +471,8 @@ export default function DashboardClient({ initialStats, initialVarietyStats, ini
     } else if (cropCategoryFilter === "NON_BASMATI") {
       list = list.filter((v) => isNonBasmatiVariety(v.variety));
     }
-    return list;
+    // Sort by value (total price/value) descending
+    return [...list].sort((a, b) => parseFloat(b.value) - parseFloat(a.value));
   }, [rawVarieties, cropCategoryFilter]);
 
   const assignedStates: string[] = (session?.user as any)?.assignedStates || [];
