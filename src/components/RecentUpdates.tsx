@@ -134,7 +134,7 @@ export default function RecentUpdates() {
   const { data: notifRes, refetch } = useSWRCache(
     "notifications",
     async () => await getNotifications(),
-    { ttl: 8000 }
+    { ttl: 30000 }
   );
 
   const notifications = notifRes?.success ? notifRes.notifications || [] : [];
@@ -150,10 +150,10 @@ export default function RecentUpdates() {
       })
       .catch((err) => console.error("Session error:", err));
 
-    // Poll every 8 seconds. Since we use useSWRCache, it will only result in one actual DB call
+    // Poll every 30 seconds. Since we use useSWRCache, it will only result in one actual DB call
     const interval = setInterval(() => {
       refetch();
-    }, 8000);
+    }, 30000);
     return () => clearInterval(interval);
   }, [refetch]);
 
