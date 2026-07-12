@@ -131,12 +131,15 @@ export default function NotificationBell() {
   const router = useRouter();
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [userRoles, setUserRoles] = useState<string[]>([]);
+  const [activeToast, setActiveToast] = useState<any | null>(null);
+  const previousNotifsRef = useRef<string[]>([]);
+  const isFirstLoadRef = useRef(true);
 
   // Fetch notifications using SWR cache (shares with RecentUpdates)
   const { data: notifRes, refetch } = useSWRCache(
     "notifications",
     async () => await getNotifications(),
-    { ttl: 15000 }
+    { ttl: 8000 }
   );
 
   const notifications = notifRes?.success ? notifRes.notifications || [] : [];
@@ -165,13 +168,62 @@ export default function NotificationBell() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Poll every 15 seconds. Since we use useSWRCache, it will only result in one actual DB call
+  // Poll every 8 seconds. Since we use useSWRCache, it will only result in one actual DB call
   useEffect(() => {
     const interval = setInterval(() => {
       refetch();
-    }, 15000);
+    }, 8000);
     return () => clearInterval(interval);
   }, [refetch]);
+
+  // Auto-dismiss toast after 5 seconds
+  useEffect(() => {
+    if (activeToast) {
+      const timer = setTimeout(() => {
+        setActiveToast(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [activeToast]);
+
+  // Monitor notifications array to trigger popups for incoming unread alerts in real-time
+  useEffect(() => {
+    if (!currentUserId || notifications.length === 0) return;
+
+    if (isFirstLoadRef.current) {
+      previousNotifsRef.current = notifications.map((n) => n.id);
+      isFirstLoadRef.current = false;
+      return;
+    }
+
+    const newNotifs = notifications.filter(
+      (n) => !previousNotifsRef.current.includes(n.id)
+    );
+
+    previousNotifsRef.current = notifications.map((n) => n.id);
+
+    if (newNotifs.length > 0) {
+      const isUserAdmin = userRoles.includes("L4_ADMIN") || userRoles.includes("SUPERADMIN");
+      
+      const freshUnread = newNotifs.find((n) => {
+        const timeDiffMs = Date.now() - new Date(n.createdAt).getTime();
+        const isRecent = timeDiffMs < 2 * 60 * 1000; // within last 2 minutes
+        const isUnread = !n.readBy.includes(currentUserId);
+        
+        if (isRecent && isUnread) {
+          if (isUserAdmin) {
+            return isImportantNotification(n, userRoles);
+          }
+          return true;
+        }
+        return false;
+      });
+
+      if (freshUnread) {
+        setActiveToast(freshUnread);
+      }
+    }
+  }, [notifications, currentUserId, userRoles]);
 
   // Lock body scroll when open on mobile
   useEffect(() => {
@@ -346,6 +398,64 @@ export default function NotificationBell() {
           <div className="sm:hidden" style={{ paddingBottom: "env(safe-area-inset-bottom)" }} />
         </div>
       )}
+
+      {/* Real-time Toast Notification Banner */}
+      {activeToast && (
+        <div className="fixed top-4 left-4 right-4 z-[9999] flex justify-center pointer-events-none animate-toast-slide-down">
+          <div 
+            onClick={() => {
+              handleNotificationClick(activeToast);
+              setActiveToast(null);
+            }}
+            className="w-full max-w-[380px] bg-slate-900/95 backdrop-blur-md border border-slate-700/50 text-white rounded-2xl shadow-2xl p-3.5 flex gap-3 pointer-events-auto cursor-pointer hover:bg-slate-900 active:scale-[0.98] transition-all duration-150"
+          >
+            {/* Icon */}
+            <div className="w-10 h-10 rounded-xl bg-forest-500/20 text-forest-400 flex items-center justify-center shrink-0">
+              <Bell size={20} className="animate-bounce text-forest-400" />
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-forest-400">
+                  New Alert
+                </span>
+                <span className="text-[9px] text-slate-400 font-medium">
+                  Just now
+                </span>
+              </div>
+              <p className="text-[12.5px] font-bold text-white leading-snug mt-0.5 truncate">
+                {activeToast.title}
+              </p>
+              <p className="text-[11px] text-slate-300 leading-snug line-clamp-2 mt-0.5">
+                {activeToast.message.replace(/\*\*/g, "")}
+              </p>
+            </div>
+
+            {/* Close Button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveToast(null);
+              }}
+              className="p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white shrink-0 self-start transition-colors"
+              aria-label="Close alert"
+            >
+              <X size={15} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes toast-slide-down {
+          0% { transform: translateY(-150%) scale(0.95); opacity: 0; }
+          100% { transform: translateY(0) scale(1); opacity: 1; }
+        }
+        .animate-toast-slide-down {
+          animation: toast-slide-down 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+      `}} />
     </div>
   );
 }
