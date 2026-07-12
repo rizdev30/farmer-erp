@@ -35,12 +35,16 @@ function formatTimeAgo(dateStr: any) {
   return `${days}d ago`;
 }
 
-function parseBoldText(text: string) {
+function parseBoldText(text: string, isRead: boolean) {
   if (!text) return "";
   const parts = text.split(/(\*\*.*?\*\*)/);
   return parts.map((part, i) => {
     if (part.startsWith("**") && part.endsWith("**")) {
-      return <strong key={i} className="font-semibold text-slate-800">{part.slice(2, -2)}</strong>;
+      return (
+        <strong key={i} className={`font-bold transition-colors ${isRead ? "text-slate-400" : "text-slate-800"}`}>
+          {part.slice(2, -2)}
+        </strong>
+      );
     }
     return part;
   });
@@ -235,7 +239,7 @@ export default function RecentUpdates() {
                     <p className={`text-[11px] leading-snug break-words mt-0.5 transition-colors ${
                       isRead ? "text-slate-400 font-medium" : "text-slate-700 font-semibold"
                     }`}>
-                      {parseBoldText(notif.message)}
+                      {parseBoldText(notif.message, isRead)}
                     </p>
                     <span className={`text-[9px] font-medium block mt-1 transition-colors ${
                       isRead ? "text-slate-300" : "text-slate-400"
@@ -310,7 +314,7 @@ export default function RecentUpdates() {
                       <p className={`text-xs leading-relaxed transition-colors ${
                         isRead ? "text-slate-400 font-medium" : "text-slate-700 font-semibold"
                       }`}>
-                        {parseBoldText(notif.message)}
+                        {parseBoldText(notif.message, isRead)}
                       </p>
                       <span className={`text-[9.5px] font-medium block mt-1 font-mono transition-colors ${
                         isRead ? "text-slate-300" : "text-slate-400"

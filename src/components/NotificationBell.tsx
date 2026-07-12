@@ -37,6 +37,21 @@ function formatTimeAgo(dateStr: any) {
   return `${days}d ago`;
 }
 
+function parseBoldText(text: string, isRead: boolean) {
+  if (!text) return "";
+  const parts = text.split(/(\*\*.*?\*\*)/);
+  return parts.map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return (
+        <strong key={i} className={`font-bold transition-colors ${isRead ? "text-slate-400" : "text-slate-800"}`}>
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    return part;
+  });
+}
+
 // Notification type config — each type gets a distinct icon, color, and label
 function getNotifConfig(type: string) {
   switch (type) {
@@ -313,7 +328,7 @@ export default function NotificationBell() {
                       <p className={`text-[10.5px] mt-0.5 leading-snug line-clamp-2 transition-colors ${
                         isRead ? "text-slate-400" : "text-slate-600"
                       }`}>
-                        {notif.message}
+                        {parseBoldText(notif.message, isRead)}
                       </p>
                       <span className={`text-[9px] font-medium block mt-1 font-mono transition-colors ${
                         isRead ? "text-slate-300" : "text-slate-400"
