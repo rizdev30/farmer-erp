@@ -274,42 +274,50 @@ export default function NotificationBell() {
                     key={notif.id}
                     onClick={() => handleNotificationClick(notif)}
                     className={`flex gap-3 p-3 rounded-2xl cursor-pointer transition-all duration-150 active:scale-[0.98] border relative overflow-hidden ${
-                      isImportant
-                        ? !isRead 
-                          ? "bg-white border-amber-200 shadow-sm border-l-4 border-l-amber-500" 
-                          : "bg-white/60 border-amber-100/60 border-l-4 border-l-amber-500 hover:bg-white hover:border-slate-200/40"
-                        : !isRead 
-                          ? `bg-white ${cfg.borderColor} shadow-sm` 
-                          : "bg-white/60 border-transparent hover:bg-white hover:border-slate-200/40"
+                      !isRead
+                        ? "bg-white border-slate-200/80 shadow-[0_2px_8px_-3px_rgba(0,0,0,0.05)]"
+                        : "bg-slate-100/50 border-slate-200/20 hover:bg-slate-100/80 hover:border-slate-200/40"
                     }`}
                   >
                     {/* Type Icon */}
-                    <div className={`w-9 h-9 rounded-xl ${cfg.iconBg} ${cfg.iconColor} flex items-center justify-center shrink-0`}>
+                    <div className={`w-9 h-9 rounded-xl ${
+                      isRead ? "bg-slate-100 text-slate-400" : `${cfg.iconBg} ${cfg.iconColor}`
+                    } flex items-center justify-center shrink-0 transition-colors`}>
                       {cfg.icon}
                     </div>
  
                     <div className="flex-1 min-w-0 pr-1">
                       {/* Type label */}
                       <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                        <span className={`text-[9px] font-bold uppercase tracking-wider ${cfg.iconColor}`}>
+                        <span className={`text-[9px] font-bold uppercase tracking-wider ${
+                          isRead ? "text-slate-400" : cfg.iconColor
+                        }`}>
                           {cfg.label}
                         </span>
                         {isImportant && (
-                          <span className="text-[7.5px] font-extrabold uppercase px-1 py-0.5 rounded bg-amber-500 text-white leading-none scale-[0.9] origin-left">
+                          <span className={`text-[7.5px] font-extrabold uppercase px-1 py-0.5 rounded leading-none scale-[0.9] origin-left transition-colors ${
+                            isRead ? "bg-slate-200 text-slate-500" : "bg-amber-500 text-white"
+                          }`}>
                             Important
                           </span>
                         )}
                         {!isRead && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
+                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0 animate-pulse" />
                         )}
                       </div>
-                      <p className="text-[11.5px] font-semibold text-slate-700 leading-snug">
+                      <p className={`text-[11.5px] leading-snug transition-colors ${
+                        isRead ? "font-medium text-slate-400" : "font-bold text-slate-800"
+                      }`}>
                         {notif.title}
                       </p>
-                      <p className="text-[10.5px] text-slate-500 mt-0.5 leading-snug line-clamp-2">
+                      <p className={`text-[10.5px] mt-0.5 leading-snug line-clamp-2 transition-colors ${
+                        isRead ? "text-slate-400" : "text-slate-600"
+                      }`}>
                         {notif.message}
                       </p>
-                      <span className="text-[9px] text-slate-400 font-medium block mt-1 font-mono">
+                      <span className={`text-[9px] font-medium block mt-1 font-mono transition-colors ${
+                        isRead ? "text-slate-300" : "text-slate-400"
+                      }`}>
                         {formatTimeAgo(notif.createdAt)}
                       </span>
                     </div>

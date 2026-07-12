@@ -202,41 +202,47 @@ export default function RecentUpdates() {
                   key={notif.id}
                   onClick={() => handleItemClick(notif)}
                   className={`flex items-start gap-2.5 p-2.5 rounded-xl transition-all duration-150 cursor-pointer border relative overflow-hidden ${
-                    isImportant
-                      ? !isRead 
-                        ? "bg-amber-50/45 border-amber-200 shadow-sm border-l-4 border-l-amber-500" 
-                        : "bg-amber-50/15 border-amber-100 border-l-4 border-l-amber-500 hover:bg-amber-50/25"
-                      : !isRead 
-                        ? `bg-white ${cfg.borderColor} shadow-sm` 
-                        : "bg-slate-50/60 border-slate-100/60 hover:bg-white hover:border-slate-200/40"
+                    !isRead
+                      ? "bg-white border-slate-200 shadow-sm"
+                      : "bg-slate-100/50 border-slate-200/20 hover:bg-slate-100/80 hover:border-slate-200/45"
                   }`}
                 >
                   {/* Type Icon */}
-                  <div className={`shrink-0 w-8 h-8 rounded-lg ${cfg.iconBg} ${cfg.iconColor} flex items-center justify-center`}>
+                  <div className={`shrink-0 w-8 h-8 rounded-lg ${
+                    isRead ? "bg-slate-100 text-slate-400" : `${cfg.iconBg} ${cfg.iconColor}`
+                  } flex items-center justify-center transition-colors`}>
                     {cfg.icon}
                   </div>
                   <div className="flex-1 min-w-0 pr-1">
                     {/* Type label */}
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className={`text-[8px] font-bold uppercase tracking-wider ${cfg.iconColor} leading-none`}>
+                      <span className={`text-[8px] font-bold uppercase tracking-wider ${
+                        isRead ? "text-slate-400" : cfg.iconColor
+                      } leading-none`}>
                         {cfg.label}
                       </span>
                       {isImportant && (
-                        <span className="text-[7.5px] font-extrabold uppercase px-1 py-0.5 rounded bg-amber-500 text-white leading-none scale-[0.9] origin-left">
+                        <span className={`text-[7.5px] font-extrabold uppercase px-1 py-0.5 rounded leading-none scale-[0.9] origin-left transition-colors ${
+                          isRead ? "bg-slate-200 text-slate-500" : "bg-amber-500 text-white"
+                        }`}>
                           Important
                         </span>
                       )}
+                      {!isRead && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0 animate-pulse mt-0.5" />
+                      )}
                     </div>
-                    <p className="text-[11px] text-slate-600 leading-snug break-words mt-0.5">
+                    <p className={`text-[11px] leading-snug break-words mt-0.5 transition-colors ${
+                      isRead ? "text-slate-400 font-medium" : "text-slate-700 font-semibold"
+                    }`}>
                       {parseBoldText(notif.message)}
                     </p>
-                    <span className="text-[9px] text-slate-400 font-medium block mt-1">
+                    <span className={`text-[9px] font-medium block mt-1 transition-colors ${
+                      isRead ? "text-slate-300" : "text-slate-400"
+                    }`}>
                       {formatTimeAgo(notif.createdAt)}
                     </span>
                   </div>
-                  {!isRead && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0 mt-2.5" />
-                  )}
                 </div>
               );
             })
@@ -271,38 +277,44 @@ export default function RecentUpdates() {
                     key={notif.id}
                     onClick={() => handleItemClick(notif)}
                     className={`flex gap-3 p-3 rounded-2xl cursor-pointer transition-all duration-150 active:scale-[0.98] border relative overflow-hidden ${
-                      isImportant
-                        ? !isRead 
-                          ? "bg-white border-amber-200 shadow-sm border-l-4 border-l-amber-500" 
-                          : "bg-white/60 border-amber-100/60 border-l-4 border-l-amber-500 hover:bg-white hover:border-slate-200/40"
-                        : !isRead 
-                          ? `bg-white ${cfg.borderColor} shadow-sm` 
-                          : "bg-white/60 border-transparent hover:bg-white hover:border-slate-200/40"
+                      !isRead
+                        ? "bg-white border-slate-200/80 shadow-[0_2px_8px_-3px_rgba(0,0,0,0.05)]"
+                        : "bg-slate-100/50 border-slate-200/20 hover:bg-slate-100/80 hover:border-slate-200/40"
                     }`}
                   >
                     {/* Type Icon */}
-                    <div className={`shrink-0 w-9 h-9 rounded-xl ${cfg.iconBg} ${cfg.iconColor} flex items-center justify-center`}>
+                    <div className={`shrink-0 w-9 h-9 rounded-xl ${
+                      isRead ? "bg-slate-100 text-slate-400" : `${cfg.iconBg} ${cfg.iconColor}`
+                    } flex items-center justify-center transition-colors`}>
                       {cfg.icon}
                     </div>
                     <div className="flex-1 min-w-0 pr-2">
                       {/* Type label + unread dot */}
                       <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                        <span className={`text-[9px] font-bold uppercase tracking-wider ${cfg.iconColor}`}>
+                        <span className={`text-[9px] font-bold uppercase tracking-wider ${
+                          isRead ? "text-slate-400" : cfg.iconColor
+                        }`}>
                           {cfg.label}
                         </span>
                         {isImportant && (
-                          <span className="text-[7.5px] font-extrabold uppercase px-1 py-0.5 rounded bg-amber-500 text-white leading-none scale-[0.9] origin-left">
+                          <span className={`text-[7.5px] font-extrabold uppercase px-1 py-0.5 rounded leading-none scale-[0.9] origin-left transition-colors ${
+                            isRead ? "bg-slate-200 text-slate-500" : "bg-amber-500 text-white"
+                          }`}>
                             Important
                           </span>
                         )}
                         {!isRead && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
+                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0 animate-pulse" />
                         )}
                       </div>
-                      <p className="text-xs text-slate-600 leading-relaxed">
+                      <p className={`text-xs leading-relaxed transition-colors ${
+                        isRead ? "text-slate-400 font-medium" : "text-slate-700 font-semibold"
+                      }`}>
                         {parseBoldText(notif.message)}
                       </p>
-                      <span className="text-[9.5px] text-slate-400 font-medium block mt-1 font-mono">
+                      <span className={`text-[9.5px] font-medium block mt-1 font-mono transition-colors ${
+                        isRead ? "text-slate-300" : "text-slate-400"
+                      }`}>
                         {formatTimeAgo(notif.createdAt)}
                       </span>
                     </div>
