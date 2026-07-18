@@ -11,6 +11,7 @@ import {
   Share2,
   Download,
   CheckCircle2,
+  Printer,
 } from "lucide-react";
 import Link from "next/link";
 import { useSWRCache, invalidateCache } from "@/lib/swr-cache";
@@ -200,6 +201,13 @@ export default function ReceiptPage() {
       document.title = originalTitle;
     }
   }
+
+  const handleDirectPrint = () => {
+    const originalTitle = document.title;
+    document.title = `Receipt_${record.farmerName.replace(/\s+/g, "_")}_${record.slipId}`;
+    window.print();
+    document.title = originalTitle;
+  };
 
   async function handleWhatsApp() {
     setIsSharing(true);
@@ -567,10 +575,10 @@ export default function ReceiptPage() {
 
 
         {/* Actions */}
-        <div className="px-6 pb-6 flex gap-3 print:hidden">
+        <div className="px-6 pb-6 flex flex-col sm:flex-row gap-3 print:hidden">
           <button
             onClick={handleWhatsApp}
-            disabled={isSharing}
+            disabled={isSharing || isPrinting}
             className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl
               bg-green-600 text-white text-sm font-semibold 
               hover:bg-green-700 transition-colors shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
@@ -584,8 +592,19 @@ export default function ReceiptPage() {
           </button>
 
           <button
+            onClick={handleDirectPrint}
+            disabled={isSharing || isPrinting}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl
+              border border-slate-200 text-slate-700 text-sm font-semibold 
+              hover:bg-slate-50 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+          >
+            <Printer size={16} />
+            Direct Print
+          </button>
+
+          <button
             onClick={handlePrint}
-            disabled={isPrinting}
+            disabled={isSharing || isPrinting}
             className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl
               border border-slate-200 text-slate-700 text-sm font-semibold 
               hover:bg-slate-50 transition-colors disabled:opacity-75 disabled:cursor-not-allowed"
@@ -595,7 +614,7 @@ export default function ReceiptPage() {
             ) : (
               <Download size={16} />
             )}
-            {isPrinting ? "Generating..." : "Print / PDF"}
+            {isPrinting ? "Generating..." : "Download PDF"}
           </button>
         </div>
 
