@@ -266,9 +266,7 @@ export default function PORecordsClient({ initialRecords }: { initialRecords?: a
         finalAmount
       }
     };
-  }, [previewPO, downloadPO]);
-
-  useEffect(() => {
+  }, [previewPO, downloadPO]);  useEffect(() => {
     if (downloadPO && parsedPOData) {
       const timer = setTimeout(() => {
         const originalTitle = document.title;
@@ -281,8 +279,29 @@ export default function PORecordsClient({ initialRecords }: { initialRecords?: a
         const isMobileOrApp = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.location.search.includes('app=true');
 
         if (isMobileOrApp) {
-          import("html2canvas").then((module) => {
-            const html2canvas = module.default;
+          const loadJsPDF = () => {
+            return new Promise<any>((resolve, reject) => {
+              const globalJsPDF = (window as any).jspdf || (window as any).jsPDF;
+              if (globalJsPDF) {
+                resolve(globalJsPDF);
+                return;
+              }
+              const script = document.createElement("script");
+              script.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+              script.onload = () => {
+                const loaded = (window as any).jspdf || (window as any).jsPDF;
+                resolve(loaded);
+              };
+              script.onerror = (err) => reject(err);
+              document.body.appendChild(script);
+            });
+          };
+
+          Promise.all([
+            import("html2canvas"),
+            loadJsPDF()
+          ]).then(([html2canvasModule, jspdfModule]) => {
+            const html2canvas = html2canvasModule.default;
             const element = document.getElementById("printable-po");
             if (!element) {
               window.print();
@@ -290,33 +309,62 @@ export default function PORecordsClient({ initialRecords }: { initialRecords?: a
               return;
             }
             html2canvas(element, {
-              scale: 2.5,
+              scale: 2.2, // Balanced scale for mobile memory footprint
               useCORS: true,
               backgroundColor: "#ffffff",
               logging: false,
-              windowWidth: 794, // Standard A4 aspect container width
+              windowWidth: 794,
               windowHeight: 1123
             }).then((canvas) => {
-              canvas.toBlob((blob) => {
-                if (blob) {
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement("a");
-                  a.href = url;
-                  a.download = `${fileName}.jpg`;
-                  a.click();
-                  URL.revokeObjectURL(url);
-                } else {
-                  window.print();
+              try {
+                const imgData = canvas.toDataURL("image/jpeg", 0.95);
+                const pdf = new jspdfModule.jsPDF({
+                  orientation: "portrait",
+                  unit: "mm",
+                  format: "a4"
+                });
+
+                // A4 is 210mm x 297mm
+                const imgWidth = 210;
+                const pageHeight = 297;
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                let heightLeft = imgHeight;
+                let position = 0;
+
+                pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight, undefined, 'FAST');
+                heightLeft -= pageHeight;
+
+                while (heightLeft >= 0) {
+                  position = heightLeft - imgHeight;
+                  pdf.addPage();
+                  pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight, undefined, 'FAST');
+                  heightLeft -= pageHeight;
                 }
-                setDownloadPO(null);
-              }, "image/jpeg", 0.95);
+
+                pdf.save(`${fileName}.pdf`);
+              } catch (pdfError) {
+                console.error("jsPDF generation error, falling back to image download:", pdfError);
+                canvas.toBlob((blob) => {
+                  if (blob) {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `${fileName}.jpg`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  } else {
+                    window.print();
+                  }
+                }, "image/jpeg", 0.95);
+              }
+              setDownloadPO(null);
             }).catch((err) => {
               console.error("html2canvas print error:", err);
               window.print();
               setDownloadPO(null);
             });
           }).catch((err) => {
-            console.error("Failed to load html2canvas dynamic import:", err);
+            console.error("Failed to load PDF libraries dynamically:", err);
             window.print();
             setDownloadPO(null);
           });
@@ -329,7 +377,6 @@ export default function PORecordsClient({ initialRecords }: { initialRecords?: a
       return () => clearTimeout(timer);
     }
   }, [downloadPO, parsedPOData]);
-
 
   return (
     <>
@@ -709,7 +756,7 @@ export default function PORecordsClient({ initialRecords }: { initialRecords?: a
                       
                       {/* Watermark/Status Stamp */}
                       <div className="w-[20%] border-l-[1.5px] border-black h-full flex items-center justify-center p-1">
-                        <div className="print:hidden">
+                        <div className={downloadPO ? "hidden" : "print:hidden"}>
                           {(previewPO || downloadPO).status === "BILLED" ? (
                             <div className="border-2 border-emerald-600 text-emerald-600 font-extrabold text-[11px] px-2 py-0.5 rounded uppercase tracking-wider font-sans rotate-[-3deg] shadow-sm">
                               APPROVED
