@@ -1,91 +1,348 @@
-# 04 — Next.js Architecture
+# NEXT.JS ARCHITECTURE STANDARDS (2026)
 
-## Your Custom Rules
+## Purpose
 
-<!-- ✏️ PASTE YOUR RULES HERE — these take highest priority -->
+This file defines the required architecture patterns for all Next.js projects.
 
+The goal is to ensure:
 
-<!-- END OF YOUR CUSTOM RULES -->
+* Security
+* Scalability
+* Maintainability
+* Performance
+* Production readiness
 
 ---
 
-## Universal Next.js Rules
+# Architecture Philosophy
 
-### Always Read the Official Docs First
+Prefer:
 
-Before using ANY Next.js API, check:
-```
-node_modules/next/dist/docs/
-```
-Next.js has breaking changes between major versions.
-Do not rely on memory or training data — verify against the installed version's docs.
+* Simplicity
+* Modularity
+* Reusability
+* Separation of concerns
 
-### App Router Only
+Avoid:
 
-- Never mix App Router (`app/`) with Pages Router (`pages/`)
-- Never use `getServerSideProps`, `getStaticProps`, or `getInitialProps`
-- Use Server Components and Server Actions for data fetching and mutations
+* Monolithic components
+* Business logic inside UI
+* Duplicate code
+* Tight coupling
 
-### Server vs Client Components
+---
 
-```
-Default: Server Component (no directive)
-Add "use client" ONLY when you need:
-  - useState, useReducer, useContext
-  - useEffect, useLayoutEffect
-  - Browser APIs (window, document, localStorage)
-  - Event handlers passed as props
-  - Third-party client-only libraries
-```
+# Router Standards
 
-- Keep `"use client"` components as small and low in the tree as possible
-- Never fetch data or call the database inside a `"use client"` component directly
-- Never import Server-only code (database clients, secrets) into client components
+When available:
 
-### Async Request APIs — Mandatory in Next.js 15+/16
+Prefer App Router.
 
-These APIs are **async** and must be awaited:
-- `cookies()`
-- `headers()`
-- `draftMode()`
-- `params` in layouts, pages, and route handlers
-- `searchParams` in pages
+Use:
 
-```typescript
-// ✅ Correct
-export default async function Page({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-}
-
-// ❌ Wrong — synchronous access no longer works
-export default function Page({ params }: { params: { id: string } }) {
-  const id = params.id; // will fail in Next.js 16
-}
+```text
+app/
 ```
 
-### Middleware / Proxy
+Avoid creating new Pages Router routes unless the project already uses them.
 
-- In Next.js 16+, the middleware file is named `proxy.ts` (not `middleware.ts`)
-- Do not use the edge runtime in `proxy.ts` — use Node.js runtime
-- Keep proxy logic minimal — only routing decisions and auth redirects
+Follow the existing project structure.
 
-### Server Actions
+---
 
-- All data mutations go in dedicated Server Action files marked `"use server"`
-- Always check authentication at the top of every Server Action
-- Always check authorization (user role/permission) before performing the operation
-- Validate all inputs before any database operation
-- Return structured responses `{ success, data?, error? }` — never throw raw errors to the client
+# Folder Structure
 
-### API Routes
+Preferred structure:
 
-- Create API routes only when needed (webhooks, third-party callbacks, REST APIs)
-- Prefer Server Actions for form submissions and UI-triggered mutations
-- Always authenticate and authorize at the top of every route handler
+```text
+app/
+components/
+features/
+lib/
+hooks/
+types/
+actions/
+services/
+repositories/
+middleware/
+tests/
+```
 
-### Performance
+Keep responsibilities separated.
 
-- Use Server Components for initial data loading — avoid client-side waterfalls
-- Use `loading.tsx` for Suspense boundaries on slow data
-- Lazy load heavy client components with `dynamic()`
-- Avoid fetching the same data in multiple places — centralize data fetching
+---
+
+# Server Components First
+
+Prefer:
+
+Server Components
+
+for:
+
+* Database access
+* Data fetching
+* Auth checks
+* Protected content
+
+Use Client Components only when necessary.
+
+Examples:
+
+* Forms
+* Browser APIs
+* Interactive UI
+* State management
+
+---
+
+# Server Actions
+
+Prefer Server Actions for:
+
+* Mutations
+* Form submissions
+* Secure write operations
+
+Keep secrets and business logic server-side.
+
+---
+
+# Data Fetching
+
+Prefer:
+
+* Server Components
+* Route Handlers
+* Server Actions
+
+Avoid unnecessary client-side fetching.
+
+Reduce network requests.
+
+---
+
+# Authentication Architecture
+
+Authentication checks must occur server-side.
+
+Never trust:
+
+* Client roles
+* Client permissions
+* Client ownership claims
+
+Authorization must be enforced on the server.
+
+---
+
+# Database Access
+
+Database access should occur only:
+
+* Server Components
+* Server Actions
+* Route Handlers
+* Backend services
+
+Never expose database credentials.
+
+Never expose service role keys.
+
+---
+
+# Service Layer Pattern
+
+Business logic belongs in:
+
+```text
+services/
+```
+
+Example:
+
+```text
+services/user-service.ts
+services/payment-service.ts
+services/course-service.ts
+```
+
+Avoid placing business logic inside components.
+
+---
+
+# Repository Pattern
+
+Database operations belong in:
+
+```text
+repositories/
+```
+
+Example:
+
+```text
+repositories/user-repository.ts
+repositories/course-repository.ts
+```
+
+Separate database access from business logic.
+
+---
+
+# Validation Layer
+
+Validate all external input.
+
+Use:
+
+Zod
+
+or project-approved validation library.
+
+Validation must occur before:
+
+* Database writes
+* Business logic execution
+* API processing
+
+---
+
+# Error Handling
+
+Use centralized error handling.
+
+Never expose:
+
+* SQL errors
+* Stack traces
+* Internal implementation details
+
+to users.
+
+---
+
+# Caching Strategy
+
+Prefer:
+
+* Next.js caching
+* Route caching
+* Revalidation
+
+Avoid unnecessary database calls.
+
+Cache expensive operations.
+
+---
+
+# API Design
+
+All APIs must:
+
+* Validate input
+* Verify authentication
+* Verify authorization
+* Return proper status codes
+* Handle errors safely
+
+Avoid public write endpoints.
+
+---
+
+# State Management
+
+Prefer:
+
+1. Server state
+2. URL state
+3. Local component state
+
+Only introduce global state when necessary.
+
+Avoid unnecessary state libraries.
+
+---
+
+# File Upload Architecture
+
+Treat uploads as untrusted.
+
+Validate:
+
+* Type
+* Size
+* Extension
+
+Store uploads securely.
+
+Never execute uploaded content.
+
+---
+
+# Security Architecture
+
+Apply:
+
+* RLS
+* Authorization checks
+* Validation
+* Rate limiting
+* Security headers
+
+to all production systems.
+
+---
+
+# Observability
+
+Implement:
+
+* Error monitoring
+* Audit logging
+* Performance monitoring
+
+Critical actions should be traceable.
+
+---
+
+# Testing Architecture
+
+Critical features require:
+
+* Unit tests
+* Integration tests
+
+Security-sensitive features require testing before deployment.
+
+---
+
+# Scalability Rules
+
+Design assuming:
+
+* More users
+* More data
+* More traffic
+
+Avoid architecture that only works at small scale.
+
+---
+
+# Definition of Good Architecture
+
+A solution is considered acceptable only if it is:
+
+✓ Secure
+
+✓ Maintainable
+
+✓ Scalable
+
+✓ Testable
+
+✓ Type-safe
+
+✓ Production-ready
+
+✓ Compatible with current Next.js standards

@@ -318,7 +318,7 @@ export default function PORecordsClient({ initialRecords }: { initialRecords?: a
           border-bottom: 1px solid black;
         }
       `}</style>
-      <div className="max-w-5xl mx-auto space-y-6 pb-20 print:hidden">
+      <div className="w-full space-y-6 pb-20 print:hidden">
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="shrink-0 w-10 h-10 bg-indigo-100/80 rounded-xl flex items-center justify-center">
@@ -358,14 +358,14 @@ export default function PORecordsClient({ initialRecords }: { initialRecords?: a
           <>
             {/* Desktop Table View */}
             <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm min-w-[1050px]">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">PO Number</th>
-                    <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Supplier</th>
-                    <th className="text-right px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Procurement Total</th>
-                    <th className="text-center px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Payment Date</th>
-                    <th className="text-center px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
+                    <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">PO Number</th>
+                    <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Supplier</th>
+                    <th className="text-right px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Procurement Total</th>
+                    <th className="text-center px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Payment Date</th>
+                    <th className="text-center px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Status</th>
                     <th className="px-5 py-3.5 w-48"></th>
                   </tr>
                 </thead>
@@ -373,18 +373,18 @@ export default function PORecordsClient({ initialRecords }: { initialRecords?: a
                   {records.map((rec) => (
                     <tr key={rec.id} className="hover:bg-slate-50/70 transition-colors">
                       <td className="px-5 py-4">
-                        <div className="font-mono text-sm md:text-[15px] font-bold text-slate-800">{rec.poNumber}</div>
-                        <div className="text-xs text-slate-500 font-medium">Slip: {rec.slipId}</div>
+                        <div className="font-mono text-sm md:text-[15px] font-bold text-slate-800 whitespace-nowrap">{rec.poNumber}</div>
+                        <div className="text-xs text-slate-500 font-medium whitespace-nowrap">Slip: {rec.slipId}</div>
                       </td>
                       <td className="px-5 py-4">
-                        <div className="text-sm md:text-[15px] font-bold text-slate-800">{rec.supplierName}</div>
-                        <div className="text-xs text-slate-500 font-medium">{rec.supplierLocation}</div>
+                        <div className="text-sm md:text-[15px] font-bold text-slate-800 whitespace-nowrap">{rec.supplierName}</div>
+                        <div className="text-xs text-slate-500 font-medium whitespace-nowrap truncate max-w-[240px]" title={rec.supplierLocation}>{rec.supplierLocation}</div>
                       </td>
                       <td className="px-5 py-4 text-right">
                         {rec.procurement ? (
                           <>
-                            <div className="text-sm md:text-[15px] font-extrabold text-slate-800 tabular-nums">₹{fmtCurrency(rec.procurement.total)}</div>
-                            <div className="text-xs text-slate-500 font-semibold">{rec.procurement.crop} - {rec.procurement.variety}</div>
+                            <div className="text-sm md:text-[15px] font-extrabold text-slate-800 tabular-nums whitespace-nowrap">₹{fmtCurrency(rec.procurement.total)}</div>
+                            <div className="text-xs text-slate-500 font-semibold whitespace-nowrap">{rec.procurement.crop} - {rec.procurement.variety}</div>
                           </>
                         ) : (
                           <span className="text-slate-400 italic">N/A</span>
@@ -398,20 +398,20 @@ export default function PORecordsClient({ initialRecords }: { initialRecords?: a
                       </td>
                       <td className="px-5 py-4 text-center">
                         {rec.status === "BILLED" ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap">
                             <CheckCircle size={12} /> Billed
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap">
                             Draft
                           </span>
                         )}
                       </td>
                       <td className="px-5 py-4 text-right">
-                        <div className="flex justify-end items-center gap-1.5">
+                        <div className="flex justify-end items-center gap-1.5 flex-nowrap whitespace-nowrap">
                           <button
                             onClick={() => setPreviewPO(rec)}
-                            className="px-2.5 py-1.5 text-indigo-700 hover:text-white hover:bg-indigo-600 border border-indigo-200 rounded-lg transition-colors inline-flex items-center gap-1 text-xs font-bold shadow-sm"
+                            className="px-2.5 py-1.5 text-indigo-700 hover:text-white hover:bg-indigo-600 border border-indigo-200 rounded-lg transition-colors inline-flex items-center gap-1 text-xs font-bold shadow-sm whitespace-nowrap"
                             title="Preview PO"
                           >
                             <Eye size={13} /> Preview
@@ -419,7 +419,7 @@ export default function PORecordsClient({ initialRecords }: { initialRecords?: a
                           {rec.status === "BILLED" ? (
                             <button
                               onClick={() => setDownloadPO(rec)}
-                              className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors inline-flex items-center gap-1 text-xs font-bold shadow-sm"
+                              className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors inline-flex items-center gap-1 text-xs font-bold shadow-sm whitespace-nowrap"
                             >
                               <Download size={13} /> Download
                             </button>
@@ -427,13 +427,13 @@ export default function PORecordsClient({ initialRecords }: { initialRecords?: a
                             <>
                               <button
                                 onClick={() => setBilledConfirmPO(rec)}
-                                className="px-2.5 py-1.5 text-emerald-700 hover:text-white hover:bg-emerald-600 border border-emerald-200 rounded-lg transition-colors inline-flex items-center gap-1 text-xs font-bold shadow-sm"
+                                className="px-2.5 py-1.5 text-emerald-700 hover:text-white hover:bg-emerald-600 border border-emerald-200 rounded-lg transition-colors inline-flex items-center gap-1 text-xs font-bold shadow-sm whitespace-nowrap"
                               >
                                 <CheckCircle size={13} /> Approve/Bill
                               </button>
                               <Link
                                 href={`/dashboard/po-maker?slipId=${rec.slipId}`}
-                                className="px-2.5 py-1.5 text-slate-500 hover:text-forest-700 hover:bg-forest-50 border border-slate-200 hover:border-forest-200 rounded-lg transition-all active:scale-[0.96] inline-flex items-center gap-1 text-xs font-bold shadow-sm"
+                                className="px-2.5 py-1.5 text-slate-500 hover:text-forest-700 hover:bg-forest-50 border border-slate-200 hover:border-forest-200 rounded-lg transition-all active:scale-[0.96] inline-flex items-center gap-1 text-xs font-bold shadow-sm whitespace-nowrap"
                               >
                                 <Edit3 size={13} /> Edit
                               </Link>
