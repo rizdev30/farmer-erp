@@ -150,10 +150,29 @@ export default function ReceiptPage() {
             slip.style.border = "none";
             slip.style.fontFamily = "monospace, Courier, monospace";
 
-            // Scale watermark text down for narrow printer page format
+            // Force black-and-white theme for thermal printer compatibility
+            slip.style.color = "#000000";
+            slip.style.backgroundColor = "#ffffff";
+
+            // Force all text labels, headings, and values to solid black
+            const allTexts = slip.querySelectorAll("h2, p, span, div, td, th");
+            allTexts.forEach((el: any) => {
+              el.style.color = "#000000";
+              el.style.borderColor = "#000000";
+            });
+
+            // Force all border divisions to solid black
+            const allBorders = slip.querySelectorAll(".border-b, .border-t, .border-l, .border-r, .border-dashed, .border-slate-200, .border-slate-100");
+            allBorders.forEach((b: any) => {
+              b.style.borderColor = "#000000";
+            });
+
+            // Scale watermark text down and make it a soft watermark black
             const watermarks = slip.querySelectorAll("div.absolute > div");
             watermarks.forEach((wm: any) => {
-              wm.style.fontSize = "16px";
+              wm.style.fontSize = "14px";
+              wm.style.color = "#000000";
+              wm.style.opacity = "0.08";
             });
           }
         }
