@@ -330,8 +330,8 @@ function DashboardLayoutContent({
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto pb-24 md:pb-0">
-          <div className={pathname.startsWith("/dashboard/po-maker") ? "w-full h-full" : "max-w-[1600px] mx-auto px-4 md:px-8 py-6 md:py-8"}>
+        <div className="flex-1 w-full min-w-0 overflow-y-auto pb-24 md:pb-0">
+          <div className={pathname.startsWith("/dashboard/po-maker") ? "w-full h-full" : "max-w-[1440px] mx-auto px-4 md:px-8 lg:px-12 py-6 md:py-8"}>
             {children}
           </div>
         </div>

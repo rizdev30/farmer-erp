@@ -356,62 +356,62 @@ export default function PORecordsClient({ initialRecords }: { initialRecords?: a
           </div>
         ) : (
           <>
-            {/* Desktop Table View */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-sm min-w-[1050px]">
-                <thead className="bg-slate-50 border-b border-slate-200">
+            {/* Desktop Table View — visible on 2xl screens (1536px+) where sidebar + table both fit */}
+            <div className="hidden 2xl:block overflow-x-auto">
+              <table className="w-full text-sm table-fixed">
+                <thead className="bg-slate-50/80 border-b border-slate-200">
                   <tr>
-                    <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">PO Number</th>
-                    <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Supplier</th>
-                    <th className="text-right px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Procurement Total</th>
-                    <th className="text-center px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Payment Date</th>
-                    <th className="text-center px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Status</th>
-                    <th className="px-5 py-3.5 w-48"></th>
+                    <th className="text-left px-4 xl:px-5 py-3.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap w-[18%]">PO Number</th>
+                    <th className="text-left px-4 xl:px-5 py-3.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap w-[22%]">Supplier</th>
+                    <th className="text-right px-4 xl:px-5 py-3.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap w-[16%]">Total</th>
+                    <th className="text-center px-4 xl:px-5 py-3.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap w-[12%]">Date</th>
+                    <th className="text-center px-3 py-3.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap w-[10%]">Status</th>
+                    <th className="px-2 xl:px-5 py-3.5 text-right text-[11px] font-bold text-slate-500 uppercase tracking-wider w-[22%]">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200 bg-white">
+                <tbody className="divide-y divide-slate-100 bg-white">
                   {records.map((rec) => (
-                    <tr key={rec.id} className="hover:bg-slate-50/70 transition-colors">
-                      <td className="px-5 py-4">
-                        <div className="font-mono text-sm md:text-[15px] font-bold text-slate-800 whitespace-nowrap">{rec.poNumber}</div>
-                        <div className="text-xs text-slate-500 font-medium whitespace-nowrap">Slip: {rec.slipId}</div>
+                    <tr key={rec.id} className="hover:bg-slate-50/70 transition-colors group">
+                      <td className="px-4 xl:px-5 py-4">
+                        <div className="font-mono text-[13px] xl:text-sm font-bold text-slate-800 whitespace-nowrap">{rec.poNumber}</div>
+                        <div className="text-xs text-slate-400 font-medium whitespace-nowrap mt-0.5">Slip: {rec.slipId}</div>
                       </td>
-                      <td className="px-5 py-4">
-                        <div className="text-sm md:text-[15px] font-bold text-slate-800 whitespace-nowrap">{rec.supplierName}</div>
-                        <div className="text-xs text-slate-500 font-medium whitespace-nowrap truncate max-w-[240px]" title={rec.supplierLocation}>{rec.supplierLocation}</div>
+                      <td className="px-4 xl:px-5 py-4">
+                        <div className="text-[13px] xl:text-sm font-semibold text-slate-800 whitespace-nowrap truncate max-w-[200px] xl:max-w-[260px]">{rec.supplierName}</div>
+                        <div className="text-xs text-slate-400 font-medium whitespace-nowrap truncate max-w-[200px] xl:max-w-[260px] mt-0.5" title={rec.supplierLocation}>{rec.supplierLocation}</div>
                       </td>
-                      <td className="px-5 py-4 text-right">
+                      <td className="px-4 xl:px-5 py-4 text-right">
                         {rec.procurement ? (
                           <>
-                            <div className="text-sm md:text-[15px] font-extrabold text-slate-800 tabular-nums whitespace-nowrap">₹{fmtCurrency(rec.procurement.total)}</div>
-                            <div className="text-xs text-slate-500 font-semibold whitespace-nowrap">{rec.procurement.crop} - {rec.procurement.variety}</div>
+                            <div className="text-[13px] xl:text-sm font-extrabold text-slate-800 tabular-nums whitespace-nowrap">₹{fmtCurrency(rec.procurement.total)}</div>
+                            <div className="text-xs text-slate-400 font-medium whitespace-nowrap mt-0.5 truncate max-w-[150px] xl:max-w-[200px] ml-auto" title={`${rec.procurement.crop} - ${rec.procurement.variety}`}>{rec.procurement.crop} - {rec.procurement.variety}</div>
                           </>
                         ) : (
-                          <span className="text-slate-400 italic">N/A</span>
+                          <span className="text-slate-400 italic text-sm">N/A</span>
                         )}
                       </td>
-                      <td className="px-5 py-4 text-center">
-                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-blue-50 text-blue-700 text-xs font-bold whitespace-nowrap">
-                          <Calendar size={13} />
+                      <td className="px-4 xl:px-5 py-4 text-center">
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 text-xs font-bold whitespace-nowrap">
+                          <Calendar size={12} />
                           {rec.paymentDate ? fmtDate(rec.paymentDate) : "N/A"}
                         </div>
                       </td>
-                      <td className="px-5 py-4 text-center">
+                      <td className="px-3 py-4 text-center">
                         {rec.status === "BILLED" ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap">
-                            <CheckCircle size={12} /> Billed
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap">
+                            <CheckCircle size={11} /> Billed
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap">
                             Draft
                           </span>
                         )}
                       </td>
-                      <td className="px-5 py-4 text-right">
-                        <div className="flex justify-end items-center gap-1.5 flex-nowrap whitespace-nowrap">
+                      <td className="px-2 xl:px-5 py-4 text-right">
+                        <div className="flex justify-end items-center gap-1.5 flex-nowrap">
                           <button
                             onClick={() => setPreviewPO(rec)}
-                            className="px-2.5 py-1.5 text-indigo-700 hover:text-white hover:bg-indigo-600 border border-indigo-200 rounded-lg transition-colors inline-flex items-center gap-1 text-xs font-bold shadow-sm whitespace-nowrap"
+                            className="px-2 py-1 xl:px-2.5 xl:py-1.5 text-indigo-700 hover:text-white hover:bg-indigo-600 border border-indigo-200 rounded-lg transition-colors inline-flex items-center gap-1 text-xs font-bold shadow-sm whitespace-nowrap"
                             title="Preview PO"
                           >
                             <Eye size={13} /> Preview
@@ -419,7 +419,7 @@ export default function PORecordsClient({ initialRecords }: { initialRecords?: a
                           {rec.status === "BILLED" ? (
                             <button
                               onClick={() => setDownloadPO(rec)}
-                              className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors inline-flex items-center gap-1 text-xs font-bold shadow-sm whitespace-nowrap"
+                              className="px-2 py-1 xl:px-2.5 xl:py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors inline-flex items-center gap-1 text-xs font-bold shadow-sm whitespace-nowrap"
                             >
                               <Download size={13} /> Download
                             </button>
@@ -427,13 +427,13 @@ export default function PORecordsClient({ initialRecords }: { initialRecords?: a
                             <>
                               <button
                                 onClick={() => setBilledConfirmPO(rec)}
-                                className="px-2.5 py-1.5 text-emerald-700 hover:text-white hover:bg-emerald-600 border border-emerald-200 rounded-lg transition-colors inline-flex items-center gap-1 text-xs font-bold shadow-sm whitespace-nowrap"
+                                className="px-2 py-1 xl:px-2.5 xl:py-1.5 text-emerald-700 hover:text-white hover:bg-emerald-600 border border-emerald-200 rounded-lg transition-colors inline-flex items-center gap-1 text-xs font-bold shadow-sm whitespace-nowrap"
                               >
-                                <CheckCircle size={13} /> Approve/Bill
+                                <CheckCircle size={13} /> Approve
                               </button>
                               <Link
                                 href={`/dashboard/po-maker?slipId=${rec.slipId}`}
-                                className="px-2.5 py-1.5 text-slate-500 hover:text-forest-700 hover:bg-forest-50 border border-slate-200 hover:border-forest-200 rounded-lg transition-all active:scale-[0.96] inline-flex items-center gap-1 text-xs font-bold shadow-sm whitespace-nowrap"
+                                className="px-2 py-1 xl:px-2.5 xl:py-1.5 text-slate-500 hover:text-forest-700 hover:bg-forest-50 border border-slate-200 hover:border-forest-200 rounded-lg transition-all active:scale-[0.96] inline-flex items-center gap-1 text-xs font-bold shadow-sm whitespace-nowrap"
                               >
                                 <Edit3 size={13} /> Edit
                               </Link>
@@ -447,79 +447,79 @@ export default function PORecordsClient({ initialRecords }: { initialRecords?: a
               </table>
             </div>
 
-            {/* Mobile Card View */}
-            <div className="md:hidden flex flex-col p-3 gap-3 bg-slate-50/80">
+            {/* Mobile, Tablet & Medium Desktop Card View */}
+            <div className="2xl:hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 p-3 md:p-4 gap-3 md:gap-4 bg-slate-50/80">
               {records.map((rec) => (
-                <div key={rec.id} className="p-3 space-y-2 bg-white border border-slate-200 shadow-sm rounded-xl hover:border-slate-300 transition-colors">
+                <div key={rec.id} className="p-4 space-y-3 bg-white border border-slate-200 shadow-sm rounded-xl hover:border-slate-300 transition-colors">
                   <div className="flex justify-between items-start gap-2">
                     <div>
                       <div className="font-mono text-sm font-bold text-slate-800 leading-tight">{rec.poNumber}</div>
-                      <div className="text-[10px] text-slate-500 font-medium mt-0.5">Slip: {rec.slipId}</div>
+                      <div className="text-xs text-slate-400 font-medium mt-0.5">Slip: {rec.slipId}</div>
                     </div>
                     {rec.status === "BILLED" ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        <CheckCircle size={10} /> Billed
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <CheckCircle size={12} /> Billed
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
                         Draft
                       </span>
                     )}
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Supplier</p>
-                      <div className="font-bold text-slate-800 line-clamp-1">{rec.supplierName}</div>
-                      <div className="text-[10px] text-slate-500 line-clamp-1">{rec.supplierLocation}</div>
+                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Supplier</p>
+                      <div className="font-semibold text-slate-800 text-[13px] line-clamp-1">{rec.supplierName}</div>
+                      <div className="text-xs text-slate-500 line-clamp-1 mt-0.5">{rec.supplierLocation}</div>
                     </div>
                     <div>
-                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Total</p>
+                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total</p>
                       {rec.procurement ? (
                         <>
-                          <div className="font-extrabold text-slate-800 tabular-nums">₹{fmtCurrency(rec.procurement.total)}</div>
-                          <div className="text-[10px] text-slate-500 font-semibold line-clamp-1">{rec.procurement.crop} - {rec.procurement.variety}</div>
+                          <div className="font-extrabold text-slate-800 text-[13px] tabular-nums">₹{fmtCurrency(rec.procurement.total)}</div>
+                          <div className="text-xs text-slate-500 font-medium line-clamp-1 mt-0.5">{rec.procurement.crop} - {rec.procurement.variety}</div>
                         </>
                       ) : (
-                        <span className="text-slate-400 italic">N/A</span>
+                        <span className="text-slate-400 italic text-sm">N/A</span>
                       )}
                     </div>
                   </div>
 
-                  <div className="flex justify-between items-center pt-2.5 border-t border-slate-100 mt-1">
-                    <div className="inline-flex items-center gap-1 px-2 py-1 rounded bg-blue-50 text-blue-700 text-[10px] font-bold">
-                      <Calendar size={10} />
+                  <div className="flex justify-between items-center pt-3 border-t border-slate-100 mt-1">
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-blue-50 text-blue-700 text-xs font-bold">
+                      <Calendar size={12} />
                       {rec.paymentDate ? fmtDate(rec.paymentDate) : "N/A"}
                     </div>
                     
                     <div className="flex items-center gap-1.5">
                       <button
                         onClick={() => setPreviewPO(rec)}
-                        className="px-2 py-1 text-indigo-700 bg-indigo-50 hover:text-white hover:bg-indigo-600 rounded-lg transition-colors inline-flex items-center gap-1 text-[11px] font-bold"
+                        className="px-2.5 py-1.5 text-indigo-700 bg-indigo-50 hover:text-white hover:bg-indigo-600 rounded-lg transition-colors inline-flex items-center gap-1 text-xs font-bold"
                       >
-                        <Eye size={12} /> View
+                        <Eye size={13} /> View
                       </button>
                       
                       {rec.status === "BILLED" ? (
                         <button
                           onClick={() => setDownloadPO(rec)}
-                          className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors inline-flex items-center gap-1 text-[11px] font-bold shadow-sm"
+                          className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors inline-flex items-center gap-1 text-xs font-bold shadow-sm"
                         >
-                          <Download size={12} /> Down
+                          <Download size={13} /> Download
                         </button>
                       ) : (
                         <>
                           <button
                             onClick={() => setBilledConfirmPO(rec)}
-                            className="px-2 py-1 text-emerald-700 bg-emerald-50 border border-emerald-200 hover:text-white hover:bg-emerald-600 rounded-lg transition-colors inline-flex items-center gap-1 text-[11px] font-bold"
+                            className="px-2.5 py-1.5 text-emerald-700 bg-emerald-50 border border-emerald-200 hover:text-white hover:bg-emerald-600 rounded-lg transition-colors inline-flex items-center gap-1 text-xs font-bold"
                           >
-                            <CheckCircle size={12} /> Bill
+                            <CheckCircle size={13} /> Bill
                           </button>
                           <Link
                             href={`/dashboard/po-maker?slipId=${rec.slipId}`}
-                            className="px-2 py-1 text-slate-600 bg-slate-100 border border-slate-200 hover:bg-forest-600 hover:text-white rounded-lg transition-colors inline-flex items-center gap-1 text-[11px] font-bold"
+                            className="px-2.5 py-1.5 text-slate-600 bg-slate-100 border border-slate-200 hover:bg-forest-600 hover:text-white rounded-lg transition-colors inline-flex items-center gap-1 text-xs font-bold"
                           >
-                            <Edit3 size={12} /> Edit
+                            <Edit3 size={13} /> Edit
                           </Link>
                         </>
                       )}
