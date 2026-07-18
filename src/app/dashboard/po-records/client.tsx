@@ -266,7 +266,20 @@ export default function PORecordsClient({ initialRecords }: { initialRecords?: a
         finalAmount
       }
     };
-  }, [previewPO, downloadPO]);  useEffect(() => {
+  }, [previewPO, downloadPO]);
+
+  useEffect(() => {
+    if (previewPO || downloadPO) {
+      document.body.classList.add("printing-po");
+    } else {
+      document.body.classList.remove("printing-po");
+    }
+    return () => {
+      document.body.classList.remove("printing-po");
+    };
+  }, [previewPO, downloadPO]);
+
+  useEffect(() => {
     if (downloadPO && parsedPOData) {
       const timer = setTimeout(() => {
         const originalTitle = document.title;
