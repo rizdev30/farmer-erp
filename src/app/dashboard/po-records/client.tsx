@@ -274,11 +274,58 @@ export default function PORecordsClient({ initialRecords }: { initialRecords?: a
         const originalTitle = document.title;
         const safePoNumber = parsedPOData.poNumber.replace(/[\/\\]/g, '-') || 'PO';
         const safeSupplier = parsedPOData.vendor.name.trim().replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_');
-        document.title = `PO_${safeSupplier}_${safePoNumber}`;
-        window.print();
-        setTimeout(() => { document.title = originalTitle; }, 1000);
-        setDownloadPO(null);
-      }, 600);
+        const fileName = `PO_${safeSupplier}_${safePoNumber}`;
+        document.title = fileName;
+
+        // Detect mobile app/Webview or mobile user agents
+        const isMobileOrApp = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.location.search.includes('app=true');
+
+        if (isMobileOrApp) {
+          import("html2canvas").then((module) => {
+            const html2canvas = module.default;
+            const element = document.getElementById("printable-po");
+            if (!element) {
+              window.print();
+              setDownloadPO(null);
+              return;
+            }
+            html2canvas(element, {
+              scale: 2.5,
+              useCORS: true,
+              backgroundColor: "#ffffff",
+              logging: false,
+              windowWidth: 794, // Standard A4 aspect container width
+              windowHeight: 1123
+            }).then((canvas) => {
+              canvas.toBlob((blob) => {
+                if (blob) {
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `${fileName}.jpg`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                } else {
+                  window.print();
+                }
+                setDownloadPO(null);
+              }, "image/jpeg", 0.95);
+            }).catch((err) => {
+              console.error("html2canvas print error:", err);
+              window.print();
+              setDownloadPO(null);
+            });
+          }).catch((err) => {
+            console.error("Failed to load html2canvas dynamic import:", err);
+            window.print();
+            setDownloadPO(null);
+          });
+        } else {
+          window.print();
+          setTimeout(() => { document.title = originalTitle; }, 1000);
+          setDownloadPO(null);
+        }
+      }, 700);
       return () => clearTimeout(timer);
     }
   }, [downloadPO, parsedPOData]);
@@ -587,9 +634,9 @@ export default function PORecordsClient({ initialRecords }: { initialRecords?: a
 
       {/* PO Preview / Download Hidden Container */}
       {(previewPO || downloadPO) && parsedPOData && (
-        <div className={previewPO ? "fixed inset-0 z-50 flex items-center justify-center p-4 no-print overflow-y-auto" : "absolute left-[-9999px] top-[-9999px] opacity-0 pointer-events-none print:absolute print:left-0 print:top-0 print:opacity-100 print:pointer-events-auto print:w-full print:block"}>
+        <div className={previewPO ? "fixed inset-0 z-50 flex items-center justify-center p-4 no-print overflow-y-auto" : "absolute left-[-9999px] top-[-9999px] opacity-100 pointer-events-none print:fixed print:left-0 print:top-0 print:z-[99999] print:opacity-100 print:pointer-events-auto print:w-full print:block print:bg-white"}>
           {previewPO && <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm backdrop-fade" onClick={() => setPreviewPO(null)} />}
-          <div className={previewPO ? "relative w-full max-w-[230mm] bg-white rounded-3xl shadow-2xl p-4 md:p-6 modal-spring my-8 max-h-[90vh] flex flex-col" : "bg-white p-0 m-0 w-full"}>
+          <div className={previewPO ? "relative w-full max-w-[230mm] bg-white rounded-3xl shadow-2xl p-4 md:p-6 modal-spring my-8 max-h-[90vh] flex flex-col print:max-h-none print:h-auto print:block print:p-0 print:shadow-none print:my-0 print:w-full" : "bg-white p-0 m-0 w-full print:bg-white print:p-0"}>
             
             {/* Modal Header */}
             {previewPO && (
@@ -635,8 +682,8 @@ export default function PORecordsClient({ initialRecords }: { initialRecords?: a
             )}
             
             {/* Preview Sheet Container */}
-            <div className="flex-1 overflow-auto bg-slate-100/50 p-2 md:p-4 rounded-2xl border border-slate-200/60">
-              <div id="printable-po" className="w-[210mm] min-w-[210mm] mx-auto bg-white text-black p-6 text-[11px] leading-tight font-sans shadow-sm border border-slate-200">
+            <div className="flex-1 overflow-auto bg-slate-100/50 p-2 md:p-4 rounded-2xl border border-slate-200/60 print:overflow-visible print:h-auto print:block print:p-0 print:bg-white print:border-none">
+              <div id="printable-po" className="w-[210mm] min-w-[210mm] mx-auto bg-white text-black p-6 text-[11px] leading-tight font-sans shadow-sm border border-slate-200 print:shadow-none print:border-none print:p-0">
                 
                 <div className="po-grid-border flex flex-col min-h-[268mm] justify-between">
                   <div>

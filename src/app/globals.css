@@ -118,9 +118,29 @@ input[type="number"] {
   .print-only {
     display: block !important;
   }
+
+  /* Reset layout constraints so mobile/desktop browsers don't print blank pages */
+  html, body, #__next,
+  .h-screen,
+  [class*="h-screen"],
+  main,
+  aside,
+  header,
+  .overflow-hidden,
+  .overflow-y-auto,
+  [class*="overflow-"] {
+    height: auto !important;
+    min-height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    position: relative !important;
+    display: block !important;
+  }
+
   body {
-    background: white;
-    margin: 0;
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 }
 
