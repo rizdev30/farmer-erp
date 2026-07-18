@@ -43,6 +43,7 @@ export default function ReceiptPage() {
   const error = swrError?.message || "";
 
   const [isSharing, setIsSharing] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
   const { data: session } = useSession();
   const roles = (session?.user as any)?.roles || [];
 
@@ -93,12 +94,101 @@ export default function ReceiptPage() {
     timeStyle: "short",
   });
 
-  const handlePrint = () => {
+  async function handlePrint() {
     const originalTitle = document.title;
-    document.title = `Receipt_${record.farmerName.replace(/\s+/g, "_")}_${record.slipId}`;
-    window.print();
-    document.title = originalTitle;
-  };
+    const safeName = record.farmerName.replace(/\s+/g, "_");
+    const fileName = `Receipt_${safeName}_${record.slipId}`;
+    document.title = fileName;
+
+    // Detect mobile app/Webview or mobile user agents
+    const isMobileOrApp = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.location.search.includes('app=true');
+
+    if (isMobileOrApp) {
+      setIsPrinting(true);
+      try {
+        const loadJsPDF = () => {
+          return new Promise<any>((resolve, reject) => {
+            const globalJsPDF = (window as any).jspdf || (window as any).jsPDF;
+            if (globalJsPDF) {
+              resolve(globalJsPDF);
+              return;
+            }
+            const script = document.createElement("script");
+            script.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+            script.onload = () => {
+              const loaded = (window as any).jspdf || (window as any).jsPDF;
+              resolve(loaded);
+            };
+            script.onerror = (err) => reject(err);
+            document.body.appendChild(script);
+          });
+        };
+
+        const [html2canvasModule, jspdfModule] = await Promise.all([
+          import("html2canvas"),
+          loadJsPDF()
+        ]);
+
+        const html2canvas = html2canvasModule.default;
+        const element = document.getElementById("purchase-slip");
+        if (!element) {
+          window.print();
+          return;
+        }
+
+        // Generate canvas using narrow cloned element representing 58mm roll width
+        const canvas = await html2canvas(element, {
+          scale: 2.2,
+          useCORS: true,
+          backgroundColor: "#ffffff",
+          logging: false,
+          onclone: (clonedDoc) => {
+            const slip = clonedDoc.getElementById("purchase-slip");
+            if (slip) {
+              slip.style.width = "52mm";
+              slip.style.minWidth = "52mm";
+              slip.style.maxWidth = "52mm";
+              slip.style.padding = "2mm 3mm";
+              slip.style.margin = "0";
+              slip.style.boxShadow = "none";
+              slip.style.border = "none";
+              slip.style.fontFamily = "monospace, Courier, monospace";
+
+              // Scale watermark text down for narrow printer page format
+              const watermarks = slip.querySelectorAll("div.absolute > div");
+              watermarks.forEach((wm: any) => {
+                wm.style.fontSize = "16px";
+              });
+            }
+          }
+        });
+
+        const imgData = canvas.toDataURL("image/jpeg", 0.95);
+        
+        // Calculate page dimensions in mm (58mm roll size width)
+        const imgWidth = 58;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+        const pdf = new jspdfModule.jsPDF({
+          orientation: "portrait",
+          unit: "mm",
+          format: [58, imgHeight] // Custom page height based on dynamic content length
+        });
+
+        pdf.addImage(imgData, "JPEG", 0, 0, 58, imgHeight, undefined, 'FAST');
+        pdf.save(`${fileName}.pdf`);
+      } catch (err) {
+        console.error("Failed to generate custom receipt PDF:", err);
+        window.print();
+      } finally {
+        setIsPrinting(false);
+        document.title = originalTitle;
+      }
+    } else {
+      window.print();
+      document.title = originalTitle;
+    }
+  }
 
   async function handleWhatsApp() {
     setIsSharing(true);
@@ -484,12 +574,17 @@ export default function ReceiptPage() {
 
           <button
             onClick={handlePrint}
+            disabled={isPrinting}
             className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl
               border border-slate-200 text-slate-700 text-sm font-semibold 
-              hover:bg-slate-50 transition-colors"
+              hover:bg-slate-50 transition-colors disabled:opacity-75 disabled:cursor-not-allowed"
           >
-            <Download size={16} />
-            Print / PDF
+            {isPrinting ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <Download size={16} />
+            )}
+            {isPrinting ? "Generating..." : "Print / PDF"}
           </button>
         </div>
 
