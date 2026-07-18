@@ -43,7 +43,6 @@ export default function ReceiptPage() {
   const error = swrError?.message || "";
 
   const [isSharing, setIsSharing] = useState(false);
-  const [isPrinting, setIsPrinting] = useState(false);
   const { data: session } = useSession();
   const roles = (session?.user as any)?.roles || [];
 
@@ -94,56 +93,12 @@ export default function ReceiptPage() {
     timeStyle: "short",
   });
 
-  async function handlePrint() {
+  const handlePrint = () => {
     const originalTitle = document.title;
-    const safeName = record.farmerName.replace(/\s+/g, "_");
-    const fileName = `Receipt_${safeName}_${record.slipId}`;
-    document.title = fileName;
-
-    // Detect mobile app/Webview or mobile user agents
-    const isMobileOrApp = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.location.search.includes('app=true');
-
-    if (isMobileOrApp) {
-      setIsPrinting(true);
-      try {
-        const { default: html2canvas } = await import("html2canvas");
-        const element = document.getElementById("purchase-slip");
-        if (!element) {
-          window.print();
-          return;
-        }
-
-        const canvas = await html2canvas(element, {
-          scale: 2.5,
-          useCORS: true,
-          backgroundColor: "#ffffff",
-          logging: false
-        });
-
-        canvas.toBlob((blob) => {
-          if (blob) {
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `${fileName}.jpg`;
-            a.click();
-            URL.revokeObjectURL(url);
-          } else {
-            window.print();
-          }
-        }, "image/jpeg", 0.95);
-      } catch (err) {
-        console.error("Failed to render receipt canvas:", err);
-        window.print();
-      } finally {
-        setIsPrinting(false);
-        document.title = originalTitle;
-      }
-    } else {
-      window.print();
-      document.title = originalTitle;
-    }
-  }
+    document.title = `Receipt_${record.farmerName.replace(/\s+/g, "_")}_${record.slipId}`;
+    window.print();
+    document.title = originalTitle;
+  };
 
   async function handleWhatsApp() {
     setIsSharing(true);
@@ -529,17 +484,12 @@ export default function ReceiptPage() {
 
           <button
             onClick={handlePrint}
-            disabled={isPrinting}
             className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl
               border border-slate-200 text-slate-700 text-sm font-semibold 
-              hover:bg-slate-50 transition-colors disabled:opacity-75 disabled:cursor-not-allowed"
+              hover:bg-slate-50 transition-colors"
           >
-            {isPrinting ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              <Download size={16} />
-            )}
-            {isPrinting ? "Generating..." : "Print / PDF"}
+            <Download size={16} />
+            Print / PDF
           </button>
         </div>
 
