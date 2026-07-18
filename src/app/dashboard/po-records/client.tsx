@@ -266,20 +266,7 @@ export default function PORecordsClient({ initialRecords }: { initialRecords?: a
         finalAmount
       }
     };
-  }, [previewPO, downloadPO]);
-
-  useEffect(() => {
-    if (previewPO || downloadPO) {
-      document.body.classList.add("printing-po");
-    } else {
-      document.body.classList.remove("printing-po");
-    }
-    return () => {
-      document.body.classList.remove("printing-po");
-    };
-  }, [previewPO, downloadPO]);
-
-  useEffect(() => {
+  }, [previewPO, downloadPO]);  useEffect(() => {
     if (downloadPO && parsedPOData) {
       const timer = setTimeout(() => {
         const originalTitle = document.title;
@@ -390,13 +377,31 @@ export default function PORecordsClient({ initialRecords }: { initialRecords?: a
       return () => clearTimeout(timer);
     }
   }, [downloadPO, parsedPOData]);
-
   return (
     <>
       <style>{`
         @media print {
           @page { size: A4 portrait; margin: 5mm; }
           body { -webkit-print-color-adjust: exact; print-color-adjust: exact; margin: 0; padding: 0; background: white !important; }
+          
+          /* Reset layout height and overflow only for PO list print */
+          html, body, #__next,
+          .h-screen,
+          [class*="h-screen"],
+          main,
+          aside,
+          header,
+          .overflow-hidden,
+          .overflow-y-auto,
+          [class*="overflow-"] {
+            height: auto !important;
+            min-height: auto !important;
+            max-height: none !important;
+            overflow: visible !important;
+            position: relative !important;
+            display: block !important;
+          }
+
           #printable-po {
             width: 100% !important;
             min-width: 100% !important;

@@ -118,33 +118,6 @@ input[type="number"] {
   .print-only {
     display: block !important;
   }
-
-  /* Reset layout constraints only when printing a PO to prevent blank pages */
-  body.printing-po,
-  body.printing-po html,
-  body.printing-po #__next,
-  body.printing-po .h-screen,
-  body.printing-po [class*="h-screen"],
-  body.printing-po main,
-  body.printing-po aside,
-  body.printing-po header,
-  body.printing-po .overflow-hidden,
-  body.printing-po .overflow-y-auto,
-  body.printing-po [class*="overflow-"] {
-    height: auto !important;
-    min-height: auto !important;
-    max-height: none !important;
-    overflow: visible !important;
-    position: relative !important;
-    display: block !important;
-  }
-
-  body.printing-po {
-    background: white !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-
   body {
     background: white;
     margin: 0;
