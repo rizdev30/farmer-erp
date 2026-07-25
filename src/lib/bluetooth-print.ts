@@ -41,6 +41,13 @@ export interface ReceiptPrintData {
 let cachedCharacteristic: any = null;
 
 /**
+ * Check if Bluetooth printer is already paired and GATT server connected
+ */
+export function isBluetoothConnected(): boolean {
+  return Boolean(cachedCharacteristic && cachedCharacteristic.service?.device?.gatt?.connected);
+}
+
+/**
  * Format two strings into a 32-column fixed-width line for 58mm paper (32 characters per line)
  */
 function formatLine(left: string, right: string, width = 32): string {

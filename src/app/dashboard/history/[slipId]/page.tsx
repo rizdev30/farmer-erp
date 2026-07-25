@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useSWRCache, invalidateCache } from "@/lib/swr-cache";
-import { printViaWebBluetooth } from "@/lib/bluetooth-print";
+import { printViaWebBluetooth, isBluetoothConnected } from "@/lib/bluetooth-print";
 import BluetoothPairingModal from "@/components/BluetoothPairingModal";
 import { useToast } from "@/components/Toast";
 
@@ -693,7 +693,13 @@ export default function ReceiptPage() {
           {record.status === "APPROVED" && (
             <>
               <button
-                onClick={() => setShowBtModal(true)}
+                onClick={() => {
+                  if (isBluetoothConnected()) {
+                    handleBluetoothPrint();
+                  } else {
+                    setShowBtModal(true);
+                  }
+                }}
                 disabled={isSharing || isPrinting || isBtPrinting}
                 className="md:hidden flex-1 flex items-center justify-center gap-2 px-3 py-3 rounded-xl
                   bg-blue-600 text-white text-sm font-semibold 
