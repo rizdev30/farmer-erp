@@ -429,31 +429,35 @@ export default function PurchaseSlip({ receipts, onClose }: Props) {
               {isSharing ? "Generating..." : "WhatsApp"}
             </button>
 
-            <button
-              onClick={() => setShowBtModal(true)}
-              disabled={isBtPrinting}
-              className="md:hidden flex-1 flex items-center justify-center gap-2 px-3 py-3 rounded-xl
-                bg-blue-600 text-white text-sm font-semibold 
-                hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
-              title="Print directly to Bluetooth 58mm Thermal Printer"
-            >
-              {isBtPrinting ? (
-                <Loader2 size={16} className="animate-spin" />
-              ) : (
-                <Bluetooth size={16} />
-              )}
-              {isBtPrinting ? "Printing..." : "Bluetooth"}
-            </button>
+            {firstReceipt.status === "APPROVED" && (
+              <>
+                <button
+                  onClick={() => setShowBtModal(true)}
+                  disabled={isBtPrinting}
+                  className="md:hidden flex-1 flex items-center justify-center gap-2 px-3 py-3 rounded-xl
+                    bg-blue-600 text-white text-sm font-semibold 
+                    hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
+                  title="Print directly to Bluetooth 58mm Thermal Printer"
+                >
+                  {isBtPrinting ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <Bluetooth size={16} />
+                  )}
+                  {isBtPrinting ? "Printing..." : "Bluetooth"}
+                </button>
 
-            <button
-              onClick={handlePrint}
-              className="flex-1 flex items-center justify-center gap-2 px-3 py-3 rounded-xl
-                border border-slate-200 text-slate-700 text-sm font-semibold 
-                hover:bg-slate-50 transition-colors"
-            >
-              <Printer size={16} />
-              Direct Print
-            </button>
+                <button
+                  onClick={handlePrint}
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-3 rounded-xl
+                    border border-slate-200 text-slate-700 text-sm font-semibold 
+                    hover:bg-slate-50 transition-colors"
+                >
+                  <Printer size={16} />
+                  Direct Print
+                </button>
+              </>
+            )}
 
             <button
               onClick={onClose}
