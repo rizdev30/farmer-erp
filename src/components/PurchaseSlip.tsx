@@ -10,10 +10,12 @@ import {
   Sprout,
   Loader2,
   FileText,
-  Printer
+  Printer,
+  Bluetooth
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { printViaWebBluetooth } from "@/lib/bluetooth-print";
 
 // Narrow the type to the success case of the ProcurementReceipt union
 type SuccessReceipt = Extract<ProcurementReceipt, { success: true }>;
@@ -106,6 +108,41 @@ export default function PurchaseSlip({ receipts, onClose }: Props) {
       alert("Failed to generate receipt image.");
     } finally {
       setIsSharing(false);
+    }
+  }
+
+  const [isBtPrinting, setIsBtPrinting] = useState(false);
+
+  async function handleBluetoothPrint() {
+    setIsBtPrinting(true);
+    try {
+      await printViaWebBluetooth({
+        slipId: firstReceipt.slipId,
+        createdAt: firstReceipt.timestamp,
+        farmerName: firstReceipt.farmerName,
+        fatherName: firstReceipt.fatherName,
+        farmerCode: firstReceipt.farmerCode,
+        village: firstReceipt.village,
+        town: (firstReceipt as any).town || (firstReceipt as any).farmer?.town,
+        adtiyaName: firstReceipt.adtiyaName,
+        lotNo: firstReceipt.lotNo,
+        crop: firstReceipt.crop,
+        variety: firstReceipt.variety,
+        bags: firstReceipt.bags,
+        packingUnit: (firstReceipt as any).packingUnit,
+        grossQuantity: firstReceipt.grossQuantity,
+        deduction: firstReceipt.deduction,
+        netQuantity: firstReceipt.netQuantity,
+        rate: firstReceipt.rate,
+        total: firstReceipt.total,
+        status: firstReceipt.status,
+        agentName: firstReceipt.agentName,
+      });
+    } catch (err: any) {
+      console.error("Bluetooth print error:", err);
+      alert(err.message || "Failed to print via Bluetooth. Please ensure your thermal printer is turned on and paired.");
+    } finally {
+      setIsBtPrinting(false);
     }
   }
 
@@ -386,13 +423,29 @@ export default function PurchaseSlip({ receipts, onClose }: Props) {
             </button>
 
             <button
+              onClick={handleBluetoothPrint}
+              disabled={isBtPrinting}
+              className="flex-1 flex items-center justify-center gap-2 px-3 py-3 rounded-xl
+                bg-blue-600 text-white text-sm font-semibold 
+                hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
+              title="Print directly to Bluetooth 58mm Thermal Printer"
+            >
+              {isBtPrinting ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <Bluetooth size={16} />
+              )}
+              {isBtPrinting ? "Printing..." : "Bluetooth"}
+            </button>
+
+            <button
               onClick={handlePrint}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl
+              className="flex-1 flex items-center justify-center gap-2 px-3 py-3 rounded-xl
                 border border-slate-200 text-slate-700 text-sm font-semibold 
                 hover:bg-slate-50 transition-colors"
             >
               <Printer size={16} />
-              Print Slip
+              Direct Print
             </button>
 
             <button

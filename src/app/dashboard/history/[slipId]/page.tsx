@@ -12,9 +12,11 @@ import {
   Download,
   CheckCircle2,
   Printer,
+  Bluetooth,
 } from "lucide-react";
 import Link from "next/link";
 import { useSWRCache, invalidateCache } from "@/lib/swr-cache";
+import { printViaWebBluetooth } from "@/lib/bluetooth-print";
 
 export default function ReceiptPage() {
   const params = useParams();
@@ -215,6 +217,43 @@ export default function ReceiptPage() {
     } finally {
       setIsPrinting(false);
       document.title = originalTitle;
+    }
+  }
+
+  const [isBtPrinting, setIsBtPrinting] = useState(false);
+
+  async function handleBluetoothPrint() {
+    if (!record) return;
+    setIsBtPrinting(true);
+    try {
+      await printViaWebBluetooth({
+        slipId: record.slipId,
+        createdAt: record.createdAt,
+        farmerName: record.farmerName,
+        fatherName: record.fatherName,
+        farmerCode: record.farmerCode,
+        village: record.village,
+        adtiyaName: record.adtiyaName,
+        lotNo: record.lotNo,
+        crop: record.crop,
+        variety: record.variety,
+        bags: record.bags,
+        packingUnit: record.packingUnit,
+        grossQuantity: record.grossQuantity,
+        deduction: record.deduction,
+        netQuantity: record.netQuantity,
+        rate: record.rate,
+        total: record.total,
+        status: record.status,
+        agentName: record.agentName,
+        l2ApproverName: record.l2ApproverName,
+        l3ApproverName: record.l3ApproverName,
+      });
+    } catch (err: any) {
+      console.error("Bluetooth print error:", err);
+      alert(err.message || "Failed to print via Bluetooth. Please ensure your thermal printer is turned on and paired.");
+    } finally {
+      setIsBtPrinting(false);
     }
   }
 
@@ -615,9 +654,25 @@ export default function ReceiptPage() {
           </button>
 
           <button
+            onClick={handleBluetoothPrint}
+            disabled={isSharing || isPrinting || isBtPrinting}
+            className="flex-1 flex items-center justify-center gap-2 px-3 py-3 rounded-xl
+              bg-blue-600 text-white text-sm font-semibold 
+              hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
+            title="Print directly to Bluetooth 58mm Thermal Printer"
+          >
+            {isBtPrinting ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <Bluetooth size={16} />
+            )}
+            {isBtPrinting ? "Printing..." : "Bluetooth"}
+          </button>
+
+          <button
             onClick={handleDirectPrint}
-            disabled={isSharing || isPrinting}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl
+            disabled={isSharing || isPrinting || isBtPrinting}
+            className="flex-1 flex items-center justify-center gap-2 px-3 py-3 rounded-xl
               border border-slate-200 text-slate-700 text-sm font-semibold 
               hover:bg-slate-50 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
           >
