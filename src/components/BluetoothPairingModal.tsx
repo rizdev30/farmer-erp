@@ -15,8 +15,8 @@ export default function BluetoothPairingModal({ isOpen, onClose, onConfirm, isPr
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
       {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" 
+      <div
+        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
 
@@ -74,7 +74,7 @@ export default function BluetoothPairingModal({ isOpen, onClose, onConfirm, isPr
                 Chrome & Edge Only
               </p>
               <p className="text-[11px] text-blue-800/90 mt-0.5 leading-snug font-medium">
-                Web Bluetooth is only supported on <strong>Google Chrome</strong> and <strong>Microsoft Edge</strong>. If you are using another browser, please switch to Chrome.
+                This Bluetooth printing is only supported on <strong>Chrome</strong> and <strong>Edge</strong>. If you are using another browser, please switch to Chrome.
               </p>
             </div>
           </div>
