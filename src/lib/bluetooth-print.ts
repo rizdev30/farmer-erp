@@ -41,7 +41,7 @@ export interface ReceiptPrintData {
 let cachedCharacteristic: any = null;
 
 /**
- * Format two strings into a 32-column fixed-width line for 58mm paper
+ * Format two strings into a 32-column fixed-width line for 58mm paper (32 characters per line)
  */
 function formatLine(left: string, right: string, width = 32): string {
   const leftStr = String(left || "");
@@ -61,7 +61,7 @@ function fmtCurrency(val: number): string {
 }
 
 /**
- * Convert receipt print data into ESC/POS Command Uint8Array matching the Direct Print receipt layout 1:1
+ * Convert receipt print data into ESC/POS Command Uint8Array matching Direct Print 1:1 in font size, weights & formatting
  */
 function buildEscPosBuffer(data: ReceiptPrintData): Uint8Array {
   const encoder = new TextEncoder();
@@ -78,15 +78,21 @@ function buildEscPosBuffer(data: ReceiptPrintData): Uint8Array {
   // ESC @: Initialize printer
   pushBytes([0x1b, 0x40]);
 
+  // ESC M 0: Select Font A (Standard 12x24 font matching ~10.5pt text)
+  pushBytes([0x1b, 0x4d, 0x00]);
+
+  // ESC 3 30: Set line spacing (30 dots ~ 1.2 line height)
+  pushBytes([0x1b, 0x33, 0x1e]);
+
   // Center align
   pushBytes([0x1b, 0x61, 0x01]);
 
-  // Header Title
+  // Header Title: PURCHASE SLIP (Bold ON + Double Height & Width matching 13.5pt)
   pushBytes([0x1b, 0x45, 0x01]); // Bold ON
   pushBytes([0x1d, 0x21, 0x11]); // Double height & width
   pushText("PURCHASE SLIP\n");
 
-  pushBytes([0x1d, 0x21, 0x00]); // Normal size
+  pushBytes([0x1d, 0x21, 0x00]); // Normal size (10.5pt equivalent)
   pushText("FARMER ERP PVT. LTD.\n");
 
   const isApproved = data.status === "APPROVED";
@@ -113,10 +119,10 @@ function buildEscPosBuffer(data: ReceiptPrintData): Uint8Array {
   pushText("--------------------------------\n");
 
   // Trader vs Farmer Details
-  pushBytes([0x1b, 0x45, 0x01]);
+  pushBytes([0x1b, 0x45, 0x01]); // Bold ON for section title
   if (data.category === "TRADER") {
     pushText("TRADER DETAILS\n");
-    pushBytes([0x1b, 0x45, 0x00]);
+    pushBytes([0x1b, 0x45, 0x00]); // Bold OFF
     pushText(formatLine("Trader Code", data.farmerCode || "N/A") + "\n");
     pushText(formatLine("Name", data.farmerName || "-") + "\n");
     if (data.company) pushText(formatLine("Company", data.company) + "\n");
@@ -125,7 +131,7 @@ function buildEscPosBuffer(data: ReceiptPrintData): Uint8Array {
     if (data.panGst) pushText(formatLine("PAN/GST", data.panGst) + "\n");
   } else {
     pushText("FARMER DETAILS\n");
-    pushBytes([0x1b, 0x45, 0x00]);
+    pushBytes([0x1b, 0x45, 0x00]); // Bold OFF
     pushText(formatLine("Farmer Code", data.farmerCode || "N/A") + "\n");
     pushText(formatLine("Name", data.farmerName || "-") + "\n");
     pushText(formatLine("Father Name", data.fatherName || "N/A") + "\n");
@@ -194,7 +200,7 @@ function buildEscPosBuffer(data: ReceiptPrintData): Uint8Array {
   pushBytes([0x1b, 0x61, 0x01]); // Center align
   pushBytes([0x1b, 0x45, 0x01]); // Bold
   pushText("TOTAL PAYOUT\n");
-  pushBytes([0x1d, 0x21, 0x11]); // Double height & width
+  pushBytes([0x1d, 0x21, 0x11]); // Double height & width (12.5pt bold equivalent)
   pushText(`Rs. ${fmtCurrency(totalPayout)}\n`);
   pushBytes([0x1d, 0x21, 0x00]); // Reset size
   pushBytes([0x1b, 0x45, 0x00]);
