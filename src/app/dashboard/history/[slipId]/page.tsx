@@ -717,8 +717,8 @@ export default function ReceiptPage() {
           isPrinting={isBtPrinting}
         />
 
-        {/* Make PO Button for L3/L4 users */}
-        {(roles.includes("L3_PO_MAKER") || roles.includes("L4_ADMIN") || (session?.user as any)?.isSuperAdmin) && (
+        {/* Make PO Button for L3/L4 users (Only when slip is APPROVED) */}
+        {(roles.includes("L3_PO_MAKER") || roles.includes("L4_ADMIN") || (session?.user as any)?.isSuperAdmin) && record.status === "APPROVED" && (
           <div className="px-6 pb-6 print:hidden">
             <button
               onClick={() => router.push(`/dashboard/po-maker?slipId=${record.slipId}`)}

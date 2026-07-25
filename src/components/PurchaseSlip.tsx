@@ -475,8 +475,8 @@ export default function PurchaseSlip({ receipts, onClose }: Props) {
             isPrinting={isBtPrinting}
           />
 
-          {/* Make PO Button for L3/L4 users */}
-          {canMakePO && (
+          {/* Make PO Button for L3/L4 users (Only when slip is APPROVED) */}
+          {canMakePO && firstReceipt.status === "APPROVED" && (
             <div className="px-6 pb-6 print:hidden">
               <button
                 onClick={() => router.push(`/dashboard/po-maker?slipId=${firstReceipt.slipId}`)}
