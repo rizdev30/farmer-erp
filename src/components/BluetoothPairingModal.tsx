@@ -1,6 +1,6 @@
 "use client";
 
-import { Bluetooth, Printer, X, ShieldCheck } from "lucide-react";
+import { Bluetooth, Printer, X, ShieldCheck, Info } from "lucide-react";
 
 interface Props {
   isOpen: boolean;
@@ -46,7 +46,7 @@ export default function BluetoothPairingModal({ isOpen, onClose, onConfirm, isPr
           Farmer ERP Request
         </p>
 
-        <div className="bg-slate-50 rounded-2xl p-3.5 mb-5 border border-slate-100 text-left space-y-2">
+        <div className="bg-slate-50 rounded-2xl p-3.5 mb-3 border border-slate-100 text-left space-y-2">
           <p className="text-xs text-slate-700 font-medium leading-relaxed">
             Farmer ERP wants to pair with your <strong>58mm Bluetooth Thermal Printer</strong> for instant wireless receipt printing.
           </p>
@@ -54,6 +54,14 @@ export default function BluetoothPairingModal({ isOpen, onClose, onConfirm, isPr
             <li>Ensure printer is turned <strong>ON</strong></li>
             <li>Enable Bluetooth on your mobile phone</li>
           </ul>
+        </div>
+
+        {/* Browser Notice */}
+        <div className="bg-amber-50/90 rounded-2xl p-3 mb-5 border border-amber-200/80 text-left flex items-start gap-2">
+          <Info size={16} className="text-amber-600 shrink-0 mt-0.5" />
+          <p className="text-[11px] text-amber-900 leading-tight">
+            <strong className="font-semibold">Browser Support:</strong> Direct Bluetooth printing works on <strong>Chrome & Edge</strong>. If using another browser, please switch to Chrome.
+          </p>
         </div>
 
         {/* Actions */}
