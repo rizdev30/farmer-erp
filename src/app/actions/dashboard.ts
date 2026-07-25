@@ -159,50 +159,55 @@ export async function getDashboardStats(filters?: {
     const todayWhere = { ...baseWhere, createdAt: { gte: todayStart, lte: todayEnd } };
     const monthWhere = { ...baseWhere, createdAt: { gte: monthStart, lte: monthEnd } };
 
-    // Today's slip counts (independent of the metrics status filter)
-    const [
-      todaysTotalSlips,
-      todaysApprovedSlips,
-      todaysPendingSlips,
-      todaysCancelSlips,
-    ] = await Promise.all([
-      prisma.procurement.count({ where: todayWhere }),
-      prisma.procurement.count({ where: { ...todayWhere, status: "APPROVED" } }),
-      prisma.procurement.count({ where: { ...todayWhere, status: { in: ["PENDING_L2", "PENDING_L3"] } } }),
-      prisma.procurement.count({ where: { ...todayWhere, status: { in: ["REJECTED_L2", "REJECTED_L3"] } } }),
+    // Efficiently fetch counts using groupBy in parallel
+    const [todayGroups, monthGroups, todayAgg, monthAgg] = await Promise.all([
+      prisma.procurement.groupBy({
+        by: ["status"],
+        where: todayWhere,
+        _count: { id: true },
+      }),
+      prisma.procurement.groupBy({
+        by: ["status"],
+        where: monthWhere,
+        _count: { id: true },
+      }),
+      prisma.procurement.aggregate({
+        where: { ...todayWhere, status: { in: getStatusFilterList(filters?.status) } },
+        _sum: { netQuantity: true, bags: true, total: true },
+        _avg: { rate: true },
+      }),
+      prisma.procurement.aggregate({
+        where: { ...monthWhere, status: { in: getStatusFilterList(filters?.status) } },
+        _sum: { netQuantity: true, bags: true, total: true },
+        _avg: { rate: true },
+      }),
     ]);
 
-    // Monthly/Total slip counts (independent of the metrics status filter)
-    const [
-      totalPurchase,
-      approved,
-      pendingApproval,
-      rejected,
-    ] = await Promise.all([
-      prisma.procurement.count({ where: monthWhere }),
-      prisma.procurement.count({ where: { ...monthWhere, status: "APPROVED" } }),
-      prisma.procurement.count({ where: { ...monthWhere, status: { in: ["PENDING_L2", "PENDING_L3"] } } }),
-      prisma.procurement.count({ where: { ...monthWhere, status: { in: ["REJECTED_L2", "REJECTED_L3"] } } }),
-    ]);
+    // Parse today counts
+    let todaysTotalSlips = 0;
+    let todaysApprovedSlips = 0;
+    let todaysPendingSlips = 0;
+    let todaysCancelSlips = 0;
+    for (const g of todayGroups) {
+      const cnt = g._count.id;
+      todaysTotalSlips += cnt;
+      if (g.status === "APPROVED") todaysApprovedSlips += cnt;
+      else if (g.status === "PENDING_L2" || g.status === "PENDING_L3") todaysPendingSlips += cnt;
+      else if (g.status === "REJECTED_L2" || g.status === "REJECTED_L3") todaysCancelSlips += cnt;
+    }
 
-    // Status filter list for metrics
-    const metricsStatusList = getStatusFilterList(filters?.status);
-
-    // Today's purchase metrics (filtered by metricsStatusList)
-    const todayMetricsWhere = { ...todayWhere, status: { in: metricsStatusList } };
-    const todayAgg = await prisma.procurement.aggregate({
-      where: todayMetricsWhere,
-      _sum: { netQuantity: true, bags: true, total: true },
-      _avg: { rate: true },
-    });
-
-    // Monthly purchase metrics (filtered by metricsStatusList)
-    const monthMetricsWhere = { ...monthWhere, status: { in: metricsStatusList } };
-    const monthAgg = await prisma.procurement.aggregate({
-      where: monthMetricsWhere,
-      _sum: { netQuantity: true, bags: true, total: true },
-      _avg: { rate: true },
-    });
+    // Parse month counts
+    let totalPurchase = 0;
+    let approved = 0;
+    let pendingApproval = 0;
+    let rejected = 0;
+    for (const g of monthGroups) {
+      const cnt = g._count.id;
+      totalPurchase += cnt;
+      if (g.status === "APPROVED") approved += cnt;
+      else if (g.status === "PENDING_L2" || g.status === "PENDING_L3") pendingApproval += cnt;
+      else if (g.status === "REJECTED_L2" || g.status === "REJECTED_L3") rejected += cnt;
+    }
 
     return {
       totalPurchase,

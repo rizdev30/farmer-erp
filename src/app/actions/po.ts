@@ -163,8 +163,13 @@ export async function getApprovedProcurementsByAdhatiya(adhatiyaName: string) {
     take: 50
   });
 
-  // Fetch all Purchase Orders to compute already billed bags/quantities
+  if (procurements.length === 0) return [];
+
+  const slipIds = procurements.map((p) => p.slipId);
+
+  // Fetch only Purchase Orders that match the fetched procurements
   const purchaseOrders = await prisma.purchaseOrder.findMany({
+    where: { slipId: { in: slipIds } },
     select: {
       slipId: true,
       items: true

@@ -413,15 +413,18 @@ export default function DashboardClient({ initialStats, initialVarietyStats, ini
   const [drillRecords, setDrillRecords] = useState<VarietyRecord[] | SlipRecord[]>([]);
   const [isPending, startTransition] = useTransition();
 
-  // Prefetch background pages after stats load
+  // Defer background prefetching so initial render and mobile responsiveness remain instant
   useEffect(() => {
     if (!stats) return;
-    prefetchCache("farmers-list----", () => getFarmers({}).then((d) => d as any[]));
-    prefetchCache("history-records---", () => getProcurementHistory({}));
-    prefetchCache("history-summary-", () => getMonthlySummary());
-    if ((session?.user as any)?.isSuperAdmin) {
-      prefetchCache("agents-list", () => fetch("/api/agents").then((r) => r.json()));
-    }
+    const timer = setTimeout(() => {
+      prefetchCache("farmers-list----", () => getFarmers({}).then((d) => d as any[]));
+      prefetchCache("history-records---", () => getProcurementHistory({}));
+      prefetchCache("history-summary-", () => getMonthlySummary());
+      if ((session?.user as any)?.isSuperAdmin) {
+        prefetchCache("agents-list", () => fetch("/api/agents").then((r) => r.json()));
+      }
+    }, 2500);
+    return () => clearTimeout(timer);
   }, [stats, session]);
 
   // Click handlers
