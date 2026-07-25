@@ -2,6 +2,19 @@
  * Web Bluetooth ESC/POS Thermal Receipt Printing Utility (58mm / 32 Columns)
  */
 
+export interface ReceiptItem {
+  crop: string;
+  variety?: string;
+  bags: number;
+  packingSize?: number;
+  packingUnit?: string;
+  grossQuantity: number;
+  deduction: number;
+  bones: number;
+  rate: number;
+  total?: number;
+}
+
 export interface ReceiptPrintData {
   slipId: string;
   createdAt?: string | Date;
@@ -17,20 +30,11 @@ export interface ReceiptPrintData {
   town?: string;
   adtiyaName?: string;
   lotNo?: string;
-  crop?: string;
-  variety?: string;
-  bags?: number;
-  packingUnit?: string;
-  grossQuantity?: number;
-  deduction?: number;
-  bones?: number;
-  netQuantity?: number;
-  rate?: number;
-  total?: number;
   status?: string;
   agentName?: string;
   l2ApproverName?: string;
   l3ApproverName?: string;
+  items: ReceiptItem[];
 }
 
 // Global cached bluetooth device & characteristic
@@ -50,7 +54,14 @@ function formatLine(left: string, right: string, width = 32): string {
 }
 
 /**
- * Convert text into ESC/POS Command Uint8Array matching the Purchase Slip receipt layout
+ * Format currency without symbol for ESC/POS
+ */
+function fmtCurrency(val: number): string {
+  return Number(val || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/**
+ * Convert receipt print data into ESC/POS Command Uint8Array matching the Direct Print receipt layout 1:1
  */
 function buildEscPosBuffer(data: ReceiptPrintData): Uint8Array {
   const encoder = new TextEncoder();
@@ -123,54 +134,68 @@ function buildEscPosBuffer(data: ReceiptPrintData): Uint8Array {
 
   pushText("--------------------------------\n");
 
-  // Additional Info
+  // Additional Details
   pushText(formatLine("Adtiya Name", data.adtiyaName || "—") + "\n");
   pushText(formatLine("Lot No.", data.lotNo || "—") + "\n");
 
   pushText("--------------------------------\n");
 
-  // Transaction Details
-  pushBytes([0x1b, 0x45, 0x01]);
-  pushText("TRANSACTION DETAILS\n");
-  pushBytes([0x1b, 0x45, 0x00]);
+  // Transaction Items Loop & Grand Totals
+  let grandTotal = 0;
+  let grandBones = 0;
 
-  if (data.crop) pushText(formatLine("Crop", data.crop) + "\n");
-  if (data.variety) pushText(formatLine("Variety", data.variety || "—") + "\n");
-  if (data.bags !== undefined) pushText(formatLine("No. of Bags", Number(data.bags).toLocaleString("en-IN")) + "\n");
-  if (data.packingUnit) pushText(formatLine("Packing Unit", data.packingUnit) + "\n");
-  
-  const gross = data.grossQuantity ?? data.netQuantity ?? 0;
-  pushText(formatLine("Weight Qtl.", Number(gross).toLocaleString("en-IN", { minimumFractionDigits: 2 })) + "\n");
+  const items = data.items && data.items.length > 0 ? data.items : [];
 
-  const rateVal = data.rate ?? 0;
-  pushText(formatLine("RATE/Qtl.", Number(rateVal).toLocaleString("en-IN", { minimumFractionDigits: 2 })) + "\n");
+  items.forEach((item, index) => {
+    pushBytes([0x1b, 0x45, 0x01]);
+    const sectionTitle = items.length > 1 ? `TRANSACTION ${index + 1}` : "TRANSACTION DETAILS";
+    pushText(`${sectionTitle}\n`);
+    pushBytes([0x1b, 0x45, 0x00]);
 
-  const dedVal = data.deduction ?? 0;
-  pushText(formatLine("Deduction/Qtl", `${dedVal} kg`) + "\n");
+    if (item.crop) pushText(formatLine("Crop", item.crop) + "\n");
+    pushText(formatLine("Variety", item.variety || "—") + "\n");
+    pushText(formatLine("No. of Bags", Number(item.bags || 0).toLocaleString("en-IN")) + "\n");
+    
+    const packingStr = item.packingSize ? `${item.packingSize} kg` : (item.packingUnit || "—");
+    pushText(formatLine("Packing Unit", packingStr) + "\n");
 
-  const bonesVal = data.bones ?? 0;
-  pushText(formatLine("Bones/Qtl", Number(bonesVal).toLocaleString("en-IN", { minimumFractionDigits: 2 })) + "\n");
+    const gross = item.grossQuantity || 0;
+    pushText(formatLine("Weight Qtl.", fmtCurrency(gross)) + "\n");
 
-  // Math Subtotals
-  const totalAmount = gross * rateVal;
-  const totalBones = gross * bonesVal;
-  const totalDeduction = ((gross * dedVal) / 100) * rateVal;
+    const rateVal = item.rate || 0;
+    pushText(formatLine("RATE/Qtl.", fmtCurrency(rateVal)) + "\n");
 
-  pushText("--------------------------------\n");
-  pushText(formatLine("Total Amount", Number(totalAmount).toLocaleString("en-IN", { minimumFractionDigits: 2 })) + "\n");
-  pushText(formatLine("Total Bones", Number(totalBones).toLocaleString("en-IN", { minimumFractionDigits: 2 })) + "\n");
-  pushText(formatLine("Total Deduction", `- ${Number(totalDeduction).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`) + "\n");
+    const dedVal = item.deduction || 0;
+    pushText(formatLine("Deduction/Qtl", `${dedVal} kg`) + "\n");
 
-  pushText("================================\n");
+    const bonesVal = item.bones || 0;
+    pushText(formatLine("Bones/Qtl", fmtCurrency(bonesVal)) + "\n");
+
+    // Math Subtotals per Item
+    const deductionWeightQtl = (gross * dedVal) / 100;
+    const netQty = gross - deductionWeightQtl;
+    const totalAmt = item.total !== undefined ? item.total : (netQty * rateVal);
+    const bonesAmt = gross * bonesVal;
+    const dedAmt = deductionWeightQtl * rateVal;
+
+    grandTotal += totalAmt;
+    grandBones += bonesAmt;
+
+    pushText(" - - - - - - - - - - - - - - - -\n");
+    pushText(formatLine("Total Amount", fmtCurrency(gross * rateVal)) + "\n");
+    pushText(formatLine("Total Bones", fmtCurrency(bonesAmt)) + "\n");
+    pushText(formatLine("Total Deduction", `- ${fmtCurrency(dedAmt)}`) + "\n");
+    pushText("--------------------------------\n");
+  });
 
   // Grand Total Payout
-  const grandTotal = data.total !== undefined ? data.total : (totalAmount + totalBones - totalDeduction);
+  const totalPayout = grandTotal + grandBones;
 
   pushBytes([0x1b, 0x61, 0x01]); // Center align
   pushBytes([0x1b, 0x45, 0x01]); // Bold
   pushText("TOTAL PAYOUT\n");
   pushBytes([0x1d, 0x21, 0x11]); // Double height & width
-  pushText(`Rs. ${Number(grandTotal).toLocaleString("en-IN", { minimumFractionDigits: 2 })}\n`);
+  pushText(`Rs. ${fmtCurrency(totalPayout)}\n`);
   pushBytes([0x1d, 0x21, 0x00]); // Reset size
   pushBytes([0x1b, 0x45, 0x00]);
 
@@ -194,7 +219,7 @@ function buildEscPosBuffer(data: ReceiptPrintData): Uint8Array {
   }
 
   const printedOn = new Date().toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
-  pushText(`Printed on: ${printedOn}\n`);
+  pushText(`Downloaded / Printed on:\n${printedOn}\n`);
 
   // Feed 4 lines and cut paper
   pushBytes([0x0a, 0x0a, 0x0a, 0x0a]);
@@ -208,7 +233,7 @@ function buildEscPosBuffer(data: ReceiptPrintData): Uint8Array {
  */
 export async function printViaWebBluetooth(data: ReceiptPrintData): Promise<boolean> {
   if (typeof window === "undefined" || !("bluetooth" in navigator)) {
-    throw new Error("Web Bluetooth is not supported in this browser. Please use Chrome/Edge on PC or Android.");
+    throw new Error("Web Bluetooth is not supported in this browser. Please use Chrome/Edge on Android or Desktop.");
   }
 
   const buffer = buildEscPosBuffer(data);

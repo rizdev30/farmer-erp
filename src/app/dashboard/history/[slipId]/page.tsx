@@ -241,20 +241,23 @@ export default function ReceiptPage() {
         town: record.farmer?.block || record.farmer?.district,
         adtiyaName: record.adtiyaName,
         lotNo: record.lotNo,
-        crop: record.crop,
-        variety: record.variety,
-        bags: record.bags,
-        packingUnit: record.packingSize ? `${record.packingSize} kg` : undefined,
-        grossQuantity: record.grossQuantity,
-        deduction: record.deduction,
-        bones: record.bones,
-        netQuantity: record.netQuantity,
-        rate: record.rate,
-        total: record.total,
         status: record.status,
         agentName: record.agentName,
         l2ApproverName: record.l2ApproverName,
         l3ApproverName: record.l3ApproverName,
+        items: [
+          {
+            crop: record.crop,
+            variety: record.variety,
+            bags: record.bags,
+            packingSize: record.packingSize,
+            grossQuantity: record.grossQuantity,
+            deduction: record.deduction,
+            bones: record.bones,
+            rate: record.rate,
+            total: record.total,
+          },
+        ],
       });
     } catch (err: any) {
       console.error("Bluetooth print error:", err);
