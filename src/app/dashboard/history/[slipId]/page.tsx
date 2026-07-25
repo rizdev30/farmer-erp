@@ -17,6 +17,7 @@ import {
 import Link from "next/link";
 import { useSWRCache, invalidateCache } from "@/lib/swr-cache";
 import { printViaWebBluetooth } from "@/lib/bluetooth-print";
+import BluetoothPairingModal from "@/components/BluetoothPairingModal";
 
 export default function ReceiptPage() {
   const params = useParams();
@@ -48,6 +49,7 @@ export default function ReceiptPage() {
   const [isSharing, setIsSharing] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
   const [isBtPrinting, setIsBtPrinting] = useState(false);
+  const [showBtModal, setShowBtModal] = useState(false);
   const { data: session } = useSession();
   const roles = (session?.user as any)?.roles || [];
 
@@ -659,9 +661,9 @@ export default function ReceiptPage() {
           </button>
 
           <button
-            onClick={handleBluetoothPrint}
+            onClick={() => setShowBtModal(true)}
             disabled={isSharing || isPrinting || isBtPrinting}
-            className="flex-1 flex items-center justify-center gap-2 px-3 py-3 rounded-xl
+            className="md:hidden flex-1 flex items-center justify-center gap-2 px-3 py-3 rounded-xl
               bg-blue-600 text-white text-sm font-semibold 
               hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
             title="Print directly to Bluetooth 58mm Thermal Printer"
@@ -700,6 +702,13 @@ export default function ReceiptPage() {
             {isPrinting ? "Generating..." : "Download PDF"}
           </button>
         </div>
+
+        <BluetoothPairingModal
+          isOpen={showBtModal}
+          onClose={() => setShowBtModal(false)}
+          onConfirm={handleBluetoothPrint}
+          isPrinting={isBtPrinting}
+        />
 
         {/* Make PO Button for L3/L4 users */}
         {(roles.includes("L3_PO_MAKER") || roles.includes("L4_ADMIN") || (session?.user as any)?.isSuperAdmin) && (

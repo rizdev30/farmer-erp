@@ -16,6 +16,7 @@ import {
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { printViaWebBluetooth } from "@/lib/bluetooth-print";
+import BluetoothPairingModal from "@/components/BluetoothPairingModal";
 
 // Narrow the type to the success case of the ProcurementReceipt union
 type SuccessReceipt = Extract<ProcurementReceipt, { success: true }>;
@@ -28,6 +29,7 @@ interface Props {
 export default function PurchaseSlip({ receipts, onClose }: Props) {
   const [isSharing, setIsSharing] = useState(false);
   const [isBtPrinting, setIsBtPrinting] = useState(false);
+  const [showBtModal, setShowBtModal] = useState(false);
   const { data: session } = useSession();
   const router = useRouter();
 
@@ -427,9 +429,9 @@ export default function PurchaseSlip({ receipts, onClose }: Props) {
             </button>
 
             <button
-              onClick={handleBluetoothPrint}
+              onClick={() => setShowBtModal(true)}
               disabled={isBtPrinting}
-              className="flex-1 flex items-center justify-center gap-2 px-3 py-3 rounded-xl
+              className="md:hidden flex-1 flex items-center justify-center gap-2 px-3 py-3 rounded-xl
                 bg-blue-600 text-white text-sm font-semibold 
                 hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
               title="Print directly to Bluetooth 58mm Thermal Printer"
@@ -460,6 +462,13 @@ export default function PurchaseSlip({ receipts, onClose }: Props) {
               <X size={18} />
             </button>
           </div>
+
+          <BluetoothPairingModal
+            isOpen={showBtModal}
+            onClose={() => setShowBtModal(false)}
+            onConfirm={handleBluetoothPrint}
+            isPrinting={isBtPrinting}
+          />
 
           {/* Make PO Button for L3/L4 users */}
           {canMakePO && (
