@@ -133,25 +133,25 @@ export default function ReceiptPage() {
         return;
       }
 
-      // Generate canvas using narrow cloned element representing 58mm roll width
+      // Generate canvas using narrow cloned element representing 58mm roll width with 1mm margins
       const canvas = await html2canvas(element, {
-        scale: 2.2,
+        scale: 3,
         useCORS: true,
         backgroundColor: "#ffffff",
         logging: false,
         onclone: (clonedDoc) => {
           const slip = clonedDoc.getElementById("purchase-slip");
           if (slip) {
-            slip.style.width = "52mm";
-            slip.style.minWidth = "52mm";
-            slip.style.maxWidth = "52mm";
-            slip.style.padding = "2mm 3mm";
+            slip.style.width = "56mm";
+            slip.style.minWidth = "56mm";
+            slip.style.maxWidth = "56mm";
+            slip.style.padding = "1mm";
             slip.style.margin = "0";
             slip.style.boxShadow = "none";
             slip.style.border = "none";
             slip.style.fontFamily = "monospace, Courier, monospace";
 
-            // Force black-and-white theme for thermal printer compatibility
+            // Force black-and-white theme for thermal receipt compatibility
             slip.style.color = "#000000";
             slip.style.backgroundColor = "#ffffff";
 
@@ -162,36 +162,52 @@ export default function ReceiptPage() {
               el.style.borderColor = "#000000";
             });
 
+            // Force transparent background on all inner containers so watermark is never obscured
+            const allInnerContainers = slip.querySelectorAll("div, section, p, span, table, tr, td, th");
+            allInnerContainers.forEach((el: any) => {
+              if (el !== slip) {
+                el.style.backgroundColor = "transparent";
+              }
+            });
+
+            // Hide checkmark tick for PDF export
+            const checkmarks = slip.querySelectorAll(".official-receipt-check");
+            checkmarks.forEach((cm: any) => {
+              cm.style.display = "none";
+            });
+
             // Force all border divisions to solid black
             const allBorders = slip.querySelectorAll(".border-b, .border-t, .border-l, .border-r, .border-dashed, .border-slate-200, .border-slate-100");
             allBorders.forEach((b: any) => {
               b.style.borderColor = "#000000";
             });
 
-            // Scale watermark text down and make it a soft watermark black
+            // Scale watermark text down and make it a visible soft black watermark
             const watermarks = slip.querySelectorAll("div.absolute > div");
             watermarks.forEach((wm: any) => {
-              wm.style.fontSize = "14px";
+              wm.style.fontSize = "16px";
               wm.style.color = "#000000";
-              wm.style.opacity = "0.08";
+              wm.style.opacity = "0.22";
             });
           }
         }
       });
 
-      const imgData = canvas.toDataURL("image/jpeg", 0.95);
+      const imgData = canvas.toDataURL("image/jpeg", 0.98);
       
-      // Calculate page dimensions in mm (58mm roll size width)
-      const imgWidth = 58;
+      // Calculate page dimensions in mm (58mm width with 1mm margins on sides and top/bottom)
+      const imgWidth = 56;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const pdfWidth = 58;
+      const pdfHeight = imgHeight + 2; // 1mm top + 1mm bottom margin
 
       const pdf = new jspdfModule.jsPDF({
         orientation: "portrait",
         unit: "mm",
-        format: [58, imgHeight] // Custom page height based on dynamic content length
+        format: [pdfWidth, pdfHeight]
       });
 
-      pdf.addImage(imgData, "JPEG", 0, 0, 58, imgHeight, undefined, 'FAST');
+      pdf.addImage(imgData, "JPEG", 1, 1, imgWidth, imgHeight, undefined, 'SLOW');
       pdf.save(`${fileName}.pdf`);
     } catch (err) {
       console.error("Failed to generate custom receipt PDF:", err);
@@ -324,7 +340,14 @@ export default function ReceiptPage() {
             <h2 className="text-xl font-black uppercase tracking-widest text-forest-900 print:text-black">Purchase Slip</h2>
             <p className="text-sm font-semibold text-slate-500 print:text-black mt-1">FARMER ERP PVT. LTD.</p>
             <p className={`text-[10px] font-bold mt-1 print:text-black ${record.status === "APPROVED" ? "text-emerald-600" : "text-amber-600"}`}>
-              {record.status === "APPROVED" ? "✓ Official Receipt" : "⏳ " + (record.status || "PENDING_L2").replace(/_/g, " ")}
+              {record.status === "APPROVED" ? (
+                <>
+                  <span className="official-receipt-check print:hidden">✓ </span>
+                  <span>Official Receipt</span>
+                </>
+              ) : (
+                "⏳ " + (record.status || "PENDING_L2").replace(/_/g, " ")
+              )}
             </p>
           </div>
 
@@ -483,7 +506,7 @@ export default function ReceiptPage() {
                 </div>
 
             {/* Totals */}
-            <div className="pb-3 border-b border-slate-100 print:border-black/20 space-y-1.5">
+            <div className="pb-3 border-b border-slate-100 print:border-b-0 space-y-1.5">
               <div className="flex justify-between text-xs">
                 <span className="text-slate-500 font-medium print:text-black">Total Amount</span>
                 <span className="font-bold text-slate-800 print:text-black whitespace-nowrap">
@@ -511,7 +534,7 @@ export default function ReceiptPage() {
             </div>
 
             {/* Total Payout */}
-            <div className="bg-forest-50 rounded-xl p-3 text-center border border-forest-100 print:bg-transparent print:border-black">
+            <div className="bg-forest-50 rounded-xl p-3 my-3 text-center border border-forest-100 print:bg-white print:border-black">
               <p className="text-[10px] text-forest-600 font-bold uppercase tracking-wider mb-1 print:text-black">Total Payout</p>
               <p className="text-lg sm:text-xl print:text-[14px] font-black text-forest-800 print:text-black tracking-tighter whitespace-nowrap">
                 {isL2Pending && editRate !== "" && editDeduction !== "" && editBones !== "" ? 
@@ -520,7 +543,7 @@ export default function ReceiptPage() {
               </p>
             </div>
 
-            <div className="h-px bg-slate-100 print:bg-black" />
+            <div className="h-px bg-slate-100 print:hidden" />
 
             {/* Purchase / Approved By */}
             <div className="flex justify-between pt-1 pb-3 border-b border-slate-100 print:border-black/20">
@@ -635,19 +658,111 @@ export default function ReceiptPage() {
       {/* Global Print Styles - 2-inch thermal receipt format */}
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
-          @page { size: 58mm auto; margin: 2mm 3mm; }
-          html, body { background: white !important; margin: 0 !important; padding: 0 !important; }
-          body * { visibility: hidden; }
-          #purchase-slip, #purchase-slip * { visibility: visible; }
+          @page {
+            size: 58mm auto;
+            margin: 0.5mm;
+          }
+          html, body {
+            background: #ffffff !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 58mm !important;
+            max-width: 58mm !important;
+            height: auto !important;
+            overflow: visible !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          body * {
+            visibility: hidden !important;
+          }
+          #purchase-slip, #purchase-slip * {
+            visibility: visible !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
           #purchase-slip {
             position: absolute !important;
-            left: 0 !important; top: 0 !important;
-            width: 52mm !important;
-            padding: 1mm !important;
-            margin: 0 !important;
-            background: white !important;
-            font-family: monospace, Courier !important;
-            font-size: 10px !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 57mm !important;
+            max-width: 57mm !important;
+            box-sizing: border-box !important;
+            padding: 1.5mm 0.5mm !important;
+            margin: 0 auto !important;
+            background: #ffffff !important;
+            color: #000000 !important;
+            font-family: 'Courier New', Courier, monospace !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            page-break-before: avoid !important;
+            page-break-after: avoid !important;
+          }
+          #purchase-slip {
+            background-color: #ffffff !important;
+          }
+          #purchase-slip * {
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+            word-break: break-word !important;
+            overflow: visible !important;
+            color: #000000 !important;
+            background-color: transparent !important;
+            border-color: #000000 !important;
+            font-size: 9.5pt !important;
+            line-height: 1.2 !important;
+          }
+          #purchase-slip h2 {
+            font-size: 13pt !important;
+            font-weight: 900 !important;
+            margin-bottom: 2px !important;
+          }
+          #purchase-slip .text-lg, #purchase-slip .text-xl, #purchase-slip .text-2xl {
+            font-size: 12pt !important;
+            font-weight: 900 !important;
+          }
+          #purchase-slip .text-\[10px\] {
+            font-size: 8.5pt !important;
+          }
+          #purchase-slip .mb-5, #purchase-slip .mb-4, #purchase-slip .mb-3, #purchase-slip .mb-2, #purchase-slip .mb-1.5 {
+            margin-bottom: 1.5mm !important;
+          }
+          #purchase-slip .pb-4, #purchase-slip .pb-3, #purchase-slip .pb-2, #purchase-slip .pb-1 {
+            padding-bottom: 1.5mm !important;
+          }
+          #purchase-slip .pt-6, #purchase-slip .pt-4, #purchase-slip .pt-3, #purchase-slip .pt-1 {
+            padding-top: 1.5mm !important;
+          }
+          #purchase-slip .py-6, #purchase-slip .py-4, #purchase-slip .py-3 {
+            padding-top: 1.5mm !important;
+            padding-bottom: 1.5mm !important;
+          }
+          #purchase-slip .my-3, #purchase-slip .my-2, #purchase-slip .mt-3, #purchase-slip .mt-2 {
+            margin-top: 1.5mm !important;
+            margin-bottom: 1.5mm !important;
+          }
+          #purchase-slip .px-6 {
+            padding-left: 0.5mm !important;
+            padding-right: 0.5mm !important;
+          }
+          #purchase-slip .space-y-3.5 > * + *, #purchase-slip .space-y-3 > * + *, #purchase-slip .space-y-2 > * + * {
+            margin-top: 1.5mm !important;
+          }
+          #purchase-slip .space-y-1.5 > * + * {
+            margin-top: 1px !important;
+          }
+          #purchase-slip .h-8 {
+            height: 14px !important;
+          }
+          #purchase-slip .absolute {
+            z-index: 1 !important;
+            opacity: 1 !important;
+          }
+          #purchase-slip .absolute > div {
+            font-size: 16px !important;
+            color: #000000 !important;
+            opacity: 0.22 !important;
+            font-weight: 900 !important;
           }
           .glass-card { box-shadow: none !important; border: none !important; }
           #sidebar { display: none !important; }

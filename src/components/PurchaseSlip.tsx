@@ -325,14 +325,14 @@ export default function PurchaseSlip({ receipts, onClose }: Props) {
               ))}
 
               {/* Grand Total Payout */}
-              <div className="bg-forest-50 rounded-xl p-3 mb-4 text-center border border-forest-100 print:bg-transparent print:border-black">
+              <div className="bg-forest-50 rounded-xl p-3 my-3 text-center border border-forest-100 print:bg-white print:border-black">
                 <p className="text-[10px] text-forest-600 font-bold uppercase tracking-wider mb-1 print:text-black">Total Payout</p>
                 <p className="text-lg sm:text-xl print:text-[14px] font-black text-forest-800 print:text-black tracking-tighter whitespace-nowrap">
                   ₹{(grandTotal + grandBones).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </p>
               </div>
 
-              <div className="h-px bg-slate-100 print:bg-black mb-3" />
+              <div className="h-px bg-slate-100 print:hidden mb-3" />
 
               {/* Purchase / Approved By */}
               <div className="flex justify-between mb-3 pb-3 border-b border-slate-100 print:border-black/20">
@@ -424,29 +424,109 @@ export default function PurchaseSlip({ receipts, onClose }: Props) {
         @media print {
           @page {
             size: 58mm auto;
-            margin: 2mm 3mm;
+            margin: 0.5mm;
           }
           html, body {
-            background: white !important;
+            background: #ffffff !important;
             margin: 0 !important;
             padding: 0 !important;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
+            width: 58mm !important;
+            max-width: 58mm !important;
+            height: auto !important;
+            overflow: visible !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
           body * {
-            visibility: hidden;
+            visibility: hidden !important;
           }
           #purchase-slip, #purchase-slip * {
-            visibility: visible;
+            visibility: visible !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
           }
           #purchase-slip {
             position: absolute !important;
             left: 0 !important;
             top: 0 !important;
-            width: 52mm !important;
-            padding: 1mm !important;
-            margin: 0 !important;
-            background: white !important;
+            width: 57mm !important;
+            max-width: 57mm !important;
+            box-sizing: border-box !important;
+            padding: 1.5mm 0.5mm !important;
+            margin: 0 auto !important;
+            background: #ffffff !important;
+            color: #000000 !important;
+            font-family: 'Courier New', Courier, monospace !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            page-break-before: avoid !important;
+            page-break-after: avoid !important;
+          }
+          #purchase-slip {
+            background-color: #ffffff !important;
+          }
+          #purchase-slip * {
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+            word-break: break-word !important;
+            overflow: visible !important;
+            color: #000000 !important;
+            background-color: transparent !important;
+            border-color: #000000 !important;
+            font-size: 9.5pt !important;
+            line-height: 1.2 !important;
+          }
+          #purchase-slip h2 {
+            font-size: 13pt !important;
+            font-weight: 900 !important;
+            margin-bottom: 2px !important;
+          }
+          #purchase-slip .text-lg, #purchase-slip .text-xl, #purchase-slip .text-2xl {
+            font-size: 12pt !important;
+            font-weight: 900 !important;
+          }
+          #purchase-slip .text-\[10px\] {
+            font-size: 8.5pt !important;
+          }
+          #purchase-slip .mb-5, #purchase-slip .mb-4, #purchase-slip .mb-3, #purchase-slip .mb-2, #purchase-slip .mb-1.5 {
+            margin-bottom: 1.5mm !important;
+          }
+          #purchase-slip .pb-4, #purchase-slip .pb-3, #purchase-slip .pb-2, #purchase-slip .pb-1 {
+            padding-bottom: 1.5mm !important;
+          }
+          #purchase-slip .pt-6, #purchase-slip .pt-4, #purchase-slip .pt-3, #purchase-slip .pt-1 {
+            padding-top: 1.5mm !important;
+          }
+          #purchase-slip .py-6, #purchase-slip .py-4, #purchase-slip .py-3 {
+            padding-top: 1.5mm !important;
+            padding-bottom: 1.5mm !important;
+          }
+          #purchase-slip .my-3, #purchase-slip .my-2, #purchase-slip .mt-3, #purchase-slip .mt-2 {
+            margin-top: 1.5mm !important;
+            margin-bottom: 1.5mm !important;
+          }
+          #purchase-slip .px-6 {
+            padding-left: 0.5mm !important;
+            padding-right: 0.5mm !important;
+          }
+          #purchase-slip .space-y-3.5 > * + *, #purchase-slip .space-y-3 > * + *, #purchase-slip .space-y-2 > * + * {
+            margin-top: 1.5mm !important;
+          }
+          #purchase-slip .space-y-1.5 > * + * {
+            margin-top: 1px !important;
+          }
+          #purchase-slip .h-8 {
+            height: 14px !important;
+          }
+          #purchase-slip .absolute {
+            z-index: 1 !important;
+            opacity: 1 !important;
+          }
+          #purchase-slip .absolute > div {
+            font-size: 16px !important;
+            color: #000000 !important;
+            opacity: 0.22 !important;
+            font-weight: 900 !important;
           }
           /* Hide sidebar / nav / other global elements */
           #sidebar { display: none !important; }
