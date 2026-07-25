@@ -473,20 +473,20 @@ export default function PurchaseSlip({ receipts, onClose }: Props) {
             color: #000000 !important;
             background-color: transparent !important;
             border-color: #000000 !important;
-            font-size: 9.5pt !important;
+            font-size: 10.5pt !important;
             line-height: 1.2 !important;
           }
           #purchase-slip h2 {
-            font-size: 13pt !important;
+            font-size: 13.5pt !important;
             font-weight: 900 !important;
             margin-bottom: 2px !important;
           }
           #purchase-slip .text-lg, #purchase-slip .text-xl, #purchase-slip .text-2xl {
-            font-size: 12pt !important;
+            font-size: 12.5pt !important;
             font-weight: 900 !important;
           }
           #purchase-slip .text-\[10px\] {
-            font-size: 8.5pt !important;
+            font-size: 9.5pt !important;
           }
           #purchase-slip .mb-5, #purchase-slip .mb-4, #purchase-slip .mb-3, #purchase-slip .mb-2, #purchase-slip .mb-1.5 {
             margin-bottom: 1.5mm !important;
