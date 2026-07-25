@@ -17,6 +17,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { printViaWebBluetooth } from "@/lib/bluetooth-print";
 import BluetoothPairingModal from "@/components/BluetoothPairingModal";
+import { useToast } from "@/components/Toast";
 
 // Narrow the type to the success case of the ProcurementReceipt union
 type SuccessReceipt = Extract<ProcurementReceipt, { success: true }>;
@@ -32,6 +33,14 @@ export default function PurchaseSlip({ receipts, onClose }: Props) {
   const [showBtModal, setShowBtModal] = useState(false);
   const { data: session } = useSession();
   const router = useRouter();
+
+  let addToastFn: any = null;
+  try {
+    const toastCtx = useToast();
+    addToastFn = toastCtx.addToast;
+  } catch (e) {
+    // Context fallback
+  }
 
   const userRoles = (session?.user as any)?.roles || [];
   const canMakePO = userRoles.includes("L3_PO_MAKER") || userRoles.includes("L4_ADMIN") || (session?.user as any)?.isSuperAdmin;
@@ -146,8 +155,26 @@ export default function PurchaseSlip({ receipts, onClose }: Props) {
         })),
       });
     } catch (err: any) {
+      // User cancelled pairing/chooser popup - ignore silently
+      const isCancelled =
+        err?.name === "NotFoundError" ||
+        err?.name === "AbortError" ||
+        err?.message?.includes("cancelled") ||
+        err?.message?.includes("chooser") ||
+        err?.message?.includes("User cancelled");
+
+      if (isCancelled) {
+        return;
+      }
+
       console.error("Bluetooth print error:", err);
-      alert(err.message || "Failed to print via Bluetooth. Please ensure your thermal printer is turned on and paired.");
+      if (addToastFn) {
+        addToastFn({
+          type: "error",
+          title: "Printer Connection Failed",
+          message: "Could not connect to thermal printer. Please check printer power & Bluetooth.",
+        });
+      }
     } finally {
       setIsBtPrinting(false);
     }

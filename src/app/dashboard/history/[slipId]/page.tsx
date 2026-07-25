@@ -18,11 +18,20 @@ import Link from "next/link";
 import { useSWRCache, invalidateCache } from "@/lib/swr-cache";
 import { printViaWebBluetooth } from "@/lib/bluetooth-print";
 import BluetoothPairingModal from "@/components/BluetoothPairingModal";
+import { useToast } from "@/components/Toast";
 
 export default function ReceiptPage() {
   const params = useParams();
   const router = useRouter();
   const slipId = params.slipId as string;
+
+  let addToastFn: any = null;
+  try {
+    const toastCtx = useToast();
+    addToastFn = toastCtx.addToast;
+  } catch (e) {
+    // optional fallback
+  }
 
   const {
     data: record,
@@ -260,8 +269,26 @@ export default function ReceiptPage() {
         ],
       });
     } catch (err: any) {
+      // User cancelled pairing/chooser popup - ignore silently
+      const isCancelled =
+        err?.name === "NotFoundError" ||
+        err?.name === "AbortError" ||
+        err?.message?.includes("cancelled") ||
+        err?.message?.includes("chooser") ||
+        err?.message?.includes("User cancelled");
+
+      if (isCancelled) {
+        return;
+      }
+
       console.error("Bluetooth print error:", err);
-      alert(err.message || "Failed to print via Bluetooth. Please ensure your thermal printer is turned on and paired.");
+      if (addToastFn) {
+        addToastFn({
+          type: "error",
+          title: "Printer Connection Failed",
+          message: "Could not connect to thermal printer. Please check printer power & Bluetooth.",
+        });
+      }
     } finally {
       setIsBtPrinting(false);
     }
