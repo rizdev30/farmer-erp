@@ -2,13 +2,17 @@
  * Web Bluetooth ESC/POS Thermal Receipt Printing Utility (58mm / 32 Columns)
  */
 
-interface ReceiptPrintData {
+export interface ReceiptPrintData {
   slipId: string;
   createdAt?: string | Date;
   dateStr?: string;
+  category?: string;
   farmerName: string;
   fatherName?: string;
   farmerCode?: string;
+  company?: string;
+  promoterName?: string;
+  panGst?: string;
   village?: string;
   town?: string;
   adtiyaName?: string;
@@ -19,6 +23,7 @@ interface ReceiptPrintData {
   packingUnit?: string;
   grossQuantity?: number;
   deduction?: number;
+  bones?: number;
   netQuantity?: number;
   rate?: number;
   total?: number;
@@ -45,13 +50,12 @@ function formatLine(left: string, right: string, width = 32): string {
 }
 
 /**
- * Convert text into ESC/POS Command Uint8Array
+ * Convert text into ESC/POS Command Uint8Array matching the Purchase Slip receipt layout
  */
 function buildEscPosBuffer(data: ReceiptPrintData): Uint8Array {
   const encoder = new TextEncoder();
   const parts: number[] = [];
 
-  // Helper push function
   const pushBytes = (bytes: number[]) => parts.push(...bytes);
   const pushText = (text: string) => {
     const encoded = encoder.encode(text);
@@ -66,82 +70,131 @@ function buildEscPosBuffer(data: ReceiptPrintData): Uint8Array {
   // Center align
   pushBytes([0x1b, 0x61, 0x01]);
 
-  // Bold & Double Height Title: PURCHASE SLIP
+  // Header Title
   pushBytes([0x1b, 0x45, 0x01]); // Bold ON
   pushBytes([0x1d, 0x21, 0x11]); // Double height & width
   pushText("PURCHASE SLIP\n");
 
-  // Normal size
-  pushBytes([0x1d, 0x21, 0x00]);
+  pushBytes([0x1d, 0x21, 0x00]); // Normal size
   pushText("FARMER ERP PVT. LTD.\n");
 
   const isApproved = data.status === "APPROVED";
-  pushText(isApproved ? "Official Receipt\n" : "UNOFFICIAL SLIP\n");
+  if (isApproved) {
+    pushText("Official Receipt\n");
+  } else {
+    pushText("Approval is Pending\n");
+    pushText("UNOFFICIAL SLIP\n");
+  }
   pushBytes([0x1b, 0x45, 0x00]); // Bold OFF
 
   pushText("--------------------------------\n");
 
-  // Left align for details
+  // Left align for receipt metadata
   pushBytes([0x1b, 0x61, 0x00]);
 
-  const dateVal = data.dateStr || (data.createdAt ? new Date(data.createdAt).toLocaleString("en-IN") : new Date().toLocaleString("en-IN"));
+  const dateVal = data.dateStr || (data.createdAt ? new Date(data.createdAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : new Date().toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }));
 
-  pushText(formatLine("SLIP NO.", data.slipId || "-") + "\n");
-  pushText(formatLine("DATE & TIME", dateVal) + "\n");
-  pushText(formatLine("Project Name", "Mandi") + "\n");
+  pushText(formatLine("Slip No.", data.slipId || "-") + "\n");
+  pushText(formatLine("Date & Time", dateVal) + "\n");
+  pushText(formatLine("Project Name", "—") + "\n");
+  pushText(formatLine("Mandi", data.village || data.town || "—") + "\n");
 
   pushText("--------------------------------\n");
 
+  // Trader vs Farmer Details
   pushBytes([0x1b, 0x45, 0x01]);
-  pushText("FARMER DETAILS\n");
-  pushBytes([0x1b, 0x45, 0x00]);
-
-  if (data.farmerCode) pushText(formatLine("Farmer Code", data.farmerCode) + "\n");
-  pushText(formatLine("Name", data.farmerName || "-") + "\n");
-  if (data.fatherName) pushText(formatLine("Father Name", data.fatherName) + "\n");
-  if (data.village || data.town) pushText(formatLine("Address", data.village || data.town || "-") + "\n");
-  if (data.adtiyaName) pushText(formatLine("Adtiya Name", data.adtiyaName) + "\n");
+  if (data.category === "TRADER") {
+    pushText("TRADER DETAILS\n");
+    pushBytes([0x1b, 0x45, 0x00]);
+    pushText(formatLine("Trader Code", data.farmerCode || "N/A") + "\n");
+    pushText(formatLine("Name", data.farmerName || "-") + "\n");
+    if (data.company) pushText(formatLine("Company", data.company) + "\n");
+    pushText(formatLine("Promoter Name", data.promoterName || data.farmerName || "-") + "\n");
+    pushText(formatLine("Address", data.village || data.town || "N/A") + "\n");
+    if (data.panGst) pushText(formatLine("PAN/GST", data.panGst) + "\n");
+  } else {
+    pushText("FARMER DETAILS\n");
+    pushBytes([0x1b, 0x45, 0x00]);
+    pushText(formatLine("Farmer Code", data.farmerCode || "N/A") + "\n");
+    pushText(formatLine("Name", data.farmerName || "-") + "\n");
+    pushText(formatLine("Father Name", data.fatherName || "N/A") + "\n");
+    pushText(formatLine("Address", data.village || data.town || "N/A") + "\n");
+  }
 
   pushText("--------------------------------\n");
 
+  // Additional Info
+  pushText(formatLine("Adtiya Name", data.adtiyaName || "—") + "\n");
+  pushText(formatLine("Lot No.", data.lotNo || "—") + "\n");
+
+  pushText("--------------------------------\n");
+
+  // Transaction Details
   pushBytes([0x1b, 0x45, 0x01]);
   pushText("TRANSACTION DETAILS\n");
   pushBytes([0x1b, 0x45, 0x00]);
 
   if (data.crop) pushText(formatLine("Crop", data.crop) + "\n");
-  if (data.variety) pushText(formatLine("Variety", data.variety) + "\n");
-  if (data.bags) pushText(formatLine("No. of Bags", String(data.bags)) + "\n");
+  if (data.variety) pushText(formatLine("Variety", data.variety || "—") + "\n");
+  if (data.bags !== undefined) pushText(formatLine("No. of Bags", Number(data.bags).toLocaleString("en-IN")) + "\n");
   if (data.packingUnit) pushText(formatLine("Packing Unit", data.packingUnit) + "\n");
-  if (data.netQuantity) pushText(formatLine("Weight Qtl.", Number(data.netQuantity).toFixed(2)) + "\n");
-  if (data.rate) pushText(formatLine("RATE/Qtl.", Number(data.rate).toLocaleString("en-IN", { minimumFractionDigits: 2 })) + "\n");
+  
+  const gross = data.grossQuantity ?? data.netQuantity ?? 0;
+  pushText(formatLine("Weight Qtl.", Number(gross).toLocaleString("en-IN", { minimumFractionDigits: 2 })) + "\n");
 
-  const totalVal = data.total ?? 0;
-  pushText(formatLine("Total Amount", Number(totalVal).toLocaleString("en-IN", { minimumFractionDigits: 2 })) + "\n");
+  const rateVal = data.rate ?? 0;
+  pushText(formatLine("RATE/Qtl.", Number(rateVal).toLocaleString("en-IN", { minimumFractionDigits: 2 })) + "\n");
+
+  const dedVal = data.deduction ?? 0;
+  pushText(formatLine("Deduction/Qtl", `${dedVal} kg`) + "\n");
+
+  const bonesVal = data.bones ?? 0;
+  pushText(formatLine("Bones/Qtl", Number(bonesVal).toLocaleString("en-IN", { minimumFractionDigits: 2 })) + "\n");
+
+  // Math Subtotals
+  const totalAmount = gross * rateVal;
+  const totalBones = gross * bonesVal;
+  const totalDeduction = ((gross * dedVal) / 100) * rateVal;
+
+  pushText("--------------------------------\n");
+  pushText(formatLine("Total Amount", Number(totalAmount).toLocaleString("en-IN", { minimumFractionDigits: 2 })) + "\n");
+  pushText(formatLine("Total Bones", Number(totalBones).toLocaleString("en-IN", { minimumFractionDigits: 2 })) + "\n");
+  pushText(formatLine("Total Deduction", `- ${Number(totalDeduction).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`) + "\n");
 
   pushText("================================\n");
 
-  // Center align & Bold for Total Payout
-  pushBytes([0x1b, 0x61, 0x01]);
-  pushBytes([0x1b, 0x45, 0x01]);
+  // Grand Total Payout
+  const grandTotal = data.total !== undefined ? data.total : (totalAmount + totalBones - totalDeduction);
+
+  pushBytes([0x1b, 0x61, 0x01]); // Center align
+  pushBytes([0x1b, 0x45, 0x01]); // Bold
   pushText("TOTAL PAYOUT\n");
-  pushBytes([0x1d, 0x21, 0x11]); // Double size
-  pushText(`Rs. ${Number(totalVal).toLocaleString("en-IN", { minimumFractionDigits: 2 })}\n`);
-  pushBytes([0x1d, 0x21, 0x00]);
+  pushBytes([0x1d, 0x21, 0x11]); // Double height & width
+  pushText(`Rs. ${Number(grandTotal).toLocaleString("en-IN", { minimumFractionDigits: 2 })}\n`);
+  pushBytes([0x1d, 0x21, 0x00]); // Reset size
   pushBytes([0x1b, 0x45, 0x00]);
 
   pushText("================================\n");
 
-  pushBytes([0x1b, 0x61, 0x00]);
-  const agentStr = data.agentName || "Admin";
-  const approverStr = data.l3ApproverName || data.l2ApproverName || "Rishabh Dwivedi";
+  pushBytes([0x1b, 0x61, 0x00]); // Left align
+  const agentStr = data.agentName || "Agent";
+  const approverStr = data.l3ApproverName || data.l2ApproverName || (isApproved ? "Approved" : "Pending");
 
   pushText(formatLine("Purchase by", "Approved by") + "\n");
   pushBytes([0x1b, 0x45, 0x01]);
   pushText(formatLine(agentStr, approverStr) + "\n");
   pushBytes([0x1b, 0x45, 0x00]);
 
-  pushText("\n\nFarmer Signature\n\n");
+  pushText("\n" + (data.category === "TRADER" ? "Trader Signature" : "Farmer Signature") + "\n\n");
   pushText("--------------------------------\n");
+
+  if (!isApproved) {
+    pushText("* This slip is going for approval.\n  This is not an official receipt.\n");
+    pushText("--------------------------------\n");
+  }
+
+  const printedOn = new Date().toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
+  pushText(`Printed on: ${printedOn}\n`);
 
   // Feed 4 lines and cut paper
   pushBytes([0x0a, 0x0a, 0x0a, 0x0a]);
@@ -151,7 +204,7 @@ function buildEscPosBuffer(data: ReceiptPrintData): Uint8Array {
 }
 
 /**
- * Connect to Web Bluetooth Printer & Print ESC/POS Buffer
+ * Connect to Web Bluetooth Thermal Printer & Print ESC/POS Buffer
  */
 export async function printViaWebBluetooth(data: ReceiptPrintData): Promise<boolean> {
   if (typeof window === "undefined" || !("bluetooth" in navigator)) {
@@ -163,7 +216,6 @@ export async function printViaWebBluetooth(data: ReceiptPrintData): Promise<bool
   let characteristic = cachedCharacteristic;
 
   if (!characteristic || !characteristic.service?.device?.gatt?.connected) {
-    // Request Bluetooth Device (Service UUIDs common to thermal printers)
     const device = await (navigator as any).bluetooth.requestDevice({
       acceptAllDevices: true,
       optionalServices: [
@@ -198,7 +250,7 @@ export async function printViaWebBluetooth(data: ReceiptPrintData): Promise<bool
     characteristic = writeChar;
   }
 
-  // Send data in chunks of 512 bytes for reliable Bluetooth transmission
+  // Send data in chunks of 512 bytes
   const chunkSize = 512;
   for (let i = 0; i < buffer.length; i += chunkSize) {
     const chunk = buffer.slice(i, i + chunkSize);
