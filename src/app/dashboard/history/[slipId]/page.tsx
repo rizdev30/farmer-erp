@@ -47,6 +47,7 @@ export default function ReceiptPage() {
 
   const [isSharing, setIsSharing] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [isBtPrinting, setIsBtPrinting] = useState(false);
   const { data: session } = useSession();
   const roles = (session?.user as any)?.roles || [];
 
@@ -219,8 +220,6 @@ export default function ReceiptPage() {
       document.title = originalTitle;
     }
   }
-
-  const [isBtPrinting, setIsBtPrinting] = useState(false);
 
   async function handleBluetoothPrint() {
     if (!record) return;

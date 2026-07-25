@@ -27,6 +27,7 @@ interface Props {
 
 export default function PurchaseSlip({ receipts, onClose }: Props) {
   const [isSharing, setIsSharing] = useState(false);
+  const [isBtPrinting, setIsBtPrinting] = useState(false);
   const { data: session } = useSession();
   const router = useRouter();
 
@@ -110,8 +111,6 @@ export default function PurchaseSlip({ receipts, onClose }: Props) {
       setIsSharing(false);
     }
   }
-
-  const [isBtPrinting, setIsBtPrinting] = useState(false);
 
   async function handleBluetoothPrint() {
     setIsBtPrinting(true);
