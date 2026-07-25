@@ -142,10 +142,10 @@ export default function ReceiptPage() {
         onclone: (clonedDoc) => {
           const slip = clonedDoc.getElementById("purchase-slip");
           if (slip) {
-            slip.style.width = "56mm";
-            slip.style.minWidth = "56mm";
-            slip.style.maxWidth = "56mm";
-            slip.style.padding = "1mm";
+            slip.style.width = "57mm";
+            slip.style.minWidth = "57mm";
+            slip.style.maxWidth = "57mm";
+            slip.style.padding = "0.5mm";
             slip.style.margin = "0";
             slip.style.boxShadow = "none";
             slip.style.border = "none";
