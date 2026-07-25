@@ -1,6 +1,6 @@
 "use client";
 
-import { Bluetooth, Printer, X, ShieldCheck, Info } from "lucide-react";
+import { Bluetooth, Printer, X, ShieldCheck, Globe, CheckCircle2 } from "lucide-react";
 
 interface Props {
   isOpen: boolean;
@@ -41,27 +41,43 @@ export default function BluetoothPairingModal({ isOpen, onClose, onConfirm, isPr
         <h3 className="text-lg font-bold text-slate-900 mb-1">
           Bluetooth Printer Connection
         </h3>
-        <p className="text-xs text-forest-700 font-semibold mb-3 flex items-center justify-center gap-1">
+        <p className="text-xs text-forest-700 font-semibold mb-4 flex items-center justify-center gap-1">
           <ShieldCheck size={14} className="text-forest-600" />
-          Farmer ERP Request
+          Farmer ERP Secure Pair
         </p>
 
+        {/* Instructions Card */}
         <div className="bg-slate-50 rounded-2xl p-3.5 mb-3 border border-slate-100 text-left space-y-2">
           <p className="text-xs text-slate-700 font-medium leading-relaxed">
-            Farmer ERP wants to pair with your <strong>58mm Bluetooth Thermal Printer</strong> for instant wireless receipt printing.
+            Pair with your <strong>58mm Bluetooth Thermal Printer</strong> for instant receipt printing.
           </p>
-          <ul className="text-[11px] text-slate-500 space-y-1 list-disc list-inside pt-1">
-            <li>Ensure printer is turned <strong>ON</strong></li>
-            <li>Enable Bluetooth on your mobile phone</li>
-          </ul>
+          <div className="space-y-1 pt-1">
+            <div className="flex items-center gap-1.5 text-[11px] text-slate-600">
+              <CheckCircle2 size={13} className="text-forest-600 shrink-0" />
+              <span>Ensure thermal printer is turned <strong>ON</strong></span>
+            </div>
+            <div className="flex items-center gap-1.5 text-[11px] text-slate-600">
+              <CheckCircle2 size={13} className="text-forest-600 shrink-0" />
+              <span>Turn on <strong>Bluetooth</strong> on your phone</span>
+            </div>
+          </div>
         </div>
 
-        {/* Browser Notice */}
-        <div className="bg-amber-50/90 rounded-2xl p-3 mb-5 border border-amber-200/80 text-left flex items-start gap-2">
-          <Info size={16} className="text-amber-600 shrink-0 mt-0.5" />
-          <p className="text-[11px] text-amber-900 leading-tight">
-            <strong className="font-semibold">Browser Support:</strong> Direct Bluetooth printing works on <strong>Chrome & Edge</strong>. If using another browser, please switch to Chrome.
-          </p>
+        {/* Premium Browser Notice Card */}
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50/80 rounded-2xl p-3.5 mb-5 border border-blue-100 text-left relative overflow-hidden">
+          <div className="flex items-start gap-2.5">
+            <div className="w-7 h-7 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs mt-0.5">
+              <Globe size={15} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold text-blue-950 flex items-center gap-1">
+                Chrome & Edge Only
+              </p>
+              <p className="text-[11px] text-blue-800/90 mt-0.5 leading-snug font-medium">
+                Web Bluetooth is only supported on <strong>Google Chrome</strong> and <strong>Microsoft Edge</strong>. If you are using another browser, please switch to Chrome.
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Actions */}
