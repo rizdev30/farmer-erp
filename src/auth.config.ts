@@ -1,5 +1,4 @@
 import type { NextAuthConfig } from "next-auth";
-import prisma from "@/lib/prisma";
 
 export const authConfig = {
   pages: {
@@ -18,30 +17,6 @@ export const authConfig = {
         token.assignedL1Users = user.assignedL1Users || [];
         token.assignedL2Users = user.assignedL2Users || [];
         token.assignedL3Users = user.assignedL3Users || [];
-      } else if (token.id && token.sessionId) {
-        // Validate session hasn't been replaced by a new device login
-        try {
-          const dbUser = await prisma.user.findUnique({
-            where: { id: token.id as string },
-            select: { activeSessions: true, active: true }
-          });
-          
-          if (!dbUser || !dbUser.active || !dbUser.activeSessions.includes(token.sessionId as string)) {
-            // This session was invalidated — mark token so the session callback
-            // returns null, causing the client to see "unauthenticated" status
-            token.invalidated = true;
-            // Clear all user data from the token
-            token.id = undefined;
-            token.name = undefined;
-            token.email = undefined;
-            token.sessionId = undefined;
-            token.roles = undefined;
-            token.isSuperAdmin = undefined;
-            return token;
-          }
-        } catch (err) {
-          console.error("Session validation error:", err);
-        }
       }
       return token;
     },

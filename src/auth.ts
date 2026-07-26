@@ -10,6 +10,37 @@ import { headers } from "next/headers";
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   session: { strategy: "jwt" },
+  callbacks: {
+    ...authConfig.callbacks,
+    async jwt(params) {
+      let token = (await authConfig.callbacks?.jwt?.(params)) || params.token;
+      if (!params.user && token.id && token.sessionId) {
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.id as string },
+            select: { activeSessions: true, active: true },
+          });
+
+          if (
+            !dbUser ||
+            !dbUser.active ||
+            !dbUser.activeSessions.includes(token.sessionId as string)
+          ) {
+            token.invalidated = true;
+            token.id = undefined;
+            token.name = undefined;
+            token.email = undefined;
+            token.sessionId = undefined;
+            token.roles = undefined;
+            token.isSuperAdmin = undefined;
+          }
+        } catch (err) {
+          console.error("Session validation error:", err);
+        }
+      }
+      return token;
+    },
+  },
   providers: [
     Credentials({
       name: "credentials",
