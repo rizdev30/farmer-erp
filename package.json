@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev -p 3005",
     "build": "prisma generate && next build",
-    "build:cf": "opennextjs-cloudflare build",
+    "build:cf": "opennextjs-cloudflare build && node -e \"require('fs').copyFileSync('.open-next/worker.js', '.open-next/assets/_worker.js')\"",
     "preview:cf": "opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare deploy",
     "start": "next start -p 3005",
