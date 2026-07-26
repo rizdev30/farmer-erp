@@ -10,7 +10,8 @@
     "deploy": "opennextjs-cloudflare deploy",
     "start": "next start -p 3005",
     "lint": "next lint",
-    "seed": "node prisma/seed.js"
+    "seed": "node prisma/seed.js",
+    "postinstall": "node -e \"const fs=require('fs');const p='node_modules/pg-cloudflare/package.json';if(fs.existsSync(p)){const d=JSON.parse(fs.readFileSync(p));d.files=['dist','src','esm'];d.exports={'.':{require:'./dist/index.js',import:'./esm/index.mjs',default:'./dist/index.js'},'./package.json':'./package.json'};fs.writeFileSync(p,JSON.stringify(d,null,2));}\""
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2",
