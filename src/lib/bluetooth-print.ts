@@ -48,14 +48,35 @@ export function isBluetoothConnected(): boolean {
 }
 
 /**
+ * Clean string to pure 1-byte ASCII for thermal printer hardware compatibility.
+ * Replaces Unicode symbols like em-dash, Rupee symbol, emojis to prevent printer buffer glitches.
+ */
+function cleanAscii(str: any): string {
+  if (str === null || str === undefined) return "";
+  return String(str)
+    .replace(/—|–/g, "-")          // Replace em-dash and en-dash with standard hyphen
+    .replace(/₹/g, "Rs. ")          // Replace Rupee symbol with Rs.
+    .replace(/⏳/g, "")             // Remove hourglass emoji
+    .replace(/[^\x00-\x7F]/g, "");    // Strip any remaining non-ASCII Unicode characters
+}
+
+/**
  * Format two strings into a 32-column fixed-width line for 58mm paper (32 characters per line)
  */
 function formatLine(left: string, right: string, width = 32): string {
-  const leftStr = String(left || "");
-  const rightStr = String(right || "");
-  const spaceLength = width - leftStr.length - rightStr.length;
-  if (spaceLength > 0) {
+  const leftStr = cleanAscii(left);
+  const rightStr = cleanAscii(right);
+  const totalLength = leftStr.length + rightStr.length;
+
+  if (totalLength <= width) {
+    const spaceLength = width - totalLength;
     return leftStr + " ".repeat(spaceLength) + rightStr;
+  }
+
+  // If combined length exceeds 32, trim right string safely to fit
+  const availableRight = width - leftStr.length - 1;
+  if (availableRight > 3) {
+    return leftStr + " " + rightStr.substring(0, availableRight);
   }
   return (leftStr + " " + rightStr).substring(0, width);
 }
@@ -76,16 +97,52 @@ function buildEscPosBuffer(data: ReceiptPrintData): Uint8Array {
 
   const pushBytes = (bytes: number[]) => parts.push(...bytes);
   const pushText = (text: string) => {
-    const encoded = encoder.encode(text);
+    const sanitized = cleanAscii(text);
+    const encoded = encoder.encode(sanitized);
     for (let i = 0; i < encoded.length; i++) {
       parts.push(encoded[i]);
     }
   };
 
+  // Helper to print a line with regular label and bold value matching Direct Print typography
+  const pushLine = (left: string, right: string, boldValue = true) => {
+    const leftStr = cleanAscii(left);
+    const rightStr = cleanAscii(right);
+    const totalLength = leftStr.length + rightStr.length;
+    
+    let spacesCount = 1;
+    let finalRight = rightStr;
+
+    if (totalLength <= 32) {
+      spacesCount = 32 - totalLength;
+    } else {
+      const availRight = 32 - leftStr.length - 1;
+      if (availRight > 3) {
+        finalRight = rightStr.substring(0, availRight);
+      } else {
+        finalRight = rightStr.substring(0, 32 - leftStr.length);
+      }
+      spacesCount = 1;
+    }
+
+    // Label: Regular font weight (ESC E 0)
+    pushBytes([0x1b, 0x45, 0x00]);
+    pushText(leftStr + " ".repeat(spacesCount));
+    
+    // Value: Bold font weight (ESC E 1) matching Direct Print font hierarchy
+    if (boldValue) {
+      pushBytes([0x1b, 0x45, 0x01]);
+    } else {
+      pushBytes([0x1b, 0x45, 0x00]);
+    }
+    pushText(finalRight + "\n");
+    pushBytes([0x1b, 0x45, 0x00]); // Reset Bold OFF
+  };
+
   // ESC @: Initialize printer
   pushBytes([0x1b, 0x40]);
 
-  // ESC M 0: Select Font A (Standard 12x24 font matching ~10.5pt text)
+  // ESC M 0: Select Font A (Standard 12x24 Monospaced Font matching Courier)
   pushBytes([0x1b, 0x4d, 0x00]);
 
   // ESC 3 30: Set line spacing (30 dots ~ 1.2 line height)
@@ -99,7 +156,7 @@ function buildEscPosBuffer(data: ReceiptPrintData): Uint8Array {
   pushBytes([0x1d, 0x21, 0x11]); // Double height & width
   pushText("PURCHASE SLIP\n");
 
-  pushBytes([0x1d, 0x21, 0x00]); // Normal size (10.5pt equivalent)
+  pushBytes([0x1d, 0x21, 0x00]); // Normal size
   pushText("FARMER ERP PVT. LTD.\n");
 
   const isApproved = data.status === "APPROVED";
@@ -116,12 +173,25 @@ function buildEscPosBuffer(data: ReceiptPrintData): Uint8Array {
   // Left align for receipt metadata
   pushBytes([0x1b, 0x61, 0x00]);
 
-  const dateVal = data.dateStr || (data.createdAt ? new Date(data.createdAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : new Date().toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }));
+  let dateVal = "";
+  if (data.createdAt) {
+    const d = new Date(data.createdAt);
+    const datePart = d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+    const timePart = d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+    dateVal = `${datePart} ${timePart}`;
+  } else if (data.dateStr) {
+    dateVal = data.dateStr;
+  } else {
+    const d = new Date();
+    const datePart = d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+    const timePart = d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+    dateVal = `${datePart} ${timePart}`;
+  }
 
-  pushText(formatLine("Slip No.", data.slipId || "-") + "\n");
-  pushText(formatLine("Date & Time", dateVal) + "\n");
-  pushText(formatLine("Project Name", "—") + "\n");
-  pushText(formatLine("Mandi", data.village || data.town || "—") + "\n");
+  pushLine("Slip No.", data.slipId || "-", true);
+  pushLine("Date & Time", dateVal, true);
+  pushLine("Project Name", "-", false);
+  pushLine("Mandi", data.village || data.town || "-", true);
 
   pushText("--------------------------------\n");
 
@@ -130,26 +200,26 @@ function buildEscPosBuffer(data: ReceiptPrintData): Uint8Array {
   if (data.category === "TRADER") {
     pushText("TRADER DETAILS\n");
     pushBytes([0x1b, 0x45, 0x00]); // Bold OFF
-    pushText(formatLine("Trader Code", data.farmerCode || "N/A") + "\n");
-    pushText(formatLine("Name", data.farmerName || "-") + "\n");
-    if (data.company) pushText(formatLine("Company", data.company) + "\n");
-    pushText(formatLine("Promoter Name", data.promoterName || data.farmerName || "-") + "\n");
-    pushText(formatLine("Address", data.village || data.town || "N/A") + "\n");
-    if (data.panGst) pushText(formatLine("PAN/GST", data.panGst) + "\n");
+    pushLine("Trader Code", data.farmerCode || "N/A", true);
+    pushLine("Name", data.farmerName || "-", true);
+    if (data.company) pushLine("Company", data.company, true);
+    pushLine("Promoter Name", data.promoterName || data.farmerName || "-", true);
+    pushLine("Address", data.village || data.town || "N/A", true);
+    if (data.panGst) pushLine("PAN/GST", data.panGst, true);
   } else {
     pushText("FARMER DETAILS\n");
     pushBytes([0x1b, 0x45, 0x00]); // Bold OFF
-    pushText(formatLine("Farmer Code", data.farmerCode || "N/A") + "\n");
-    pushText(formatLine("Name", data.farmerName || "-") + "\n");
-    pushText(formatLine("Father Name", data.fatherName || "N/A") + "\n");
-    pushText(formatLine("Address", data.village || data.town || "N/A") + "\n");
+    pushLine("Farmer Code", data.farmerCode || "N/A", true);
+    pushLine("Name", data.farmerName || "-", true);
+    pushLine("Father Name", data.fatherName || "N/A", true);
+    pushLine("Address", data.village || data.town || "N/A", true);
   }
 
   pushText("--------------------------------\n");
 
   // Additional Details
-  pushText(formatLine("Adtiya Name", data.adtiyaName || "—") + "\n");
-  pushText(formatLine("Lot No.", data.lotNo || "—") + "\n");
+  pushLine("Adtiya Name", data.adtiyaName || "-", true);
+  pushLine("Lot No.", data.lotNo || "-", true);
 
   pushText("--------------------------------\n");
 
@@ -160,29 +230,29 @@ function buildEscPosBuffer(data: ReceiptPrintData): Uint8Array {
   const items = data.items && data.items.length > 0 ? data.items : [];
 
   items.forEach((item, index) => {
-    pushBytes([0x1b, 0x45, 0x01]);
+    pushBytes([0x1b, 0x45, 0x01]); // Bold ON for section title
     const sectionTitle = items.length > 1 ? `TRANSACTION ${index + 1}` : "TRANSACTION DETAILS";
     pushText(`${sectionTitle}\n`);
-    pushBytes([0x1b, 0x45, 0x00]);
+    pushBytes([0x1b, 0x45, 0x00]); // Bold OFF
 
-    if (item.crop) pushText(formatLine("Crop", item.crop) + "\n");
-    pushText(formatLine("Variety", item.variety || "—") + "\n");
-    pushText(formatLine("No. of Bags", Number(item.bags || 0).toLocaleString("en-IN")) + "\n");
+    if (item.crop) pushLine("Crop", item.crop, true);
+    pushLine("Variety", item.variety || "-", true);
+    pushLine("No. of Bags", Number(item.bags || 0).toLocaleString("en-IN"), true);
     
-    const packingStr = item.packingSize ? `${item.packingSize} kg` : (item.packingUnit || "—");
-    pushText(formatLine("Packing Unit", packingStr) + "\n");
+    const packingStr = item.packingSize ? `${item.packingSize} kg` : (item.packingUnit || "-");
+    pushLine("Packing Unit", packingStr, true);
 
     const gross = item.grossQuantity || 0;
-    pushText(formatLine("Weight Qtl.", fmtCurrency(gross)) + "\n");
+    pushLine("Weight Qtl.", fmtCurrency(gross), true);
 
     const rateVal = item.rate || 0;
-    pushText(formatLine("RATE/Qtl.", fmtCurrency(rateVal)) + "\n");
+    pushLine("RATE/Qtl.", fmtCurrency(rateVal), true);
 
     const dedVal = item.deduction || 0;
-    pushText(formatLine("Deduction/Qtl", `${dedVal} kg`) + "\n");
+    pushLine("Deduction/Qtl (in kg)", String(dedVal), true);
 
     const bonesVal = item.bones || 0;
-    pushText(formatLine("Bones/Qtl", fmtCurrency(bonesVal)) + "\n");
+    pushLine("Bones/Qtl", fmtCurrency(bonesVal), true);
 
     // Math Subtotals per Item
     const deductionWeightQtl = (gross * dedVal) / 100;
@@ -195,9 +265,9 @@ function buildEscPosBuffer(data: ReceiptPrintData): Uint8Array {
     grandBones += bonesAmt;
 
     pushText(" - - - - - - - - - - - - - - - -\n");
-    pushText(formatLine("Total Amount", fmtCurrency(gross * rateVal)) + "\n");
-    pushText(formatLine("Total Bones", fmtCurrency(bonesAmt)) + "\n");
-    pushText(formatLine("Total Deduction", `- ${fmtCurrency(dedAmt)}`) + "\n");
+    pushLine("Total Amount", fmtCurrency(gross * rateVal), true);
+    pushLine("Total Bones", fmtCurrency(bonesAmt), true);
+    pushLine("Total Deduction", `- ${fmtCurrency(dedAmt)}`, true);
     pushText("--------------------------------\n");
   });
 
@@ -205,22 +275,22 @@ function buildEscPosBuffer(data: ReceiptPrintData): Uint8Array {
   const totalPayout = grandTotal + grandBones;
 
   pushBytes([0x1b, 0x61, 0x01]); // Center align
-  pushBytes([0x1b, 0x45, 0x01]); // Bold
+  pushBytes([0x1b, 0x45, 0x01]); // Bold ON
   pushText("TOTAL PAYOUT\n");
   pushBytes([0x1d, 0x21, 0x11]); // Double height & width (12.5pt bold equivalent)
   pushText(`Rs. ${fmtCurrency(totalPayout)}\n`);
   pushBytes([0x1d, 0x21, 0x00]); // Reset size
-  pushBytes([0x1b, 0x45, 0x00]);
+  pushBytes([0x1b, 0x45, 0x00]); // Bold OFF
 
   pushText("================================\n");
 
   pushBytes([0x1b, 0x61, 0x00]); // Left align
-  const agentStr = data.agentName || "Agent";
+  const agentStr = data.agentName || "Admin";
   const approverStr = data.l3ApproverName || data.l2ApproverName || (isApproved ? "Approved" : "Pending");
 
-  pushText(formatLine("Purchase by", "Approved by") + "\n");
-  pushBytes([0x1b, 0x45, 0x01]);
-  pushText(formatLine(agentStr, approverStr) + "\n");
+  pushLine("Purchase by", "Approved by", false);
+  pushBytes([0x1b, 0x45, 0x01]); // Bold ON for signatory names
+  pushLine(agentStr, approverStr, true);
   pushBytes([0x1b, 0x45, 0x00]);
 
   pushText("\n" + (data.category === "TRADER" ? "Trader Signature" : "Farmer Signature") + "\n\n");
