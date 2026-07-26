@@ -1,0 +1,4 @@
+name = "farmer-erp"
+pages_build_output_dir = ".open-next/assets"
+compatibility_date = "2026-01-01"
+compatibility_flags = ["nodejs_compat"]
