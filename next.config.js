@@ -1,5 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  serverExternalPackages: ["cloudflare:sockets", "cloudflare:workers", "pg", "pg-cloudflare"],
+  outputFileTracingIncludes: {
+    "**/*": ["./node_modules/pg-cloudflare/**/*"],
+  },
   async headers() {
     return [
       {
